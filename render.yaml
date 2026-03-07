@@ -1,0 +1,13 @@
+services:
+  - type: web
+    name: tuscarora-reservations
+    runtime: node
+    buildCommand: npm install
+    startCommand: node server.js
+    envVars:
+      - key: RENDER_DISK_PATH
+        value: /data
+    disk:
+      name: tuscarora-data
+      mountPath: /data
+      sizeGB: 1

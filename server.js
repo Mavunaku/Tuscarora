@@ -7,10 +7,16 @@ const path = require('path');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
-const DB_PATH = path.join(__dirname, 'reservations.db');
+
+// Use persistent disk path on Render, or local path for development
+const DB_DIR = process.env.RENDER_DISK_PATH || __dirname;
+const DB_PATH = path.join(DB_DIR, 'reservations.db');
 
 app.use(cors());
 app.use(bodyParser.json());
+
+// Serve static files (index.html, etc.) from the project directory
+app.use(express.static(__dirname));
 
 const toStatus = (val) => {
     if (val === true || val === "YES" || val === 1) return "GUEST";
