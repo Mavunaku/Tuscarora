@@ -6,15 +6,24 @@ const LucideIcon = ({ name, className = "" }) => {
 
   useEffect(() => {
     if (typeof lucide !== 'undefined' && iconRef.current) {
-      lucide.createIcons({
-        attrs: { class: className },
-        nameAttr: 'data-lucide',
-        icons: { [name]: lucide.icons[name] }
-      });
+      // Try to find the icon: check the name as-is, then try PascalCase
+      const pascalName = name.split('-').map(s => s.charAt(0).toUpperCase() + s.slice(1)).join('');
+      const iconData = lucide.icons[name] || lucide.icons[pascalName];
+
+      if (iconData) {
+        lucide.createIcons({
+          attrs: { class: className },
+          nameAttr: 'data-lucide',
+          icons: { [name]: iconData }
+        });
+      } else {
+        // Fallback: just try a generic createIcons if specific data isn't found
+        lucide.createIcons();
+      }
     }
   }, [name, className]);
 
-  return <i ref={iconRef} data-lucide={name} className={className}></i>;
+  return <i ref={iconRef} data-lucide={name} className={className} style={{ display: 'inline-block' }}></i>;
 };
 
 const CalendarIcon = (props) => <LucideIcon name="calendar" {...props} />;
@@ -69,7 +78,17 @@ const MEAL_TIMES = {
   lunch: '12:30 PM',
   barSupper: '6:00 PM'
 };
-
+const IS_MEAL_AVAILABLE = (dateStr, mealType) => {
+  const date = new Date(dateStr + 'T00:00:00');
+  const dayOfWeek = date.getDay();
+  // Sunday: Breakfast ONLY
+  if (dayOfWeek === 0 && (mealType === 'lunch' || mealType === 'barSupper')) return false;
+  // Monday: No Meal Service
+  if (dayOfWeek === 1) return false;
+  // Tuesday: Bar Supper ONLY
+  if (dayOfWeek === 2 && (mealType === 'breakfast' || mealType === 'lunch')) return false;
+  return true;
+};
 
 // Confirmation Modal Component
 const ConfirmModal = ({ isOpen, message, onConfirm, onCancel }) => {
@@ -120,44 +139,43 @@ const ExportModal = ({ isOpen, onClose, data, filename }) => {
   };
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" onClick={onClose}>
-      <div className="bg-white rounded-lg shadow-xl p-6 w-full max-w-2xl mx-4" onClick={(e) => e.stopPropagation()}>
-        <div className="flex justify-between items-center mb-4">
-          <h3 className="text-lg font-semibold text-stone-900">Export Bookings</h3>
-          <button onClick={onClose} className="text-stone-400 hover:text-stone-600">
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-            </svg>
+    <div className="fixed inset-0 bg-stone-900/40 backdrop-blur-sm flex items-center justify-center z-[100] p-4 animate-in fade-in duration-300" onClick={onClose}>
+      <div className="bg-white rounded-[3rem] shadow-2xl p-8 w-full max-w-2xl mx-auto border border-stone-100 animate-in zoom-in-95 duration-300" onClick={(e) => e.stopPropagation()}>
+        <div className="flex justify-between items-start mb-6">
+          <div>
+            <h3 className="text-3xl font-light text-stone-900 tracking-tight">Data Export</h3>
+            <p className="text-stone-500 text-sm mt-1">Review and download the club's reservation records.</p>
+          </div>
+          <button onClick={onClose} className="p-3 hover:bg-stone-50 rounded-2xl text-stone-400 hover:text-stone-900 transition-all">
+            <LucideIcon name="x" className="w-6 h-6" />
           </button>
         </div>
 
-        <p className="text-sm text-stone-600 mb-4">
-          Below is your booking data in CSV format. You can copy it to your clipboard or try downloading it as a file.
-        </p>
+        <div className="relative mb-6">
+          <div className="absolute top-4 right-4 flex gap-2">
+            <div className="bg-emerald-100 text-emerald-800 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest border border-emerald-200">CSV Mode</div>
+          </div>
+          <textarea
+            readOnly
+            value={data}
+            className="w-full h-80 p-6 bg-stone-50 border border-stone-200 rounded-[2rem] font-mono text-[10px] leading-relaxed focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-500 transition-all outline-none"
+          />
+        </div>
 
-        <textarea
-          readOnly
-          value={data}
-          className="w-full h-64 p-3 bg-stone-50 border border-stone-200 rounded-lg font-mono text-xs mb-4 focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
-        />
-
-        <div className="flex gap-3 justify-end">
+        <div className="flex flex-col sm:flex-row gap-4">
           <button
             onClick={handleCopy}
-            className="px-4 py-2 bg-stone-100 text-stone-700 rounded-lg hover:bg-stone-200 transition-colors border border-stone-200 flex items-center gap-2"
+            className="flex-1 flex items-center justify-center gap-3 px-8 py-4 bg-white border-2 border-stone-100 text-stone-600 rounded-2xl hover:bg-stone-50 hover:border-emerald-200 hover:text-emerald-700 transition-all font-bold text-sm uppercase tracking-widest"
           >
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
-              <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
-            </svg>
-            Copy to Clipboard
+            <LucideIcon name="copy" className="w-4 h-4" />
+            Copy Clipboard
           </button>
           <button
             onClick={handleDownload}
-            className="px-4 py-2 bg-emerald-700 text-white rounded-lg hover:bg-emerald-800 transition-colors flex items-center gap-2"
+            className="flex-1 flex items-center justify-center gap-3 px-8 py-4 bg-emerald-900 text-white rounded-2xl hover:bg-emerald-950 transition-all font-bold text-sm uppercase tracking-widest shadow-xl shadow-emerald-900/10"
           >
             <LucideIcon name="download" className="w-4 h-4" />
-            Download File
+            Download .CSV
           </button>
         </div>
       </div>
@@ -165,52 +183,66 @@ const ExportModal = ({ isOpen, onClose, data, filename }) => {
   );
 };
 
-// Components
 // Login View
 const LoginView = ({ username, setUsername, handleLogin }) => {
   return (
-    <div className="min-h-screen bg-gradient-to-br from-green-50 to-stone-100 flex items-center justify-center p-4">
-      <div className="bg-white rounded-lg shadow-lg p-8 w-full max-w-md">
-        <div className="text-center mb-8">
-          <div className="w-24 h-24 mx-auto mb-4 flex items-center justify-center bg-transparent">
-            <img
-              src="logo.png"
-              alt="Tuscarora Club Logo"
-              className="w-full h-full object-contain"
-              style={{ backgroundColor: 'transparent' }}
-            />
+    <div className="min-h-screen bg-stone-50 flex flex-col items-center justify-center p-6 relative overflow-hidden">
+      {/* Background Accents */}
+      <div className="absolute top-0 left-0 w-full h-96 bg-emerald-900 -skew-y-6 -translate-y-48 z-0"></div>
+
+      <div className="w-full max-w-md bg-white rounded-[3rem] shadow-2xl p-12 border border-stone-100 relative z-10 animate-in fade-in zoom-in-95 duration-500">
+        <div className="text-center mb-12">
+          <div className="w-32 h-32 mx-auto mb-8 p-6 bg-stone-50 rounded-full shadow-inner border border-stone-100 flex items-center justify-center">
+            <img src="logo.png" alt="Tuscarora Club" className="w-full h-full object-contain filter drop-shadow-md" />
           </div>
-          <h1 className="text-3xl font-light text-emerald-900" style={{ fontFamily: 'Georgia, serif' }}>The Tuscarora Club</h1>
-          <p className="text-amber-700 mt-2 font-light">Member Portal</p>
-          <p className="text-stone-400 text-xs mt-1">v5.1</p>
+          <h1 className="text-4xl font-light text-stone-900 tracking-tight leading-tight" style={{ fontFamily: 'Georgia, serif' }}>
+            The Tuscarora Club
+          </h1>
+          <div className="w-20 h-0.5 bg-amber-400 mx-auto my-6"></div>
+          <p className="text-stone-500 font-bold uppercase tracking-[0.3em] text-[10px]">Reservation Portal</p>
         </div>
 
-        <div className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium text-stone-700 mb-2">Username</label>
-            <input
-              type="text"
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
-              onKeyPress={(e) => e.key === 'Enter' && handleLogin()}
-              className="w-full px-4 py-2 border border-stone-300 rounded-lg focus:ring-2 focus:ring-emerald-600 focus:border-transparent"
-              placeholder="Chris, Markley, David, Rob, Kerry, or admin"
-            />
+        <div className="space-y-6">
+          <div className="space-y-2">
+            <label className="text-[10px] font-black uppercase tracking-widest text-stone-400 ml-1">Member Username</label>
+            <div className="relative">
+              <input
+                type="text"
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
+                onKeyPress={(e) => e.key === 'Enter' && handleLogin()}
+                className="w-full h-16 pl-14 pr-6 bg-stone-50 border-2 border-stone-100 rounded-2xl focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-500 transition-all font-bold text-stone-800 outline-none"
+                placeholder="Chris, Markley, Rob..."
+              />
+              <LucideIcon name="user" className="absolute left-5 top-1/2 -translate-y-1/2 w-6 h-6 text-stone-300" />
+            </div>
           </div>
 
           <button
             onClick={handleLogin}
-            className="w-full bg-emerald-700 text-white py-2 px-4 rounded-lg hover:bg-emerald-800 transition-colors"
+            className="w-full bg-emerald-900 text-white h-16 rounded-2xl hover:bg-emerald-950 transition-all font-black uppercase tracking-widest text-sm shadow-xl shadow-emerald-900/10 active:scale-95 flex items-center justify-center gap-3 transition-all duration-300"
           >
-            Sign In
+            Access Portal
+            <LucideIcon name="chevron-right" className="w-5 h-5" />
           </button>
 
-          <div className="mt-6 p-4 bg-emerald-50 rounded-lg">
-            <p className="text-xs text-emerald-800 font-medium mb-2">Demo Accounts:</p>
-            <p className="text-xs text-stone-600">Chris, Markley, David, Rob, Kerry, admin</p>
+          <div className="pt-8 text-center border-t border-stone-100">
+            <p className="text-[9px] text-stone-300 font-black uppercase tracking-[0.2em] mb-4">Authorized Access Only</p>
+            <div className="flex flex-wrap justify-center gap-2">
+              {['Chris', 'Markley', 'David', 'Rob', 'Kerry', 'admin'].map(name => (
+                <button
+                  key={name}
+                  onClick={() => { setUsername(name); setTimeout(handleLogin, 100); }}
+                  className="px-3 py-1 bg-stone-50 text-[10px] font-bold text-stone-400 hover:text-emerald-700 hover:bg-emerald-50 rounded-lg transition-all border border-stone-100"
+                >
+                  {name}
+                </button>
+              ))}
+            </div>
           </div>
         </div>
       </div>
+      <p className="mt-8 text-stone-400 text-[10px] font-bold uppercase tracking-widest z-10 opacity-50">Tuscarora Club 2026 • Private Members Only</p>
     </div>
   );
 };
@@ -230,7 +262,6 @@ const CalendarView = ({
   setSelectedCells,
   setBookingMode,
   currentUser,
-  lazyLodgeHistory,
   hasRentedLazyLodge,
   onEditBooking
 }) => {
@@ -276,6 +307,10 @@ const CalendarView = ({
   const formatDate = (date) => {
     if (!date) return '';
     return date.toISOString().split('T')[0];
+  };
+
+  const exportMonthlyReportToPDF = () => {
+    window.print();
   };
 
   const exportCalendarToCSV = () => {
@@ -356,103 +391,148 @@ const CalendarView = ({
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
         <div>
-          <h2 className="text-2xl font-light text-emerald-900">
-            {currentDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
-          </h2>
-          {calendarView === 'week' && (
-            <p className="text-sm text-stone-500 mt-1">
-              3-Week View: {threeWeeks[0] ? threeWeeks[0].toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : ''} -
-              {threeWeeks[20] ? threeWeeks[20].toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : ''}
+          <div className="flex items-center gap-2 text-emerald-800 mb-1">
+            <LucideIcon name="calendar" className="w-5 h-5" />
+            <h2 className="text-3xl font-light tracking-tight">
+              {currentDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
+            </h2>
+          </div>
+          {calendarView === 'week' ? (
+            <p className="text-sm text-stone-500">
+              Select available white cells to start your booking.
+            </p>
+          ) : (
+            <p className="text-sm text-stone-500">
+              Click any day to view details and check availability.
             </p>
           )}
         </div>
 
-        <div className="flex items-center gap-4">
-          {calendarView === 'month' && (
-            <button
-              onClick={exportCalendarToCSV}
-              className="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors flex items-center gap-2"
-            >
-              <span>Export to CSV</span>
-            </button>
-          )}
-          <div className="flex gap-2">
+        <div className="flex flex-wrap items-center gap-3">
+          <div className="flex bg-stone-100 p-1 rounded-xl border border-stone-200 shadow-sm">
             <button
               onClick={() => setCalendarView('month')}
-              className={`px-3 py-1 rounded ${calendarView === 'month' ? 'bg-emerald-700 text-white' : 'bg-stone-100 text-stone-700'}`}
+              className={`px-4 py-1.5 rounded-lg text-sm font-medium transition-all ${calendarView === 'month' ? 'bg-white text-emerald-900 shadow-sm ring-1 ring-stone-900/5' : 'text-stone-500 hover:text-stone-700'}`}
             >
-              Month
+              Month View
             </button>
             <button
               onClick={() => setCalendarView('week')}
-              className={`px-3 py-1 rounded ${calendarView === 'week' ? 'bg-emerald-700 text-white' : 'bg-stone-100 text-stone-700'}`}
+              className={`px-4 py-1.5 rounded-lg text-sm font-medium transition-all ${calendarView === 'week' ? 'bg-white text-emerald-900 shadow-sm ring-1 ring-stone-900/5' : 'text-stone-500 hover:text-stone-700'}`}
             >
-              Week
+              Grid View
             </button>
           </div>
 
-          <div className="flex gap-2">
-            <button onClick={() => navigateCalendar(-1)} className="px-3 py-2 bg-stone-200 hover:bg-stone-300 rounded text-stone-700 font-bold text-lg">
-              ←
+          <div className="flex items-center bg-stone-100 p-1 rounded-xl border border-stone-200 shadow-sm">
+            <button
+              onClick={() => navigateCalendar(-1)}
+              className="px-4 py-1.5 hover:bg-white rounded-lg transition-all text-stone-700 flex items-center gap-2 text-[10px] font-black uppercase tracking-widest active:scale-95"
+            >
+              <LucideIcon name="chevron-left" className="w-4 h-4" />
+              <span>{calendarView === 'month' ? 'Prev Month' : 'Prev Week'}</span>
             </button>
-            <button onClick={() => setCurrentDate(new Date())} className="px-3 py-1 bg-stone-200 hover:bg-stone-300 rounded text-sm text-stone-700 font-medium">
+            <div className="w-px h-4 bg-stone-200 mx-1"></div>
+            <button
+              onClick={() => setCurrentDate(new Date())}
+              className="px-4 py-1.5 hover:bg-white rounded-lg text-[10px] font-black uppercase tracking-widest text-stone-700 transition-all active:scale-95"
+            >
               Today
             </button>
-            <button onClick={() => navigateCalendar(1)} className="px-3 py-2 bg-stone-200 hover:bg-stone-300 rounded text-stone-700 font-bold text-lg">
-              →
+            <div className="w-px h-4 bg-stone-200 mx-1"></div>
+            <button
+              onClick={() => navigateCalendar(1)}
+              className="px-4 py-1.5 hover:bg-white rounded-lg transition-all text-stone-700 flex items-center gap-2 text-[10px] font-black uppercase tracking-widest active:scale-95"
+            >
+              <span>{calendarView === 'month' ? 'Next Month' : 'Next Week'}</span>
+              <LucideIcon name="chevron-right" className="w-4 h-4" />
             </button>
           </div>
+
+          {calendarView === 'month' && (
+            <button
+              onClick={exportMonthlyReportToPDF}
+              className="px-4 py-2 bg-emerald-100/50 border border-emerald-200 text-emerald-900 rounded-xl hover:bg-emerald-200/50 transition-colors shadow-sm flex items-center gap-2 text-[10px] font-black uppercase tracking-widest"
+            >
+              <LucideIcon name="download" className="w-4 h-4 text-emerald-600" />
+              <span>Download Monthly Report</span>
+            </button>
+          )}
         </div>
       </div>
 
+      {calendarView === 'week' && selectedCells.length === 0 && (
+        <div className="bg-emerald-50 border border-emerald-100 rounded-2xl p-4 flex items-start gap-3 shadow-sm animate-in fade-in slide-in-from-top-2">
+          <div className="p-2 bg-emerald-100 rounded-lg text-emerald-700">
+            <LucideIcon name="info" className="w-5 h-5" />
+          </div>
+          <div>
+            <h4 className="text-sm font-bold text-emerald-900">How to Book</h4>
+            <p className="text-sm text-emerald-800/80 leading-relaxed">
+              Click on the empty cells in the grid below to select the dates and rooms you want. You can select multiple rooms and dates at once.
+            </p>
+          </div>
+        </div>
+      )}
+
       {/* Calendar content */}
       {calendarView === 'month' ? (
-        <div>
-          <div className="grid grid-cols-7 gap-2 mb-2">
+        <div className="bg-white border border-stone-200 rounded-[2rem] p-6 shadow-sm">
+          <div className="grid grid-cols-7 gap-4 mb-4">
             {monthHeaderDays.map(day => (
-              <div key={day} className="text-center text-sm font-medium text-stone-600 py-2">
+              <div key={day} className="text-center text-[10px] font-bold uppercase tracking-widest text-stone-400">
                 {day}
               </div>
             ))}
           </div>
-          <div className="grid grid-cols-7 gap-2">
+          <div className="grid grid-cols-7 gap-4">
             {displayDays.map((day, idx) => {
-              if (!day) return <div key={`empty-${idx}`} className="aspect-square"></div>;
+              if (!day) return <div key={`empty-${idx}`} className="aspect-square opacity-0"></div>;
 
               const dateStr = formatDate(day);
-              const isToday = formatDate(new Date()) === dateStr;
-              const isPast = day < new Date(2026, 1, 4);
+              const now = new Date();
+              now.setHours(0, 0, 0, 0);
+              const isToday = formatDate(now) === dateStr;
+              const isPast = day < now;
 
               return (
                 <div
                   key={idx}
                   onClick={() => {
+                    if (isPast) return;
                     setCurrentDate(day);
                     setCalendarView('week');
                   }}
-                  className={`min-h-[140px] border rounded-lg p-1.5 cursor-pointer transition-all ${isToday ? 'border-emerald-600 bg-emerald-50 ring-2 ring-emerald-200' : 'border-stone-200 hover:border-emerald-400 hover:bg-emerald-50'
-                    } ${isPast ? 'opacity-50 cursor-not-allowed' : ''}`}
+                  className={`min-h-[140px] border-2 rounded-2xl p-3 cursor-pointer transition-all hover:shadow-md hover:scale-[1.02] active:scale-[0.98] ${isToday ? 'border-emerald-500 bg-emerald-50 shadow-emerald-900/5' : 'border-stone-100 hover:border-emerald-200 bg-white'
+                    } ${isPast ? 'opacity-40 cursor-not-allowed bg-stone-50 grayscale' : ''}`}
                 >
-                  <div className="text-sm font-medium text-stone-800 mb-1 flex justify-between">
-                    <span>{day.getDate()}</span>
-                    {isToday && <span className="text-[10px] bg-emerald-600 text-white px-1 rounded uppercase">Today</span>}
+                  <div className="text-sm font-bold text-stone-400 mb-3 flex justify-between items-center">
+                    <span className={isToday ? 'text-emerald-700' : ''}>{day.getDate()}</span>
+                    {isToday && (
+                      <span className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse shadow-[0_0_8px_rgba(16,185,129,0.5)]"></span>
+                    )}
                   </div>
-                  <div className="grid grid-cols-2 gap-x-2 gap-y-0.5 text-[9px] leading-tight">
+                  <div className="space-y-1.5">
                     {getAllRooms(inventory).map(room => {
                       const booking = bookings.find(b =>
                         b.roomId === room.id &&
                         dateStr >= b.startDate &&
                         dateStr < b.endDate
                       );
+                      if (!booking) return null;
+
+                      const isOwn = booking.member === currentUser;
                       return (
-                        <div key={room.id} className={`truncate flex justify-between gap-1 ${booking ? (booking.member === currentUser ? 'text-blue-700 font-medium' : 'text-red-700 font-medium') : 'text-stone-400'}`}>
-                          <span>{room.id.toUpperCase()}:</span>
+                        <div
+                          key={room.id}
+                          className={`text-[9px] px-2 py-0.5 rounded-md truncate font-medium flex items-center gap-1 shadow-sm ${isOwn ? 'bg-blue-600 text-white' : 'bg-red-50 text-red-800'
+                            }`}
+                        >
+                          <span className="opacity-70">{room.id.toUpperCase()}</span>
                           <span className="truncate">
-                            {booking ? (
-                              booking.isGuest ? (booking.guestName || `${booking.member} (G)`) : booking.member
-                            ) : '—'}
+                            {booking.isGuest ? (booking.guestName || `${booking.member} (G)`) : (booking.member === currentUser ? 'You' : booking.member)}
                           </span>
                         </div>
                       );
@@ -464,32 +544,31 @@ const CalendarView = ({
           </div>
         </div>
       ) : (
-        <div className="overflow-x-auto">
-          <div className="min-w-[1200px] border border-stone-300 rounded-lg overflow-hidden">
-            {/* Single Grid Container for perfect alignment */}
-            <div className="grid" style={{ gridTemplateColumns: '150px repeat(21, minmax(0, 1fr))' }}>
+        <div className="overflow-x-auto rounded-[2rem] border border-stone-200 shadow-sm bg-stone-50/50 backdrop-blur-sm">
+          <div className="min-w-[1200px] p-2">
+            <div className="grid rounded-2xl overflow-hidden shadow-sm border border-stone-200" style={{ gridTemplateColumns: '150px repeat(21, minmax(0, 1fr))' }}>
               {/* Header Row */}
-              <div className="bg-stone-50 p-2 text-sm font-medium text-stone-600 border-r border-b border-stone-300 sticky left-0 z-10">
-                Room
+              <div className="bg-stone-100/80 p-2 border-r border-b border-stone-200 sticky left-0 z-20 backdrop-blur-md flex flex-col justify-center items-center gap-1.5 shadow-[4px_0_8px_-4px_rgba(0,0,0,0.05)]">
+                <span className="text-[9px] font-bold uppercase tracking-widest text-stone-500 text-center leading-tight whitespace-nowrap">
+                  Room Selection
+                </span>
               </div>
               {threeWeeks.map((day, idx) => {
                 const dateStr = formatDate(day);
                 const isToday = formatDate(new Date()) === dateStr;
                 const dayOfWeek = day.getDay();
-                const isSat = dayOfWeek === 6;
-                const isSun = dayOfWeek === 0;
+                const isWeekend = dayOfWeek === 6 || dayOfWeek === 0;
                 const isMon = dayOfWeek === 1;
-                const isWeekend = isSat || isSun;
 
                 return (
                   <div
                     key={`header-${idx}`}
-                    className={`p-2 text-center text-[10px] border-r border-b border-stone-300
-                      ${isToday ? 'bg-emerald-600 text-white' : isWeekend ? 'bg-amber-50 text-stone-900' : 'bg-stone-50 text-stone-600'}
+                    className={`p-3 text-center border-r border-b border-stone-200 transition-colors
+                      ${isToday ? 'bg-emerald-600 text-white border-emerald-500 z-10 scale-y-105 shadow-lg' : isWeekend ? 'bg-amber-50/50 text-stone-900 font-medium' : 'bg-stone-50 text-stone-500'}
                       ${isMon ? 'border-l-2 border-stone-400' : ''}`}
                   >
-                    <div className="font-bold">{day.toLocaleDateString('en-US', { weekday: 'short' })}</div>
-                    <div>{day.getDate()}</div>
+                    <div className="text-[10px] uppercase tracking-tighter opacity-70 leading-none mb-1">{day.toLocaleDateString('en-US', { weekday: 'short' })}</div>
+                    <div className="text-sm font-bold leading-none">{day.getDate()}</div>
                   </div>
                 );
               })}
@@ -497,8 +576,11 @@ const CalendarView = ({
               {/* Body Rows */}
               {getAllRooms(inventory).map(room => (
                 <React.Fragment key={room.id}>
-                  <div className="bg-white p-2 text-xs font-medium text-stone-800 truncate border-r border-b border-stone-200 sticky left-0 z-10">
-                    {room.name}
+                  <div className="bg-white p-3 text-xs font-bold text-stone-700 truncate border-r border-b border-stone-200 sticky left-0 z-10 shadow-[4px_0_8px_-4px_rgba(0,0,0,0.05)]">
+                    <div className="flex flex-col">
+                      <span className="truncate">{room.name}</span>
+                      <span className="text-[9px] text-stone-400 font-normal uppercase tracking-wide">{room.beds}</span>
+                    </div>
                   </div>
                   {threeWeeks.map((day, idx) => {
                     const dateStr = formatDate(day);
@@ -508,16 +590,14 @@ const CalendarView = ({
                       dateStr < b.endDate
                     );
                     const dayOfWeek = day.getDay();
-                    const isSat = dayOfWeek === 6;
-                    const isSun = dayOfWeek === 0;
                     const isMon = dayOfWeek === 1;
-                    const isWeekend = isSat || isSun;
+                    const isWeekend = dayOfWeek === 6 || dayOfWeek === 0;
                     const isSelected = selectedCells.some(cell => cell.roomId === room.id && cell.date === dateStr);
 
                     // Lazy Lodge logic
                     const isLazyLodge = room.id === 'll1' || room.id === 'll2';
                     const year = new Date(dateStr).getFullYear();
-                    const userHasUsedLL = hasRentedLazyLodge(currentUser, year);
+                    const userHasUsedLL = hasRentedLazyLodge(currentUser, dateStr);
                     const showProvisionalIndicator = !booking && isLazyLodge && userHasUsedLL;
                     const isProvisionalBooking = booking && booking.provisional;
                     const canOverrideProvisional = isProvisionalBooking && isLazyLodge && !userHasUsedLL;
@@ -525,19 +605,133 @@ const CalendarView = ({
 
                     const isOwnBooking = booking && !booking.provisional && (booking.member === currentUser || currentUser === 'admin');
 
+                    const today = new Date();
+                    today.setHours(0, 0, 0, 0);
+                    const isPast = day < today;
+
+                    // Identify the Master Range Room
+                    const uniqueSelectedRooms = [...new Set(selectedCells.map(c => c.roomId))];
+                    const primaryRoomId = uniqueSelectedRooms.length > 0 ? selectedCells[0].roomId : room.id;
+                    const isPrimaryRoom = room.id === primaryRoomId;
+                    const primaryRoomSelections = selectedCells.filter(c => c.roomId === primaryRoomId);
+
+                    const roomSelections = selectedCells.filter(cell => cell.roomId === room.id);
+                    const otherRooms = selectedCells.filter(cell => cell.roomId !== room.id);
+
                     const handleCellClick = () => {
-                      // If this is the current user's (or admin's) confirmed booking, open edit
                       if (isOwnBooking) {
                         onEditBooking(booking);
                         return;
                       }
-                      // Allow selecting if: no booking OR provisional booking that user can override
+                      if (isPast) return;
                       if (booking && !canOverrideProvisional) return;
 
-                      if (isSelected) {
-                        setSelectedCells(selectedCells.filter(cell => !(cell.roomId === room.id && cell.date === dateStr)));
+                      if (isPrimaryRoom) {
+                        // Logic for the Master Range (Primary Room)
+                        if (roomSelections.length === 0) {
+                          setSelectedCells([{ roomId: room.id, date: dateStr }]);
+                        } else {
+                          const isAlreadySelected = roomSelections.some(c => c.date === dateStr);
+                          if (isAlreadySelected) {
+                            // Deselect date, but warn if it shrinks below what guest rooms need? 
+                            // For simplicity, let them deselect and we'll auto-shrink guest rooms.
+                            const newPrimarySelections = roomSelections.filter(c => c.date !== dateStr);
+
+                            // Auto-sync guest rooms: remove this dropped date from ALL guest rooms
+                            const newOtherRooms = otherRooms.filter(c => c.date !== dateStr);
+                            setSelectedCells([...newOtherRooms, ...newPrimarySelections]);
+                          } else {
+                            // Add/Fill Range logic for Primary Room
+                            const clickedTime = new Date(dateStr).getTime();
+                            let closestDate = roomSelections[0].date;
+                            let minDiff = Math.abs(new Date(closestDate).getTime() - clickedTime);
+
+                            roomSelections.forEach(c => {
+                              const diff = Math.abs(new Date(c.date).getTime() - clickedTime);
+                              if (diff < minDiff) {
+                                minDiff = diff;
+                                closestDate = c.date;
+                              }
+                            });
+
+                            const start = closestDate < dateStr ? closestDate : dateStr;
+                            const end = closestDate > dateStr ? closestDate : dateStr;
+
+                            let hasConflict = false;
+                            let current = new Date(start + 'T00:00:00');
+                            const endDate = new Date(end + 'T00:00:00');
+                            const newCells = [];
+
+                            while (current <= endDate) {
+                              const dStr = current.toISOString().split('T')[0];
+                              if (!roomSelections.some(c => c.date === dStr)) {
+                                const conflict = bookings.find(b =>
+                                  b.roomId === room.id &&
+                                  dStr >= b.startDate && dStr < b.endDate &&
+                                  !(b.provisional && canOverrideProvisional)
+                                );
+                                if (conflict) {
+                                  hasConflict = true;
+                                  break;
+                                }
+                                newCells.push({ roomId: room.id, date: dStr });
+                              }
+                              current.setDate(current.getDate() + 1);
+                            }
+
+                            if (hasConflict) {
+                              alert("Cannot extend Master Range: Primary room overlaps with an existing booking.");
+                            } else {
+                              // Gather the new full list of Primary Dates
+                              const updatedPrimaryDates = [...roomSelections, ...newCells].map(c => c.date);
+
+                              // Auto-Expand all currently ACTIVE guest rooms to match the new Master Range
+                              // (Skip guest rooms that aren't selected at all yet)
+                              const activeGuestRoomIds = [...new Set(otherRooms.map(c => c.roomId))];
+                              let guestConflictFound = false;
+                              const syncedGuestCells = [];
+
+                              activeGuestRoomIds.forEach(gRoomId => {
+                                updatedPrimaryDates.forEach(dStr => {
+                                  const gConflict = bookings.find(b => b.roomId === gRoomId && dStr >= b.startDate && dStr < b.endDate);
+                                  if (gConflict) guestConflictFound = true;
+                                  syncedGuestCells.push({ roomId: gRoomId, date: dStr });
+                                });
+                              });
+
+                              if (guestConflictFound) {
+                                alert("Cannot extend Master Range: One of your selected Guest Rooms is already booked on these new dates.");
+                              } else {
+                                setSelectedCells([...roomSelections, ...newCells, ...syncedGuestCells]);
+                              }
+                            }
+                          }
+                        }
                       } else {
-                        setSelectedCells([...selectedCells, { roomId: room.id, date: dateStr }]);
+                        // Logic for Guest Rooms (Auto-Snap to Master Range)
+                        if (primaryRoomSelections.length === 0) return; // Failsafe (should never hit this)
+
+                        // If this guest room is already selected, click toggles it completely OFF
+                        if (roomSelections.length > 0) {
+                          setSelectedCells(otherRooms);
+                          return;
+                        }
+
+                        // Otherwise, snap this entire room ON to exactly perfectly match the Master Range
+                        let hasConflict = false;
+                        const newGuestCells = [];
+
+                        primaryRoomSelections.forEach(pCell => {
+                          const conflict = bookings.find(b => b.roomId === room.id && pCell.date >= b.startDate && pCell.date < b.endDate);
+                          if (conflict) hasConflict = true;
+                          newGuestCells.push({ roomId: room.id, date: pCell.date });
+                        });
+
+                        if (hasConflict) {
+                          alert("Cannot add room: This room is unfortunately booked during your Master Range dates.");
+                        } else {
+                          setSelectedCells([...selectedCells, ...newGuestCells]);
+                        }
                       }
                     };
 
@@ -545,38 +739,95 @@ const CalendarView = ({
                       <div
                         key={`${room.id}-${idx}`}
                         onClick={handleCellClick}
-                        className={`h-12 transition-colors cursor-pointer flex items-center justify-center p-0.5 border-r border-b border-stone-200
-                          ${booking && !canOverrideProvisional ? (isOwnBooking ? 'bg-blue-50 cursor-pointer hover:bg-blue-100' : 'bg-emerald-100 cursor-not-allowed') :
-                            isProvisionalBooking ? 'bg-amber-100 hover:bg-amber-200' :
-                            willBeProvisional ? 'bg-amber-500 hover:bg-amber-600' :
-                            isSelected ? 'bg-blue-500 hover:bg-blue-600' :
-                            isWeekend ? 'bg-amber-50/30 hover:bg-emerald-50' :
-                            'bg-white hover:bg-emerald-50'}
-                          ${isMon ? 'border-l-2 border-stone-400' : ''}`}
+                        className={`h-14 transition-all duration-150 cursor-pointer flex items-center justify-center p-1 border-r border-b border-stone-200 group
+                        ${isPast ? 'bg-stone-100/50 cursor-not-allowed opacity-30 grayscale' :
+                            booking && !canOverrideProvisional ? (isOwnBooking ? 'bg-blue-50/50 hover:bg-blue-100' : 'bg-red-50/30 cursor-not-allowed') :
+                              isProvisionalBooking ? 'bg-amber-100/50 hover:bg-amber-200' :
+                                willBeProvisional ? 'bg-amber-500 shadow-inner' :
+                                  isSelected ? (isPrimaryRoom ? 'bg-emerald-600 shadow-inner z-10 scale-105 rounded-sm ring-1 ring-emerald-400' : 'bg-amber-600 shadow-inner z-10 scale-105 rounded-sm ring-1 ring-amber-400') :
+                                    isWeekend ? 'bg-amber-50/20 hover:bg-emerald-50/50' :
+                                      'bg-white hover:bg-emerald-50/50'}
+                        ${isMon ? 'border-l-2 border-stone-400' : ''}`}
                       >
                         {booking && !canOverrideProvisional ? (
-                          <div className={`w-full h-full rounded text-[9px] flex flex-col items-center justify-center px-1 truncate font-medium shadow-sm leading-tight
-                            ${isProvisionalBooking ? 'bg-amber-600 text-white' : booking.member === currentUser ? 'bg-blue-600 text-white' : 'bg-emerald-700 text-white'}`}>
+                          <div className={`w-full h-full rounded-lg text-[9px] flex flex-col items-center justify-center px-1 truncate font-medium shadow-sm leading-tight transition-transform scale-95 group-hover:scale-100
+                            ${isProvisionalBooking ? 'bg-amber-600 text-white' : booking.member === currentUser ? 'bg-blue-600 text-white ring-2 ring-blue-500/20' : 'bg-red-600/90 text-white'}`}>
                             <div className="truncate w-full text-center">
-                              {isProvisionalBooking ? 'Provisional' : (booking.isGuest && booking.guestName) ? booking.guestName : booking.member}
+                              {isProvisionalBooking ? 'Provisional' : (booking.isGuest && booking.guestName) ? booking.guestName : (booking.member === currentUser ? 'You' : booking.member)}
                             </div>
-                            {booking.isGuest && !isProvisionalBooking && !booking.guestName && <div className="opacity-80 font-normal">guest</div>}
+                            {booking.isGuest && !isProvisionalBooking && <div className="text-[8px] opacity-70 font-bold uppercase tracking-wider mt-0.5">Guest</div>}
                           </div>
                         ) : isProvisionalBooking && canOverrideProvisional ? (
-                          <div className="w-full h-full bg-amber-600 text-white rounded text-[9px] flex flex-col items-center justify-center px-1 truncate font-medium shadow-sm leading-tight">
+                          <div className="w-full h-full bg-amber-600/90 text-white rounded-lg text-[9px] flex flex-col items-center justify-center px-1 truncate font-medium shadow-sm leading-tight transition-all hover:scale-105 active:scale-95">
                             <div className="truncate w-full text-center">Provisional</div>
-                            <div className="text-[8px] opacity-90">(click to override)</div>
+                            <div className="text-[7px] opacity-90 uppercase tracking-tighter">Override</div>
                           </div>
                         ) : willBeProvisional ? (
-                          <div className="flex flex-col items-center justify-center gap-0.5">
-                            <CheckIcon className="w-4 h-4 text-white" />
-                            <div className="text-[8px] text-white font-medium">Provisional</div>
+                          <div className="flex flex-col items-center justify-center gap-0.5 animate-in zoom-in-50 duration-200">
+                            <LucideIcon name="check" className="w-4 h-4 text-white" />
+                            <div className="text-[7px] text-white font-bold uppercase tracking-widest">Prov.</div>
                           </div>
                         ) : isSelected ? (
-                          <CheckIcon className="w-5 h-5 text-white" />
+                          <div className="flex flex-col items-center justify-center gap-0.5 animate-in zoom-in-75 duration-200">
+                            {(() => {
+                              const roomSelectedDates = selectedCells.filter(c => c.roomId === room.id).map(c => c.date);
+                              roomSelectedDates.sort((a, b) => new Date(a) - new Date(b));
+
+                              // Check if cell is the start or end of ANY contiguous block
+                              let isBlockStart = false;
+                              let isBlockEnd = false;
+
+                              const currTime = new Date(dateStr).getTime();
+                              const prevTime = currTime - (24 * 60 * 60 * 1000);
+                              const nextTime = currTime + (24 * 60 * 60 * 1000);
+
+                              const prevDateStr = new Date(prevTime).toISOString().split('T')[0];
+                              const nextDateStr = new Date(nextTime).toISOString().split('T')[0];
+
+                              if (!roomSelectedDates.includes(prevDateStr)) isBlockStart = true;
+                              if (!roomSelectedDates.includes(nextDateStr)) isBlockEnd = true;
+
+                              if (isBlockStart && isBlockEnd && roomSelectedDates.length === 1) {
+                                return (
+                                  <>
+                                    <LucideIcon name="log-in" className="w-4 h-4 text-white" />
+                                    <div className="text-[7px] text-white font-bold uppercase tracking-widest opacity-90">{isPrimaryRoom ? 'Primary' : 'Guest'}</div>
+                                    <div className="text-[10px] text-white font-bold leading-none">Start</div>
+                                  </>
+                                );
+                              } else if (isBlockStart) {
+                                return (
+                                  <>
+                                    <LucideIcon name="check" className="w-4 h-4 text-white" />
+                                    <div className="text-[7px] text-white font-bold uppercase tracking-widest">{isPrimaryRoom ? 'Primary' : 'Guest'}</div>
+                                  </>
+                                );
+                              } else if (isBlockEnd) {
+                                return (
+                                  <>
+                                    <LucideIcon name="log-out" className="w-4 h-4 text-white" />
+                                    <div className="text-[7px] text-white font-bold uppercase tracking-widest">{isPrimaryRoom ? 'Primary' : 'Guest'}</div>
+                                  </>
+                                );
+                              } else {
+                                return (
+                                  <>
+                                    <div className="flex items-center justify-center gap-1 opacity-50">
+                                      <div className="w-1 h-1 rounded-full bg-white animate-pulse"></div>
+                                      <div className="w-1 h-1 rounded-full bg-white animate-pulse" style={{ animationDelay: '150ms' }}></div>
+                                      <div className="w-1 h-1 rounded-full bg-white animate-pulse" style={{ animationDelay: '300ms' }}></div>
+                                    </div>
+                                    <div className="text-[7px] text-white font-bold uppercase tracking-widest">{isPrimaryRoom ? 'Primary' : 'Guest'}</div>
+                                  </>
+                                );
+                              }
+                            })()}
+                          </div>
                         ) : showProvisionalIndicator ? (
-                          <div className="text-3xl font-bold text-stone-400">P</div>
-                        ) : null}
+                          <div className="text-2xl font-black text-stone-200 select-none group-hover:text-emerald-500/20 transition-colors">P</div>
+                        ) : (
+                          <div className="w-1 h-1 bg-stone-100 rounded-full group-hover:w-2 group-hover:h-2 group-hover:bg-emerald-200 transition-all"></div>
+                        )}
                       </div>
                     );
                   })}
@@ -588,65 +839,62 @@ const CalendarView = ({
       )}
 
       {/* Legend and Actions */}
-      <div className="flex items-center justify-between pt-4 border-t border-stone-200">
-        <div className="flex gap-6 text-sm text-stone-600">
-          <div className="flex items-center gap-2">
-            <div className="w-4 h-4 border-2 border-emerald-600 bg-emerald-50 rounded"></div>
-            <span>Today</span>
+      <div className="bg-white border border-stone-200 rounded-3xl p-6 shadow-sm">
+        <div className="flex flex-col lg:flex-row items-center justify-between gap-6">
+          <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-x-8 gap-y-3">
+            <LegendItem color="bg-emerald-100" ring="ring-emerald-500" label="Current Day" />
+            <LegendItem color="bg-blue-600" label="Selected" />
+            <LegendItem color="bg-white border-2 border-stone-100" label="Available" />
+            <LegendItem color="bg-blue-600" label="My Stays" />
+            <LegendItem color="bg-red-600" label="Booked" />
+            <LegendItem color="bg-amber-600" text="P" label="Lazy Lodge Prov." />
           </div>
-          <div className="flex items-center gap-2">
-            <div className="w-4 h-4 bg-blue-500 rounded"></div>
-            <span>Selected</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <span className="text-stone-400 text-[10px] font-bold">XX: —</span>
-            <span>Available</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <span className="text-blue-700 text-[10px] font-bold">XX: name</span>
-            <span>My Bookings</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <span className="text-red-700 text-[10px] font-bold">XX: name</span>
-            <span>Other Bookings</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <span className="text-stone-400 text-3xl font-bold">P</span>
-            <span>Provisional (Lazy Lodge)</span>
-          </div>
-        </div>
 
-        {/* Selection Actions */}
-        {calendarView === 'week' && selectedCells.length > 0 && (
-          <div className="flex items-center gap-4">
-            <div className="text-sm text-stone-600">
-              <span className="font-semibold text-emerald-700">{selectedCells.length}</span> room-day{selectedCells.length !== 1 ? 's' : ''} selected
+          {/* Selection Actions */}
+          {calendarView === 'week' && selectedCells.length > 0 && (
+            <div className="flex items-center gap-4 bg-emerald-900 text-white p-2 pl-6 rounded-2xl shadow-xl shadow-emerald-900/20 animate-in slide-in-from-right-4">
+              <div className="text-sm">
+                <span className="font-black text-amber-300 mr-1">{selectedCells.length}</span>
+                {selectedCells.length === 1 ? 'cell' : 'cells'} selected
+              </div>
+              <div className="flex gap-1">
+                <button
+                  onClick={() => setSelectedCells([])}
+                  className="px-4 py-2 text-xs font-bold uppercase tracking-widest hover:bg-white/10 rounded-xl transition-colors"
+                >
+                  Clear
+                </button>
+                <button
+                  onClick={() => setBookingMode('details')}
+                  className="px-8 py-3 bg-amber-200 text-emerald-950 rounded-xl hover:bg-white transition-all font-bold text-sm shadow-lg active:scale-95"
+                >
+                  Confirm Selection →
+                </button>
+              </div>
             </div>
-            <button
-              onClick={() => setSelectedCells([])}
-              className="px-4 py-2 text-sm border border-stone-300 rounded-lg hover:bg-stone-50 transition-colors"
-            >
-              Clear
-            </button>
-            <button
-              onClick={() => setBookingMode('details')}
-              className="px-6 py-2 text-sm bg-emerald-700 text-white rounded-lg hover:bg-emerald-800 transition-colors font-medium"
-            >
-              Next →
-            </button>
-          </div>
-        )}
+          )}
+        </div>
       </div>
     </div>
   );
 };
 
+const LegendItem = ({ color, ring, text, label }) => (
+  <div className="flex items-center gap-3">
+    <div className={`w-5 h-5 ${color} rounded-lg flex items-center justify-center text-[10px] font-bold text-white shadow-sm ring-offset-2 ${ring ? `ring-2 ${ring}` : ''}`}>
+      {text}
+    </div>
+    <span className="text-xs font-medium text-stone-500">{label}</span>
+  </div>
+);
+
+
 // Booking Flow
 const BookingFlow = ({
   bookingStep,
   setBookingStep,
-  newBooking,
-  setNewBooking,
+  newBooking: initialNewBooking,
+  setNewBooking: setParentNewBooking,
   bookingWarnings,
   setBookingWarnings,
   confirmBooking,
@@ -659,19 +907,38 @@ const BookingFlow = ({
   mealTimesConfig,
   bookings
 }) => {
+  const [newBooking, setNewBooking] = useState(initialNewBooking);
+  const [gridStartDate, setGridStartDate] = useState(new Date(initialNewBooking.startDate || new Date()));
+  const [adminBookingMember, setAdminBookingMember] = useState('');
+
+  // Sync with parent if needed
+  useEffect(() => {
+    setParentNewBooking(newBooking);
+  }, [newBooking]);
+
   // Step 1: Select Room & Dates (Grid View)
   if (bookingStep === 1) {
     const formatDate = (date) => date.toISOString().split('T')[0];
 
-    // Generate next 7 days from start date
+    // Generate 7 days from gridStartDate
     const gridDates = Array.from({ length: 7 }, (_, i) => {
-      const d = new Date(newBooking.startDate);
-      d.setDate(d.getDate() + i);
+      const d = new Date(gridStartDate);
+      d.setDate(gridStartDate.getDate() + i);
       return d;
     });
 
+    const navigateGrid = (direction) => {
+      const d = new Date(gridStartDate);
+      d.setDate(gridStartDate.getDate() + (direction * 7));
+      setGridStartDate(d);
+    };
+
     const handleGridClick = (room, date) => {
       const dateStr = formatDate(date);
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+
+      if (date < today) return; // Prevent selection in past
 
       // If clicking same room that is already selected
       if (newBooking.roomId === room.id) {
@@ -705,9 +972,37 @@ const BookingFlow = ({
     return (
       <div className="space-y-6">
         <div className="flex items-center justify-between">
-          <h2 className="text-2xl font-light text-emerald-900">Select Room & Dates</h2>
-          <button onClick={() => setView('calendar')} className="text-stone-600 hover:text-stone-800">
-            <XIcon className="w-6 h-6" />
+          <div className="flex items-center gap-6">
+            <h2 className="text-2xl font-light text-emerald-900">Select Room & Dates</h2>
+            <div className="flex items-center bg-stone-100 rounded-lg p-1">
+              <button
+                onClick={() => navigateGrid(-1)}
+                className="p-1 px-2 hover:bg-white rounded transition-colors text-stone-600 flex items-center gap-1 text-xs font-medium"
+                title="Previous Week"
+              >
+                <ChevronLeftIcon className="w-4 h-4" />
+                <span>Prev Week</span>
+              </button>
+              <div className="w-px h-4 bg-stone-300 mx-1"></div>
+              <button
+                onClick={() => setGridStartDate(new Date())}
+                className="p-1 px-3 hover:bg-white rounded transition-colors text-stone-600 text-xs font-medium"
+              >
+                Today
+              </button>
+              <div className="w-px h-4 bg-stone-300 mx-1"></div>
+              <button
+                onClick={() => navigateGrid(1)}
+                className="p-1 px-2 hover:bg-white rounded transition-colors text-stone-600 flex items-center gap-1 text-xs font-medium"
+                title="Next Week"
+              >
+                <span>Next Week</span>
+                <ChevronRightIcon className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+          <button onClick={() => setView('calendar')} className="text-stone-400 hover:text-stone-600 p-2 hover:bg-stone-100 rounded-full transition-all">
+            <XIcon className="w-5 h-5" />
           </button>
         </div>
 
@@ -740,28 +1035,58 @@ const BookingFlow = ({
                   );
 
                   const isAvailable = !booking;
+                  const today = new Date();
+                  today.setHours(0, 0, 0, 0);
+                  const isPast = day < today;
+
                   const isSelected = newBooking.roomId === room.id;
                   const isStart = isSelected && newBooking.startDate === dateStr;
+                  const isEnd = isSelected && newBooking.endDate && dateStr === formatDate(new Date(new Date(newBooking.endDate).getTime() - 86400000));
                   const isInRange = isSelected && newBooking.endDate && dateStr >= newBooking.startDate && dateStr < newBooking.endDate;
 
                   return (
                     <div
                       key={idx}
                       onClick={() => handleGridClick(room, day)}
-                      className={`border-l border-stone-200 h-16 cursor-pointer flex items-center justify-center text-[10px] relative px-1
-                         ${!isAvailable ? 'bg-red-50 cursor-not-allowed' : ''}
-                         ${isAvailable && !isSelected ? 'hover:bg-emerald-100' : ''}
-                         ${isInRange ? 'bg-emerald-200' : ''}
-                         ${isStart ? 'bg-emerald-600 text-white' : ''}
+                      className={`h-16 cursor-pointer flex items-center justify-center relative px-1 transition-all
+                         ${!isAvailable ? 'bg-red-50/30 cursor-not-allowed' : 'hover:bg-emerald-50'}
+                         ${isPast ? 'bg-stone-100 opacity-40 cursor-not-allowed' : ''}
+                         ${isInRange ? 'bg-emerald-100/50' : ''}
+                         ${idx > 0 ? 'border-l border-stone-200' : ''}
                        `}
                     >
+                      {/* Selection Pill Background */}
+                      {isInRange && (
+                        <div className={`absolute inset-y-2 inset-x-0 bg-emerald-600/10
+                          ${isStart ? 'rounded-l-full ml-2' : ''}
+                          ${isEnd ? 'rounded-r-full mr-2' : ''}
+                          ${!isStart && !isEnd ? '' : ''}
+                        `}></div>
+                      )}
+
+                      {/* Selection Indicator Pill */}
+                      {isSelected && (isStart || isEnd || isInRange) && (
+                        <div className={`absolute inset-y-3 inset-x-0 flex items-center justify-center
+                          ${isStart || isEnd ? 'z-10' : 'z-0'}
+                        `}>
+                          {(isStart || isEnd) && (
+                            <div className={`w-10 h-10 bg-emerald-700 rounded-full flex items-center justify-center shadow-lg border-2 border-white
+                            ${isStart ? 'animate-in zoom-in' : ''}`}>
+                              {isStart ? <CheckIcon className="w-5 h-5 text-white" /> : <div className="w-1.5 h-1.5 bg-white rounded-full"></div>}
+                            </div>
+                          )}
+                        </div>
+                      )}
+
                       {!isAvailable ? (
-                        <div className="text-red-800 font-medium text-center leading-tight truncate w-full" title={booking.member}>
-                          {booking.member}
-                          {booking.isGuest && <div className="text-[8px] font-normal opacity-75">Guest</div>}
+                        <div className="text-red-800 font-semibold text-[9px] text-center leading-tight truncate w-full px-1 z-10" title={booking.member}>
+                          <div className="truncate">{booking.member}</div>
+                          {booking.isGuest && <div className="text-[7px] font-normal opacity-75 uppercase tracking-tighter">Guest</div>}
                         </div>
                       ) : (
-                        isStart ? 'Start' : isInRange ? 'Stay' : ''
+                        <div className={`text-[9px] font-bold z-10 transition-colors ${isStart || isEnd ? 'text-white hidden' : 'text-emerald-800'}`}>
+                          {isStart ? 'Start' : isEnd ? 'End' : isInRange ? 'Stay' : ''}
+                        </div>
                       )}
                     </div>
                   );
@@ -771,21 +1096,25 @@ const BookingFlow = ({
           </div>
         </div>
 
-        <div className="flex justify-between items-center text-sm text-stone-600">
-          <p>Click a date to start. Click a later date to confirm range.</p>
+        <div className="flex justify-between items-center py-4 px-2 bg-stone-50 rounded-xl border border-stone-200 shadow-inner">
+          <div className="flex items-center gap-3 text-stone-500">
+            <LucideIcon name="info" className="w-4 h-4 text-emerald-600" />
+            <p className="text-xs italic font-medium">Click a date to start. Click a later date to confirm range.</p>
+          </div>
           <div className="flex gap-3">
             <button
               onClick={() => setView('calendar')}
-              className="px-6 py-2 border border-stone-300 rounded-lg hover:bg-stone-50"
+              className="px-6 py-2.5 text-sm font-medium text-stone-600 bg-white border border-stone-300 rounded-xl hover:bg-stone-100 hover:text-stone-900 transition-all shadow-sm"
             >
               Cancel
             </button>
             <button
               onClick={validateAndProceed}
               disabled={!newBooking.roomId || !newBooking.startDate || !newBooking.endDate}
-              className="px-6 py-2 bg-emerald-700 text-white rounded-lg hover:bg-emerald-800 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="px-8 py-2.5 text-sm font-semibold bg-emerald-800 text-white rounded-xl hover:bg-emerald-900 disabled:opacity-30 disabled:grayscale disabled:cursor-not-allowed transition-all shadow-md hover:shadow-lg flex items-center gap-2"
             >
-              Next
+              <span>Next</span>
+              <ChevronRightIcon className="w-4 h-4" />
             </button>
           </div>
         </div>
@@ -837,22 +1166,45 @@ const BookingFlow = ({
             </div>
           </div>
 
-          <div className="pt-4 border-t border-stone-200">
+          <div className="pt-4 space-y-4 border-t border-stone-200">
             <label className="flex items-center gap-3 p-4 border border-amber-200 bg-amber-50 rounded-lg cursor-pointer hover:bg-amber-100 transition-colors">
               <input
                 type="checkbox"
                 checked={newBooking.isGuestRoom}
-                onChange={(e) => setNewBooking({ ...newBooking, isGuestRoom: e.target.checked })}
+                onChange={(e) => {
+                  const val = e.target.checked;
+                  setNewBooking({
+                    ...newBooking,
+                    isGuestRoom: val,
+                    stayingInCottage: val ? true : false
+                  });
+                }}
                 className="w-5 h-5 text-emerald-700 rounded border-stone-300"
               />
               <div className="flex-1">
                 <div className="text-sm font-semibold text-amber-900">Guest-Only Room</div>
                 <div className="text-xs text-amber-700 leading-relaxed">
-                  Is this room for guests only (you will be staying in a different room)?
-                  <span className="block mt-1 font-medium italic">NOTE: Members MUST be at the club while guests are present.</span>
+                  Is this room for guests only (you will be staying in a different room or cottage)?
                 </div>
               </div>
             </label>
+
+            {newBooking.isGuestRoom && (
+              <label className="flex items-center gap-3 p-4 border border-emerald-200 bg-emerald-50 rounded-lg cursor-pointer hover:bg-emerald-100 transition-colors animate-in slide-in-from-top-2">
+                <input
+                  type="checkbox"
+                  checked={newBooking.stayingInCottage}
+                  onChange={(e) => setNewBooking({ ...newBooking, stayingInCottage: e.target.checked })}
+                  className="w-5 h-5 text-emerald-600 rounded border-emerald-300"
+                />
+                <div className="flex-1">
+                  <div className="text-sm font-semibold text-emerald-900">Member staying in cottage?</div>
+                  <div className="text-xs text-emerald-700 leading-relaxed text-balance">
+                    Check this if you are NOT sleeping in this room and are staying in your own cottage at the club.
+                  </div>
+                </div>
+              </label>
+            )}
           </div>
         </div>
 
@@ -963,17 +1315,29 @@ const BookingFlow = ({
                 {new Date(newBooking.startDate).toLocaleDateString()} - {new Date(newBooking.endDate).toLocaleDateString()}
               </span>
             </div>
-            <div className="flex justify-between">
-              <span className="text-stone-600">Guests:</span>
-              <span className="font-medium">{newBooking.guests}</span>
+            <div className="flex justify-between items-center">
+              <span className="text-stone-600 text-xs uppercase tracking-widest font-bold">Party:</span>
+              {!newBooking.isGuestRoom && newBooking.guests === 1 ? (
+                <div className="flex items-center gap-2 text-stone-600">
+                  <LucideIcon name="user-check" className="w-4 h-4 text-emerald-600" />
+                  <span className="font-bold">You staying here</span>
+                </div>
+              ) : (
+                <span className="font-bold text-stone-800">
+                  {!newBooking.isGuestRoom ? `You + ${newBooking.guests - 1} guests` : `${newBooking.guests} guests`}
+                </span>
+              )}
             </div>
           </div>
         </div>
 
         <div className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-stone-700 mb-3">
-              Meals by Day (for {newBooking.guests} guest{newBooking.guests > 1 ? 's' : ''})
+            <label className="block text-stone-700 mb-3">
+              <span className="text-xs font-black uppercase tracking-widest text-stone-400 block mb-1">Meal Planning</span>
+              <span className="text-sm font-bold">
+                Daily meals for {!newBooking.isGuestRoom && newBooking.guests === 1 ? 'you' : (!newBooking.isGuestRoom ? `you and ${newBooking.guests - 1} guests` : `${newBooking.guests} guests`)}
+              </span>
             </label>
             <div className="space-y-4">
               {stayDates.map((date, dayIndex) => {
@@ -999,152 +1363,92 @@ const BookingFlow = ({
                     </div>
 
                     <div className="grid grid-cols-1 gap-2">
-                      {/* Special handling for single-day stays */}
-                      {isFirstDay && isLastDay ? (
-                        <>
+                      {/* Unified meal display for all stay lengths */}
+                      <>
+                        {isFirstDay && isLastDay && (
                           <div className="text-xs text-stone-600 italic mb-2">
-                            Single day stay - Lunch and Bar Supper available
+                            Single day stay - available meals shown below
                           </div>
-                          {/* Lunch for arrival day */}
-                          <div className="flex items-center gap-3 p-2 border border-stone-200 rounded bg-stone-50">
-                            <input
-                              type="checkbox"
-                              checked={dayData.lunch || false}
-                              onChange={(e) => updateMeal(dateStr, 'lunch', e.target.checked)}
-                              className="w-4 h-4 text-emerald-700 rounded border-stone-300"
-                            />
-                            <div className="flex-1">
-                              <div className="text-sm font-medium text-stone-800">Lunch</div>
-                              <div className="text-xs text-stone-500">{mealTimesConfig.lunch}</div>
-                            </div>
-                            {dayData.lunch && (
-                              <label className="flex items-center gap-1 px-2 py-1 bg-emerald-50 rounded cursor-pointer">
-                                <input
-                                  type="checkbox"
-                                  checked={dayData.packedLunch || false}
-                                  onChange={(e) => updateMeal(dateStr, 'packedLunch', e.target.checked)}
-                                  className="w-3 h-3 text-emerald-700 rounded"
-                                />
-                                <span className="text-xs text-emerald-800">Packed</span>
-                              </label>
-                            )}
+                        )}
+
+                        {/* Breakfast */}
+                        <div className={`flex items-center gap-3 p-2 border border-stone-200 rounded ${!isMealAvailable(dateStr, 'breakfast') ? 'opacity-40' : 'bg-stone-50'}`}>
+                          <input
+                            type="checkbox"
+                            checked={dayData.breakfast || false}
+                            disabled={!isMealAvailable(dateStr, 'breakfast')}
+                            onChange={(e) => updateMeal(dateStr, 'breakfast', e.target.checked)}
+                            className="w-4 h-4 text-emerald-700 rounded border-stone-300"
+                          />
+                          <div className="flex-1">
+                            <div className={`text-sm font-medium ${!isMealAvailable(dateStr, 'breakfast') ? 'line-through text-stone-400' : 'text-stone-800'}`}>Breakfast</div>
+                            <div className="text-xs text-stone-500">{mealTimesConfig.breakfast}</div>
                           </div>
-                          {/* Bar Supper for arrival day */}
-                          <div className="flex items-center gap-3 p-2 border border-stone-200 rounded bg-stone-50">
-                            <input
-                              type="checkbox"
-                              checked={dayData.barSupper || false}
-                              onChange={(e) => updateMeal(dateStr, 'barSupper', e.target.checked)}
-                              className="w-4 h-4 text-emerald-700 rounded border-stone-300"
-                            />
-                            <div className="flex-1">
-                              <div className="text-sm font-medium text-stone-800">Bar Supper</div>
-                              <div className="text-xs text-stone-500">{mealTimesConfig.barSupper}</div>
-                            </div>
-                            {dayData.barSupper && (
-                              <label className="flex items-center gap-1 px-2 py-1 bg-emerald-50 rounded cursor-pointer">
-                                <input
-                                  type="checkbox"
-                                  checked={dayData.packedBarSupper || false}
-                                  onChange={(e) => updateMeal(dateStr, 'packedBarSupper', e.target.checked)}
-                                  className="w-3 h-3 text-emerald-700 rounded"
-                                />
-                                <span className="text-xs text-emerald-800">Packed</span>
-                              </label>
-                            )}
-                          </div>
-                        </>
-                      ) : (
-                        <>
-                          {/* Breakfast - Not on first day arrival, available on checkout */}
-                          {!isFirstDay && (
-                            <div className="flex items-center gap-3 p-2 border border-stone-200 rounded bg-stone-50">
+                          {dayData.breakfast && isMealAvailable(dateStr, 'breakfast') && (
+                            <label className="flex items-center gap-1 px-2 py-1 bg-emerald-50 rounded cursor-pointer">
                               <input
                                 type="checkbox"
-                                checked={dayData.breakfast || false}
-                                onChange={(e) => updateMeal(dateStr, 'breakfast', e.target.checked)}
-                                className="w-4 h-4 text-emerald-700 rounded border-stone-300"
+                                checked={dayData.packedBreakfast || false}
+                                onChange={(e) => updateMeal(dateStr, 'packedBreakfast', e.target.checked)}
+                                className="w-3 h-3 text-emerald-700 rounded"
                               />
-                              <div className="flex-1">
-                                <div className="text-sm font-medium text-stone-800">Breakfast</div>
-                                <div className="text-xs text-stone-500">{mealTimesConfig.breakfast}</div>
-                              </div>
-                              {dayData.breakfast && (
-                                <label className="flex items-center gap-1 px-2 py-1 bg-emerald-50 rounded cursor-pointer">
-                                  <input
-                                    type="checkbox"
-                                    checked={dayData.packedBreakfast || false}
-                                    onChange={(e) => updateMeal(dateStr, 'packedBreakfast', e.target.checked)}
-                                    className="w-3 h-3 text-emerald-700 rounded"
-                                  />
-                                  <span className="text-xs text-emerald-800">Packed</span>
-                                </label>
-                              )}
-                            </div>
+                              <span className="text-xs text-emerald-800">Packed</span>
+                            </label>
                           )}
+                        </div>
 
-                          {/* Lunch - Available on arrival and full days, not on checkout */}
-                          {!isLastDay && (
-                            <div className="flex items-center gap-3 p-2 border border-stone-200 rounded bg-stone-50">
+                        {/* Lunch */}
+                        <div className={`flex items-center gap-3 p-2 border border-stone-200 rounded ${!isMealAvailable(dateStr, 'lunch') ? 'opacity-40' : 'bg-stone-50'}`}>
+                          <input
+                            type="checkbox"
+                            checked={dayData.lunch || false}
+                            disabled={!isMealAvailable(dateStr, 'lunch')}
+                            onChange={(e) => updateMeal(dateStr, 'lunch', e.target.checked)}
+                            className="w-4 h-4 text-emerald-700 rounded border-stone-300"
+                          />
+                          <div className="flex-1">
+                            <div className={`text-sm font-medium ${!isMealAvailable(dateStr, 'lunch') ? 'line-through text-stone-400' : 'text-stone-800'}`}>Lunch</div>
+                            <div className="text-xs text-stone-500">{mealTimesConfig.lunch}</div>
+                          </div>
+                          {dayData.lunch && isMealAvailable(dateStr, 'lunch') && (
+                            <label className="flex items-center gap-1 px-2 py-1 bg-emerald-50 rounded cursor-pointer">
                               <input
                                 type="checkbox"
-                                checked={dayData.lunch || false}
-                                onChange={(e) => updateMeal(dateStr, 'lunch', e.target.checked)}
-                                className="w-4 h-4 text-emerald-700 rounded border-stone-300"
+                                checked={dayData.packedLunch || false}
+                                onChange={(e) => updateMeal(dateStr, 'packedLunch', e.target.checked)}
+                                className="w-3 h-3 text-emerald-700 rounded"
                               />
-                              <div className="flex-1">
-                                <div className="text-sm font-medium text-stone-800">Lunch</div>
-                                <div className="text-xs text-stone-500">{mealTimesConfig.lunch}</div>
-                              </div>
-                              {dayData.lunch && (
-                                <label className="flex items-center gap-1 px-2 py-1 bg-emerald-50 rounded cursor-pointer">
-                                  <input
-                                    type="checkbox"
-                                    checked={dayData.packedLunch || false}
-                                    onChange={(e) => updateMeal(dateStr, 'packedLunch', e.target.checked)}
-                                    className="w-3 h-3 text-emerald-700 rounded"
-                                  />
-                                  <span className="text-xs text-emerald-800">Packed</span>
-                                </label>
-                              )}
-                            </div>
+                              <span className="text-xs text-emerald-800">Packed</span>
+                            </label>
                           )}
+                        </div>
 
-                          {/* Bar Supper - Available on arrival and full days, not on checkout */}
-                          {!isLastDay && (
-                            <div className="flex items-center gap-3 p-2 border border-stone-200 rounded bg-stone-50">
+                        {/* Bar Supper */}
+                        <div className={`flex items-center gap-3 p-2 border border-stone-200 rounded ${!isMealAvailable(dateStr, 'barSupper') ? 'opacity-40' : 'bg-stone-50'}`}>
+                          <input
+                            type="checkbox"
+                            checked={dayData.barSupper || false}
+                            disabled={!isMealAvailable(dateStr, 'barSupper')}
+                            onChange={(e) => updateMeal(dateStr, 'barSupper', e.target.checked)}
+                            className="w-4 h-4 text-emerald-700 rounded border-stone-300"
+                          />
+                          <div className="flex-1">
+                            <div className={`text-sm font-medium ${!isMealAvailable(dateStr, 'barSupper') ? 'line-through text-stone-400' : 'text-stone-800'}`}>Bar Supper</div>
+                            <div className="text-xs text-stone-500">{mealTimesConfig.barSupper}</div>
+                          </div>
+                          {dayData.barSupper && isMealAvailable(dateStr, 'barSupper') && (
+                            <label className="flex items-center gap-1 px-2 py-1 bg-emerald-50 rounded cursor-pointer">
                               <input
                                 type="checkbox"
-                                checked={dayData.barSupper || false}
-                                onChange={(e) => updateMeal(dateStr, 'barSupper', e.target.checked)}
-                                className="w-4 h-4 text-emerald-700 rounded border-stone-300"
+                                checked={dayData.packedBarSupper || false}
+                                onChange={(e) => updateMeal(dateStr, 'packedBarSupper', e.target.checked)}
+                                className="w-3 h-3 text-emerald-700 rounded"
                               />
-                              <div className="flex-1">
-                                <div className="text-sm font-medium text-stone-800">Bar Supper</div>
-                                <div className="text-xs text-stone-500">{mealTimesConfig.barSupper}</div>
-                              </div>
-                              {dayData.barSupper && (
-                                <label className="flex items-center gap-1 px-2 py-1 bg-emerald-50 rounded cursor-pointer">
-                                  <input
-                                    type="checkbox"
-                                    checked={dayData.packedBarSupper || false}
-                                    onChange={(e) => updateMeal(dateStr, 'packedBarSupper', e.target.checked)}
-                                    className="w-3 h-3 text-emerald-700 rounded"
-                                  />
-                                  <span className="text-xs text-emerald-800">Packed</span>
-                                </label>
-                              )}
-                            </div>
+                              <span className="text-xs text-emerald-800">Packed</span>
+                            </label>
                           )}
-
-                          {/* Checkout day message */}
-                          {isLastDay && !isFirstDay && (
-                            <div className="text-xs text-stone-600 italic mt-2">
-                              Checkout day - Breakfast only available
-                            </div>
-                          )}
-                        </>
-                      )}
+                        </div>
+                      </>
                     </div>
                   </div>
                 );
@@ -1153,19 +1457,36 @@ const BookingFlow = ({
           </div>
         </div>
 
-        <div className="flex justify-end gap-3">
-          <button
-            onClick={() => setBookingStep(2)}
-            className="px-6 py-2 border border-stone-300 rounded-lg hover:bg-stone-50"
-          >
-            Back
-          </button>
-          <button
-            onClick={confirmBooking}
-            className="px-6 py-2 bg-emerald-700 text-white rounded-lg hover:bg-emerald-800"
-          >
-            Confirm Booking
-          </button>
+        <div className="flex justify-end gap-3 mt-8 pt-6 border-t border-stone-100">
+          {currentUser === 'admin' && (
+            <div className="flex-1 max-w-xs">
+              <label className="block text-[10px] font-black uppercase tracking-widest text-emerald-600 mb-1 ml-1">Admin: Book For Member</label>
+              <select
+                value={adminBookingMember}
+                onChange={(e) => setAdminBookingMember(e.target.value)}
+                className="w-full h-12 px-4 bg-emerald-50/50 border border-emerald-200 rounded-xl focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all font-medium text-sm text-emerald-900 placeholder:text-emerald-300"
+              >
+                <option value="">Select a member...</option>
+                {memberList.map(m => (
+                  <option key={m.id} value={m.full_name}>{m.full_name}</option>
+                ))}
+              </select>
+            </div>
+          )}
+          <div className="flex gap-3 items-end">
+            <button
+              onClick={() => setBookingStep(2)}
+              className="px-6 py-2 border border-stone-300 rounded-lg hover:bg-stone-50"
+            >
+              Back
+            </button>
+            <button
+              onClick={() => confirmBooking(adminBookingMember)}
+              className="px-6 py-2 bg-emerald-700 text-white rounded-lg hover:bg-emerald-800"
+            >
+              Confirm Booking
+            </button>
+          </div>
         </div>
       </div>
     );
@@ -1182,6 +1503,11 @@ const MultiRoomBookingDetails = ({
   mealTimesConfig,
   currentUser
 }) => {
+  const [step, setStep] = React.useState(1); // 1: Occupancy, 2: Meals, 3: Review
+  const [adminBookingMember, setAdminBookingMember] = React.useState('');
+
+  const effectiveMember = currentUser === 'admin' ? (adminBookingMember || 'Admin Booking') : currentUser;
+
   // Group selected cells by room into continuous date ranges
   const groupSelectionsByRoom = () => {
     const roomGroups = {};
@@ -1196,12 +1522,12 @@ const MultiRoomBookingDetails = ({
     // Sort dates for each room and create continuous ranges
     const roomBookings = [];
     Object.entries(roomGroups).forEach(([roomId, dates]) => {
-      dates.sort();
+      dates.sort((a, b) => new Date(a) - new Date(b));
 
       // Group into continuous date ranges
       let currentRange = [dates[0]];
       for (let i = 1; i < dates.length; i++) {
-        const prevDate = new Date(dates[i-1]);
+        const prevDate = new Date(dates[i - 1]);
         const currDate = new Date(dates[i]);
         const dayDiff = (currDate - prevDate) / (1000 * 60 * 60 * 24);
 
@@ -1217,8 +1543,9 @@ const MultiRoomBookingDetails = ({
             startDate: currentRange[0],
             endDate: getNextDay(currentRange[currentRange.length - 1]),
             dates: [...currentRange],
-            guestName: '',
+            guestNames: [''],
             guests: 1,
+            dietary: '',
             dailyMeals: {}
           });
           currentRange = [dates[i]];
@@ -1235,8 +1562,9 @@ const MultiRoomBookingDetails = ({
           startDate: currentRange[0],
           endDate: getNextDay(currentRange[currentRange.length - 1]),
           dates: [...currentRange],
-          guestName: '',
+          guestNames: [''],
           guests: 1,
+          dietary: '',
           dailyMeals: {}
         });
       }
@@ -1254,17 +1582,11 @@ const MultiRoomBookingDetails = ({
   const isMealAvailable = (dateStr, mealType) => {
     const date = new Date(dateStr);
     const dayOfWeek = date.getDay(); // 0 = Sunday, 1 = Monday, etc.
-
-    // No meals between Sunday lunch and Tuesday breakfast inclusive
-    // Sunday lunch: not available
-    // Sunday dinner (barSupper): not available
-    // Monday all meals: not available (dayOfWeek === 1)
-    // Tuesday breakfast: not available (dayOfWeek === 2, meal === breakfast)
-
-    if (dayOfWeek === 0 && mealType === 'lunch') return false; // Sunday lunch
-    if (dayOfWeek === 0 && mealType === 'barSupper') return false; // Sunday dinner
-    if (dayOfWeek === 1) return false; // Monday - all meals
-    if (dayOfWeek === 2 && mealType === 'breakfast') return false; // Tuesday breakfast
+    if (dayOfWeek === 0 && mealType === 'lunch') return false;
+    if (dayOfWeek === 0 && mealType === 'barSupper') return false;
+    if (dayOfWeek === 1) return false;
+    if (dayOfWeek === 2 && mealType === 'breakfast') return false;
+    if (dayOfWeek === 2 && mealType === 'lunch') return false;
 
     return true;
   };
@@ -1287,19 +1609,16 @@ const MultiRoomBookingDetails = ({
 
       // Default: Start with bar supper on first day, end with lunch on last day
       if (isSingleDay) {
-        // Single day: lunch and bar supper
-        meals[date].lunch = isMealAvailable(date, 'lunch');
+        // Single day: Dinner (Supper) only by default
         meals[date].barSupper = isMealAvailable(date, 'barSupper');
       } else if (isFirstDay) {
-        // First day: lunch and bar supper
-        meals[date].lunch = isMealAvailable(date, 'lunch');
+        // First day: Dinner (Supper) only by default
         meals[date].barSupper = isMealAvailable(date, 'barSupper');
       } else if (isLastDay) {
-        // Last day: breakfast and lunch
+        // Last day: Breakfast only by default
         meals[date].breakfast = isMealAvailable(date, 'breakfast');
-        meals[date].lunch = isMealAvailable(date, 'lunch');
       } else {
-        // Middle days: all meals
+        // Middle days: All available meals by default
         meals[date].breakfast = isMealAvailable(date, 'breakfast');
         meals[date].lunch = isMealAvailable(date, 'lunch');
         meals[date].barSupper = isMealAvailable(date, 'barSupper');
@@ -1314,26 +1633,77 @@ const MultiRoomBookingDetails = ({
     return initial.map((rb, idx) => ({
       ...rb,
       isGuest: idx !== 0, // First room is member-occupied by default
-      guestName: idx === 0 ? currentUser : '',
+      guestNames: [idx === 0 ? effectiveMember : ''],
+      dietary: '',
       dailyMeals: initializeDefaultMeals(rb.dates)
     }));
   });
 
-  const [partyArrivalTime, setPartyArrivalTime] = React.useState('');
+  const [partyArrivalTime, setPartyArrivalTime] = React.useState('14:00');
+  const [stayingInCottage, setStayingInCottage] = React.useState(false);
+
 
   const updateRoomBooking = (index, field, value) => {
     const updated = [...roomBookings];
     updated[index] = { ...updated[index], [field]: value };
+
+    // If we just marked a room as guest and it was the only member room,
+    // or if we just marked a room as member stay, update cottage state
+    if (field === 'isGuest') {
+      if (value === false) {
+        setStayingInCottage(false);
+        // Unmark others
+        updated.forEach((rb, i) => {
+          if (i !== index) rb.isGuest = true;
+        });
+        // If switching to member, ensure first name is effective user
+        if (!updated[index].guestNames[0] || updated[index].guestNames[0] === 'Guest') {
+          updated[index].guestNames[0] = effectiveMember;
+        }
+      } else {
+        const anyMemberStay = updated.some(rb => !rb.isGuest);
+        if (!anyMemberStay) setStayingInCottage(true);
+      }
+    }
+
     setRoomBookings(updated);
   };
 
+
   const setMemberOccupied = (index) => {
+    setStayingInCottage(false);
     setRoomBookings(roomBookings.map((rb, i) => ({
       ...rb,
       isGuest: i !== index,
-      guestName: i === index ? currentUser : (rb.isGuest ? rb.guestName : '')
+      guestNames: i === index ? (rb.guestNames[0] === currentUser || rb.guestNames[0] === effectiveMember ? rb.guestNames : [effectiveMember, ...rb.guestNames.slice(1)]) : rb.guestNames
     })));
   };
+
+
+  const updateGuestName = (roomIdx, guestIdx, name) => {
+    const updated = [...roomBookings];
+    const names = [...updated[roomIdx].guestNames];
+    names[guestIdx] = name;
+    updated[roomIdx].guestNames = names;
+    setRoomBookings(updated);
+  };
+
+  const addGuest = (roomIdx) => {
+    const updated = [...roomBookings];
+    updated[roomIdx].guestNames = [...updated[roomIdx].guestNames, ''];
+    updated[roomIdx].guests = updated[roomIdx].guestNames.length;
+    setRoomBookings(updated);
+  };
+
+  const removeGuest = (roomIdx, guestIdx) => {
+    const updated = [...roomBookings];
+    if (updated[roomIdx].guestNames.length > 1) {
+      updated[roomIdx].guestNames = updated[roomIdx].guestNames.filter((_, i) => i !== guestIdx);
+      updated[roomIdx].guests = updated[roomIdx].guestNames.length;
+      setRoomBookings(updated);
+    }
+  };
+
 
   const updateMeal = (roomIndex, dateStr, mealField, value) => {
     const updated = [...roomBookings];
@@ -1345,260 +1715,569 @@ const MultiRoomBookingDetails = ({
   };
 
   const handleConfirm = () => {
-    confirmMultiRoomBooking(roomBookings, partyArrivalTime);
+    // Validate guest dates against member dates
+    let memberMinDate = null;
+    let memberMaxDate = null;
+    const hasGuests = roomBookings.some(rb => rb.isGuest === 'GUEST' || rb.isGuest === true);
+    const hasMembers = roomBookings.some(rb => rb.isGuest === 'MEMBER' || rb.isGuest === false);
+
+    if (hasGuests) {
+      if (!hasMembers) {
+        alert("Guests are only allowed when a member is also staying at the property. Please assign at least one room to a member.");
+        return;
+      }
+
+      // Find member overall stay dates
+      roomBookings.filter(rb => rb.isGuest === 'MEMBER' || rb.isGuest === false).forEach(rb => {
+        const rbStart = new Date(rb.startDate);
+        const rbEnd = new Date(rb.endDate);
+        if (!memberMinDate || rbStart < memberMinDate) memberMinDate = rbStart;
+        if (!memberMaxDate || rbEnd > memberMaxDate) memberMaxDate = rbEnd;
+      });
+
+      // Check if any guest dates fall outside member dates
+      const invalidGuestRooms = roomBookings.filter(rb => {
+        if (rb.isGuest === 'MEMBER' || rb.isGuest === false) return false;
+        const guestStart = new Date(rb.startDate);
+        const guestEnd = new Date(rb.endDate);
+        return guestStart < memberMinDate || guestEnd > memberMaxDate;
+      });
+
+      if (invalidGuestRooms.length > 0) {
+        // If admin is booking, we allow booking for a member overriding standard dates based on verbal approval
+        if (currentUser !== 'admin') {
+          alert("Guest(s) are only allowed at the property during the same time as the member stays there. Please adjust the guest dates to fall within your stay.");
+          return;
+        }
+      }
+    }
+
+    // Propagate dietary/allergies to all rooms so they show up on reports for all guests in party
+    const sharedDietary = roomBookings[0]?.dietary || '';
+    const finalizedRoomBookings = roomBookings.map(rb => ({
+      ...rb,
+      dietary: sharedDietary
+    }));
+
+    confirmMultiRoomBooking(finalizedRoomBookings, partyArrivalTime, stayingInCottage, effectiveMember);
   };
 
-  return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h2 className="text-2xl font-light text-emerald-900">Booking Details</h2>
-        <button
-          onClick={() => setBookingMode('calendar')}
-          className="text-sm text-stone-600 hover:text-emerald-700"
-        >
-          ← Back to Selection
-        </button>
-      </div>
 
-      {/* Party Arrival Time */}
-      <div className="bg-stone-50 rounded-lg p-6">
-        <h3 className="font-medium text-emerald-900 mb-4">Party Information</h3>
-        <div>
-          <label className="block text-sm font-medium text-stone-700 mb-2">
-            Arrival Time (for entire party)
-          </label>
-          <select
-            value={partyArrivalTime}
-            onChange={(e) => setPartyArrivalTime(e.target.value)}
-            className="px-4 py-2 border border-stone-300 rounded-lg focus:ring-2 focus:ring-emerald-600 bg-white"
-          >
-            <option value="">Select arrival time...</option>
-            <option value="07:00">7:00 AM</option>
-            <option value="07:30">7:30 AM</option>
-            <option value="08:00">8:00 AM</option>
-            <option value="08:30">8:30 AM</option>
-            <option value="09:00">9:00 AM</option>
-            <option value="09:30">9:30 AM</option>
-            <option value="10:00">10:00 AM</option>
-            <option value="10:30">10:30 AM</option>
-            <option value="11:00">11:00 AM</option>
-            <option value="11:30">11:30 AM</option>
-            <option value="12:00">12:00 PM</option>
-            <option value="12:30">12:30 PM</option>
-            <option value="13:00">1:00 PM</option>
-            <option value="13:30">1:30 PM</option>
-            <option value="14:00">2:00 PM</option>
-            <option value="14:30">2:30 PM</option>
-            <option value="15:00">3:00 PM</option>
-            <option value="15:30">3:30 PM</option>
-            <option value="16:00">4:00 PM</option>
-            <option value="16:30">4:30 PM</option>
-            <option value="17:00">5:00 PM</option>
-            <option value="17:30">5:30 PM</option>
-            <option value="18:00">6:00 PM</option>
-            <option value="18:30">6:30 PM</option>
-            <option value="19:00">7:00 PM</option>
-            <option value="19:30">7:30 PM</option>
-            <option value="20:00">8:00 PM</option>
-            <option value="20:30">8:30 PM</option>
-            <option value="21:00">9:00 PM</option>
-            <option value="21:30">9:30 PM</option>
-            <option value="22:00">10:00 PM</option>
-          </select>
-        </div>
-      </div>
+  const getOverallDates = () => {
+    let minDate = null;
+    let maxDate = null;
+    roomBookings.forEach(rb => {
+      if (!minDate || rb.startDate < minDate) minDate = rb.startDate;
+      if (!maxDate || rb.endDate > maxDate) maxDate = rb.endDate;
+    });
+    return {
+      start: minDate ? new Date(minDate + 'T00:00:00') : new Date(),
+      end: maxDate ? new Date(maxDate + 'T00:00:00') : new Date()
+    };
+  };
+  const { start: overallStart, end: overallEnd } = getOverallDates();
 
-      {/* Room Bookings */}
-      <div className="space-y-6">
-        {roomBookings.map((booking, roomIndex) => (
-          <div key={roomIndex} className="border border-stone-300 rounded-lg p-6 bg-white">
-            <h3 className="font-semibold text-emerald-900 mb-4">
-              {booking.roomName} ({booking.building})
-            </h3>
-            <div className="text-sm text-stone-600 mb-4">
-              {new Date(booking.startDate).toLocaleDateString()} - {new Date(booking.endDate).toLocaleDateString()}
-              <span className="ml-2">({booking.dates.length} night{booking.dates.length !== 1 ? 's' : ''})</span>
-            </div>
-
-            <div className="mb-4">
-              <label className="flex items-center gap-2 mb-3">
-                <input
-                  type="checkbox"
-                  checked={!booking.isGuest}
-                  onChange={() => setMemberOccupied(roomIndex)}
-                  className="w-4 h-4"
-                />
-                <span className="text-sm font-medium text-stone-700">Member occupied</span>
-              </label>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-stone-700 mb-2">
-                    Room Occupant(s)
-                  </label>
-                  <input
-                    type="text"
-                    value={booking.guestName}
-                    onChange={(e) => updateRoomBooking(roomIndex, 'guestName', e.target.value)}
-                    placeholder={booking.isGuest ? "e.g., Smith Family" : ""}
-                    disabled={!booking.isGuest}
-                    className={`w-full px-4 py-2 border border-stone-300 rounded-lg focus:ring-2 focus:ring-emerald-600 ${!booking.isGuest ? 'bg-stone-100 text-stone-600' : ''}`}
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-stone-700 mb-2">
-                    Number of Guests
-                  </label>
-                  <input
-                    type="number"
-                    min="1"
-                    value={booking.guests}
-                    onChange={(e) => updateRoomBooking(roomIndex, 'guests', parseInt(e.target.value))}
-                    className="w-full px-4 py-2 border border-stone-300 rounded-lg focus:ring-2 focus:ring-emerald-600"
-                  />
-                </div>
-              </div>
-            </div>
-
-            {/* Meals by Day */}
-            <div>
-              <h4 className="text-sm font-medium text-stone-700 mb-3">Meals</h4>
-              <div className="space-y-2">
-                {booking.dates.map((date, dayIndex) => {
-                  const dayData = booking.dailyMeals[date];
-                  const isFirstDay = dayIndex === 0;
-                  const isLastDay = dayIndex === booking.dates.length - 1;
-                  const dateObj = new Date(date);
-                  const dayOfWeek = dateObj.getDay();
-                  const showNoMeals = dayOfWeek === 1;
-
-                  return (
-                    <div key={date} className="grid grid-cols-[140px_1fr] gap-4 border border-stone-200 rounded p-3 bg-stone-50">
-                      {/* Date column */}
-                      <div className="flex flex-col justify-center">
-                        <div className="font-medium text-sm text-stone-800">
-                          {dateObj.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
-                        </div>
-                        {showNoMeals && (
-                          <div className="text-xs text-amber-700 mt-1">No meals served</div>
-                        )}
-                      </div>
-
-                      {/* Meals column - stacked vertically */}
-                      <div className="space-y-1">
-                        {/* Breakfast */}
-                        {!isFirstDay && (
-                          <div className={`flex items-center justify-between ${!isMealAvailable(date, 'breakfast') ? 'opacity-60' : ''}`}>
-                            <label className="flex items-center gap-2 text-xs">
-                              <input
-                                type="checkbox"
-                                checked={dayData.breakfast}
-                                disabled={!isMealAvailable(date, 'breakfast')}
-                                onChange={(e) => updateMeal(roomIndex, date, 'breakfast', e.target.checked)}
-                                className="w-4 h-4"
-                              />
-                              <span className={`font-medium ${!isMealAvailable(date, 'breakfast') ? 'line-through' : ''}`}>
-                                Breakfast
-                              </span>
-                            </label>
-                            {dayData.breakfast && (
-                              <label className="flex items-center gap-1 text-xs text-stone-600">
-                                <input
-                                  type="checkbox"
-                                  checked={dayData.packedBreakfast}
-                                  onChange={(e) => updateMeal(roomIndex, date, 'packedBreakfast', e.target.checked)}
-                                  className="w-3 h-3"
-                                />
-                                <span>Packed</span>
-                              </label>
-                            )}
-                          </div>
-                        )}
-
-                        {/* Lunch */}
-                        {(isFirstDay || !isLastDay || booking.dates.length > 1) && (
-                          <div className={`flex items-center justify-between ${!isMealAvailable(date, 'lunch') ? 'opacity-60' : ''}`}>
-                            <label className="flex items-center gap-2 text-xs">
-                              <input
-                                type="checkbox"
-                                checked={dayData.lunch}
-                                disabled={!isMealAvailable(date, 'lunch')}
-                                onChange={(e) => updateMeal(roomIndex, date, 'lunch', e.target.checked)}
-                                className="w-4 h-4"
-                              />
-                              <span className={`font-medium ${!isMealAvailable(date, 'lunch') ? 'line-through' : ''}`}>
-                                Lunch
-                              </span>
-                            </label>
-                            {dayData.lunch && (
-                              <label className="flex items-center gap-1 text-xs text-stone-600">
-                                <input
-                                  type="checkbox"
-                                  checked={dayData.packedLunch}
-                                  onChange={(e) => updateMeal(roomIndex, date, 'packedLunch', e.target.checked)}
-                                  className="w-3 h-3"
-                                />
-                                <span>Packed</span>
-                              </label>
-                            )}
-                          </div>
-                        )}
-
-                        {/* Bar Supper */}
-                        {!isLastDay && (
-                          <div className={`flex items-center justify-between ${!isMealAvailable(date, 'barSupper') ? 'opacity-60' : ''}`}>
-                            <label className="flex items-center gap-2 text-xs">
-                              <input
-                                type="checkbox"
-                                checked={dayData.barSupper}
-                                disabled={!isMealAvailable(date, 'barSupper')}
-                                onChange={(e) => updateMeal(roomIndex, date, 'barSupper', e.target.checked)}
-                                className="w-4 h-4"
-                              />
-                              <span className={`font-medium ${!isMealAvailable(date, 'barSupper') ? 'line-through' : ''}`}>
-                                Bar Supper
-                              </span>
-                            </label>
-                            {dayData.barSupper && (
-                              <label className="flex items-center gap-1 text-xs text-stone-600">
-                                <input
-                                  type="checkbox"
-                                  checked={dayData.packedBarSupper}
-                                  onChange={(e) => updateMeal(roomIndex, date, 'packedBarSupper', e.target.checked)}
-                                  className="w-3 h-3"
-                                />
-                                <span>Packed</span>
-                              </label>
-                            )}
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          </div>
-        ))}
-      </div>
-
-      {/* Actions */}
-      <div className="flex justify-end gap-3">
-        <button
-          onClick={() => setBookingMode('calendar')}
-          className="px-6 py-2 border border-stone-300 rounded-lg hover:bg-stone-50"
-        >
-          Back
-        </button>
-        <button
-          onClick={handleConfirm}
-          className="px-6 py-2 bg-emerald-700 text-white rounded-lg hover:bg-emerald-800"
-        >
-          Confirm Bookings
-        </button>
+  const StepIndicator = () => (
+    <div className="flex items-center justify-center mb-10">
+      <div className="flex items-center gap-6 bg-transparent border-b border-stone-100 pb-4 w-full justify-center">
+        <StepIcon num={1} label="Occupants" active={step === 1} completed={step > 1} onClick={() => setStep(1)} />
+        <div className="w-12 h-px bg-stone-200"></div>
+        <StepIcon num={2} label="Meals" active={step === 2} completed={step > 2} onClick={() => setStep(2)} />
+        <div className="w-12 h-px bg-stone-200"></div>
+        <StepIcon num={3} label="Review" active={step === 3} completed={step > 3} onClick={() => setStep(3)} />
       </div>
     </div>
   );
+
+  const StepIcon = ({ num, label, active, completed, onClick }) => (
+    <button
+      onClick={onClick}
+      className={`flex items-center gap-2 transition-all hover:scale-105 active:scale-95 cursor-pointer ${active ? 'text-emerald-700' : 'text-stone-400 hover:text-stone-600'}`}
+    >
+      <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold border ${active ? 'border-emerald-500 bg-emerald-50 text-emerald-700' : completed ? 'bg-emerald-500 border-emerald-500 text-white' : 'border-stone-300'}`}>
+        {completed ? <LucideIcon name="check" className="w-3.5 h-3.5" /> : num}
+      </div>
+      <span className="text-sm font-semibold">{label}</span>
+    </button>
+  );
+
+  return (
+    <div className="max-w-4xl mx-auto py-8 px-4">
+      <div className="flex items-center justify-between mb-8 pb-6 border-b border-stone-100">
+        <button
+          onClick={() => step > 1 ? setStep(step - 1) : setBookingMode('calendar')}
+          className="flex items-center gap-2 text-stone-500 hover:text-emerald-700 transition-colors font-medium px-4 py-2 rounded-xl hover:bg-emerald-50"
+        >
+          <LucideIcon name="chevron-left" className="w-4 h-4" />
+          <span>{step === 1 ? 'Back to Calendar' : 'Previous Step'}</span>
+        </button>
+        <div className="text-right flex flex-col items-end">
+          <div className="flex items-center gap-4 mb-2">
+            <button
+              onClick={() => setBookingMode('calendar')}
+              className="px-4 py-2 bg-emerald-50 text-emerald-700 font-bold rounded-xl border border-emerald-200 hover:bg-emerald-100 transition-colors shadow-sm flex items-center gap-2 text-sm"
+            >
+              <LucideIcon name="plus" className="w-4 h-4" />
+              Add Room
+            </button>
+            <h2 className="text-3xl font-light text-stone-900 tracking-tight">Complete Your Booking</h2>
+          </div>
+          <div className="flex bg-amber-50 text-amber-900 px-4 py-2 rounded-xl font-bold items-center gap-2.5 text-xs lg:text-sm border border-amber-200 shadow-sm">
+            <LucideIcon name="calendar" className="w-4 h-4 text-amber-600" />
+            <span>{overallStart.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} — {overallEnd.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span>
+            <div className="w-px h-4 bg-amber-300 mx-1"></div>
+            <div className="flex items-center gap-1.5 text-amber-800">
+              <LucideIcon name="log-in" className="w-3.5 h-3.5 opacity-60" />
+              <span>{partyArrivalTime || '4:00 PM'} Move In</span>
+            </div>
+            <div className="w-px h-3 bg-amber-300 mx-1"></div>
+            <div className="flex items-center gap-1.5 text-amber-800">
+              <LucideIcon name="log-out" className="w-3.5 h-3.5 opacity-60" />
+              <span>11:00 AM Move Out</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <StepIndicator />
+
+      {/* STEP 1: Occupancy & Basics */}
+      {step === 1 && (
+        <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="bg-white rounded-3xl border border-stone-200 p-6 shadow-sm hover:border-emerald-200 transition-colors">
+              <div className="flex items-center gap-3 mb-6">
+                <div className="p-2 bg-emerald-50 rounded-xl text-emerald-600">
+                  <LucideIcon name="clock" className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-stone-900">Arrival Details</h3>
+                  <p className="text-xs text-stone-500">When should we expect your party?</p>
+                </div>
+              </div>
+
+              {currentUser === 'admin' && (
+                <div className="mb-6 space-y-2 pb-4 border-b border-stone-100">
+                  <label className="text-[10px] font-black uppercase tracking-widest text-emerald-600 ml-1">Admin: Booking For Which Member?</label>
+                  <select
+                    value={adminBookingMember}
+                    onChange={(e) => {
+                      setAdminBookingMember(e.target.value);
+                      // Auto update the first room name if it was empty or matched the old admin name
+                      setRoomBookings(prev => prev.map((rb, i) => {
+                        if (!rb.isGuest && (rb.guestNames[0] === 'Admin Booking' || rb.guestNames[0] === adminBookingMember)) {
+                          return { ...rb, guestNames: [e.target.value || 'Admin Booking', ...rb.guestNames.slice(1)] };
+                        }
+                        return rb;
+                      }));
+                    }}
+                    className="w-full h-12 px-4 bg-emerald-50/50 border border-emerald-200 rounded-xl focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all font-medium text-sm text-emerald-900 placeholder:text-emerald-300"
+                  >
+                    <option value="">Select a member...</option>
+                    {memberList.map(m => (
+                      <option key={m.id} value={m.full_name}>{m.full_name}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
+              <div className="space-y-2">
+                <label className="text-[10px] font-black uppercase tracking-widest text-stone-400 ml-1">Party Arrival Time</label>
+                <select
+                  value={partyArrivalTime}
+                  onChange={(e) => setPartyArrivalTime(e.target.value)}
+                  className="w-full h-12 px-4 bg-stone-50 border border-stone-200 rounded-xl focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all font-medium appearance-none text-sm"
+                >
+                  <option value="07:00">07:00 AM</option>
+                  <option value="08:00">08:00 AM</option>
+                  <option value="09:00">09:00 AM</option>
+                  <option value="10:00">10:00 AM</option>
+                  <option value="11:00">11:00 AM</option>
+                  <option value="12:00">12:00 PM</option>
+                  <option value="13:00">01:00 PM</option>
+                  <option value="14:00">02:00 PM</option>
+                  <option value="15:00">03:00 PM</option>
+                  <option value="16:00">04:00 PM</option>
+                  <option value="17:00">05:00 PM</option>
+                  <option value="18:00">06:00 PM</option>
+                  <option value="19:00">07:00 PM</option>
+                  <option value="20:00">08:00 PM</option>
+                </select>
+              </div>
+            </div>
+
+            <div className={`rounded-3xl p-6 border-2 transition-all flex flex-col justify-center cursor-pointer ${stayingInCottage ? 'bg-emerald-50 border-emerald-500 shadow-sm' : 'bg-white border-stone-200 hover:border-emerald-200'}`} onClick={() => {
+              const val = !stayingInCottage;
+              setStayingInCottage(val);
+              if (val) {
+                setRoomBookings(roomBookings.map(rb => ({ ...rb, isGuest: true })));
+              } else if (roomBookings.every(r => r.isGuest)) {
+                setMemberOccupied(0);
+              }
+            }}>
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-3">
+                  <div className={`p-2.5 rounded-xl transition-all ${stayingInCottage ? 'bg-emerald-100 text-emerald-700' : 'bg-stone-50 text-stone-400'}`}>
+                    <LucideIcon name="home" className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h3 className="text-base font-bold text-stone-900">Staying in your cottage?</h3>
+                    <p className="text-xs text-stone-500">Check this if you are not using club rooms.</p>
+                  </div>
+                </div>
+                <div className={`w-6 h-6 rounded border flex items-center justify-center transition-colors ${stayingInCottage ? 'bg-emerald-500 border-emerald-500 text-white' : 'border-stone-300'}`}>
+                  {stayingInCottage && <LucideIcon name="check" className="w-4 h-4" />}
+                </div>
+              </div>
+              <p className="text-[10px] leading-relaxed text-stone-400">
+                Note: Members must stay at the club (either in a room or cottage) while guests are occupying club rooms.
+              </p>
+            </div>
+          </div>
+
+
+          <div className="space-y-6">
+            <h3 className="text-lg font-bold text-stone-900 px-2 flex items-center gap-2">
+              <LucideIcon name="bed-double" className="w-5 h-5 text-emerald-600" />
+              Room Assignment
+            </h3>
+            {roomBookings.map((booking, idx) => (
+              <div key={idx} className={`bg-white rounded-2xl border transition-all overflow-hidden ${!booking.isGuest ? 'border-emerald-300 shadow-sm' : 'border-stone-200'}`}>
+                <div className="bg-stone-50/50 px-4 py-3 border-b border-stone-100 flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <div className="w-8 h-8 bg-white rounded-lg shadow-sm flex items-center justify-center border border-stone-100">
+                      <span className="font-bold text-xs text-emerald-700">{booking.building.charAt(0)}{booking.roomId.slice(-1)}</span>
+                    </div>
+                    <div>
+                      <h4 className="font-bold text-stone-900 text-xs">{booking.roomName}</h4>
+                      <p className="text-[9px] font-black uppercase tracking-widest text-emerald-600">{getRoomById(booking.roomId)?.beds}</p>
+                    </div>
+                  </div>
+                  <div className="flex bg-stone-100/80 p-0.5 rounded-lg">
+                    <button
+                      onClick={(e) => { e.stopPropagation(); setMemberOccupied(idx); }}
+                      className={`px-2 py-1 rounded-md text-[10px] font-bold transition-all flex items-center gap-1 ${!booking.isGuest ? 'bg-white text-emerald-700 shadow-sm' : 'text-stone-500 hover:text-stone-700'}`}
+                    >
+                      <LucideIcon name="user-check" className="w-3 h-3" />
+                      Member
+                    </button>
+                    <button
+                      onClick={(e) => { e.stopPropagation(); updateRoomBooking(idx, 'isGuest', true); }}
+                      className={`px-2 py-1 rounded-md text-[10px] font-bold transition-all flex items-center gap-1 ${booking.isGuest ? 'bg-white text-amber-700 shadow-sm' : 'text-stone-500 hover:text-stone-700'}`}
+                    >
+                      <LucideIcon name="users" className="w-3 h-3" />
+                      Guest
+                    </button>
+                  </div>
+                </div>
+
+                <div className="p-4">
+                  <label className="text-[9px] font-black uppercase tracking-widest text-stone-400 block mb-2">Occupants</label>
+                  <div className="space-y-2">
+                    {booking.guestNames.map((name, gIdx) => (
+                      <div key={gIdx} className="flex items-center gap-2">
+                        <span className="text-[10px] font-bold text-stone-300 w-3">{gIdx + 1}.</span>
+                        <input
+                          type="text"
+                          value={name}
+                          onChange={(e) => updateGuestName(idx, gIdx, e.target.value)}
+                          placeholder={gIdx === 0 && !booking.isGuest ? effectiveMember : `Guest ${gIdx + 1}`}
+                          className="flex-1 px-2 py-1.5 border border-stone-200 rounded-lg text-xs focus:ring-1 focus:ring-emerald-500 focus:border-emerald-500 outline-none transition-all"
+                        />
+                        {booking.guestNames.length > 1 && (
+                          <button
+                            onClick={() => removeGuest(idx, gIdx)}
+                            className="p-1 text-stone-400 hover:text-red-500 hover:bg-red-50 rounded transition-colors"
+                          >
+                            <LucideIcon name="x" className="w-3.5 h-3.5" />
+                          </button>
+                        )}
+                      </div>
+                    ))}
+                    <button
+                      onClick={() => addGuest(idx)}
+                      className="flex items-center gap-1 text-emerald-600 hover:text-emerald-700 text-[10px] font-bold mt-2 ml-5 transition-all outline-none"
+                    >
+                      <LucideIcon name="plus" className="w-3 h-3" />
+                      Add Guest
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ))}
+
+            <div className="bg-white rounded-3xl border border-stone-200 p-6 shadow-sm hover:border-emerald-200 transition-colors">
+              <label className="text-[10px] font-black uppercase tracking-widest text-stone-400 block mb-3 flex items-center gap-2">
+                <LucideIcon name="apple" className="w-3.5 h-3.5" />
+                Dietary Preferences / Allergies
+              </label>
+              <textarea
+                value={roomBookings[0]?.dietary || ''}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  setRoomBookings(roomBookings.map(rb => ({ ...rb, dietary: val })));
+                }}
+                placeholder="List any dietary requirements for you or your guests..."
+                className="w-full px-4 py-3 border border-stone-200 rounded-xl text-sm focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none transition-all min-h-[80px] resize-none"
+              />
+            </div>
+          </div>
+
+          <div className="flex justify-end pt-4">
+            <button
+              onClick={() => setStep(2)}
+              className="flex items-center gap-2 px-6 py-2.5 bg-emerald-700 text-white rounded-xl hover:bg-emerald-800 transition-all font-semibold shadow-sm active:scale-95 group"
+            >
+              <span>Continue to Meals</span>
+              <LucideIcon name="arrow-right" className="w-4 h-4 group-hover:translate-x-0.5 transition-transform" />
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* STEP 2: Meals */}
+      {step === 2 && (
+        <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-500">
+          <div className="bg-amber-50 border border-amber-100 rounded-2xl p-5 flex items-start gap-3 shadow-sm">
+            <div className="p-2 bg-amber-100/50 rounded-xl text-amber-700">
+              <LucideIcon name="utensils" className="w-5 h-5" />
+            </div>
+            <div>
+              <h3 className="text-sm font-bold text-amber-900">Meal Planning</h3>
+              <p className="text-xs text-stone-600 leading-relaxed mt-1">
+                We've selected standard arrival/departure meals. Adjust as needed. Strikethrough meals aren't available.
+              </p>
+            </div>
+          </div>
+
+          <div className="space-y-6">
+            {roomBookings.map((room, roomIdx) => (
+              <div key={roomIdx} className="bg-white rounded-2xl border border-stone-200 overflow-hidden shadow-sm">
+                <div className="bg-stone-50/50 px-5 py-3 border-b border-stone-100 flex items-center gap-3">
+                  <div className="w-8 h-8 bg-emerald-50 rounded-lg flex items-center justify-center text-emerald-700 text-xs font-bold border border-emerald-100">
+                    {room.building.charAt(0)}{room.roomId.slice(-1)}
+                  </div>
+                  <div>
+                    <h4 className="font-bold text-stone-900 text-sm">{room.roomName}</h4>
+                    <p className="text-[9px] text-stone-400 font-bold uppercase tracking-widest">{room.guestNames[0] || 'Guest'}</p>
+                  </div>
+                </div>
+
+                <div className="p-5">
+                  <div className="space-y-4">
+                    {room.dates.map((date) => {
+                      const meals = room.dailyMeals[date];
+                      const dateObj = new Date(date);
+
+                      return (
+                        <div key={date} className="flex flex-col md:flex-row md:items-center gap-4 py-3 border-b border-stone-100 last:border-0 last:pb-0">
+                          <div className="w-32 shrink-0">
+                            <span className="text-xs font-bold text-stone-800">{dateObj.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}</span>
+                            {dateObj.getDay() === 1 && <span className="block mt-1 bg-amber-100 text-amber-800 px-1.5 py-0.5 w-fit rounded text-[8px] font-black uppercase">No Service</span>}
+                          </div>
+
+                          <div className="flex-1 grid grid-cols-1 sm:grid-cols-3 gap-2">
+                            <MealCheckbox
+                              id={`br-${roomIdx}-${date}`}
+                              label="Breakfast"
+                              time="8:00 AM"
+                              checked={meals.breakfast}
+                              disabled={!isMealAvailable(date, 'breakfast')}
+                              onChange={(val) => updateMeal(roomIdx, date, 'breakfast', val)}
+                              packed={meals.packedBreakfast}
+                              onPackedChange={(val) => updateMeal(roomIdx, date, 'packedBreakfast', val)}
+                            />
+                            <MealCheckbox
+                              id={`lu-${roomIdx}-${date}`}
+                              label="Lunch"
+                              time="12:30 PM"
+                              checked={meals.lunch}
+                              disabled={!isMealAvailable(date, 'lunch')}
+                              onChange={(val) => updateMeal(roomIdx, date, 'lunch', val)}
+                              packed={meals.packedLunch}
+                              onPackedChange={(val) => updateMeal(roomIdx, date, 'packedLunch', val)}
+                            />
+                            <MealCheckbox
+                              id={`su-${roomIdx}-${date}`}
+                              label="Bar Supper"
+                              time="6:00 PM"
+                              checked={meals.barSupper}
+                              disabled={!isMealAvailable(date, 'barSupper')}
+                              onChange={(val) => updateMeal(roomIdx, date, 'barSupper', val)}
+                              packed={meals.packedBarSupper}
+                              onPackedChange={(val) => updateMeal(roomIdx, date, 'packedBarSupper', val)}
+                            />
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <div className="flex justify-between items-center pt-4">
+            <button
+              onClick={() => setStep(1)}
+              className="px-4 py-2 text-stone-400 hover:text-stone-700 font-bold text-sm transition-colors"
+            >
+              Back
+            </button>
+            <button
+              onClick={() => setStep(3)}
+              className="flex items-center gap-2 px-6 py-2.5 bg-emerald-700 text-white rounded-xl hover:bg-emerald-800 transition-all font-semibold shadow-sm active:scale-95 group"
+            >
+              <span>Review Booking</span>
+              <LucideIcon name="arrow-right" className="w-4 h-4 group-hover:translate-x-0.5 transition-transform" />
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* STEP 3: Review */}
+      {step === 3 && (
+        <div className="space-y-6 animate-in fade-in zoom-in-95 duration-500 max-w-3xl mx-auto">
+          <div className="text-center py-4">
+            <h3 className="text-2xl font-bold text-stone-900">Final Review</h3>
+            <p className="text-sm text-stone-500 mt-1">Please double check your details before confirming.</p>
+          </div>
+
+          <div className="bg-white rounded-2xl border border-stone-200 overflow-hidden shadow-sm">
+            <div className="bg-stone-50/50 p-6 border-b border-stone-100 flex flex-col md:flex-row gap-6 md:gap-12 justify-between">
+              <div>
+                <label className="text-[10px] font-black uppercase tracking-[0.1em] text-stone-400 block mb-1">Member Account</label>
+                <p className="text-sm font-bold text-stone-900">{effectiveMember}</p>
+              </div>
+              <div>
+                <label className="text-[10px] font-black uppercase tracking-[0.1em] text-stone-400 block mb-1">Expected Arrival</label>
+                <p className="text-sm font-bold text-stone-900 flex items-center gap-1.5">
+                  <LucideIcon name="clock" className="w-4 h-4 text-emerald-600" />
+                  {partyArrivalTime}
+                </p>
+              </div>
+            </div>
+
+            <div className="p-6 space-y-4">
+              <label className="text-[10px] font-black uppercase tracking-[0.1em] text-stone-400 block">Room Reservations</label>
+              {roomBookings.map((room, idx) => (
+                <div key={idx} className="bg-stone-50 rounded-xl p-4 border border-stone-100 flex flex-col md:flex-row justify-between gap-4 md:items-center">
+                  <div>
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="text-[10px] font-black uppercase tracking-widest bg-emerald-100 text-emerald-800 px-1.5 py-0.5 rounded">{room.building}</span>
+                      <h4 className="font-bold text-sm text-stone-900">{room.roomName}</h4>
+                    </div>
+                    <p className="text-xs text-stone-500 font-medium">{room.dates.length} Nights • {room.dates[0]} to {room.endDate}</p>
+                  </div>
+
+                  <div className="text-left md:text-right">
+                    <p className="text-xs font-bold text-emerald-800 mb-1">
+                      {room.guestNames && Array.from(room.guestNames).filter(n => typeof n === 'string' && n.trim()).length > 0
+                        ? Array.from(room.guestNames).filter(n => typeof n === 'string' && n.trim()).join(', ')
+                        : (room.isGuest === true ? 'Guest Entry Pending' : 'Member Only')}
+                    </p>
+                    <div className="flex items-center md:justify-end gap-1.5">
+                      {!room.isGuest && room.guests === 1 ? (
+                        <>
+                          <LucideIcon name="user-check" className="w-3.5 h-3.5 text-emerald-600" />
+                          <span className="text-[10px] font-bold text-stone-500 uppercase tracking-tight">You staying here</span>
+                        </>
+                      ) : (
+                        <span className="text-xs text-stone-500">
+                          Total: {room.guests} {room.guests === 1 ? 'Person' : 'People'}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <div className="bg-stone-900 border-t border-stone-200 p-6 text-white flex flex-col sm:flex-row justify-between items-center gap-4">
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 bg-white/10 rounded-lg flex items-center justify-center">
+                  <LucideIcon name="utensils" className="w-4 h-4 text-emerald-400" />
+                </div>
+                <div>
+                  <h4 className="font-bold text-sm">Meal Summary</h4>
+                  <p className="text-emerald-300 text-[10px] uppercase tracking-widest">Total ordered items</p>
+                </div>
+              </div>
+
+              <div className="flex gap-6 text-center">
+                <div>
+                  <p className="text-lg font-bold">{roomBookings.reduce((acc, r) => acc + Object.values(r.dailyMeals).filter(m => m.breakfast).length, 0)}</p>
+                  <p className="text-[9px] uppercase font-black tracking-widest text-emerald-400">Breakfasts</p>
+                </div>
+                <div className="border-l border-white/20 pl-6">
+                  <p className="text-lg font-bold">{roomBookings.reduce((acc, r) => acc + Object.values(r.dailyMeals).filter(m => m.lunch).length, 0)}</p>
+                  <p className="text-[9px] uppercase font-black tracking-widest text-emerald-400">Lunches</p>
+                </div>
+                <div className="border-l border-white/20 pl-6">
+                  <p className="text-lg font-bold">{roomBookings.reduce((acc, r) => acc + Object.values(r.dailyMeals).filter(m => m.barSupper).length, 0)}</p>
+                  <p className="text-[9px] uppercase font-black tracking-widest text-emerald-400">Suppers</p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="flex justify-between pt-8 mb-12">
+            <button
+              onClick={() => setStep(2)}
+              className="px-8 py-4 bg-white border-2 border-stone-200 text-stone-600 rounded-2xl hover:bg-stone-50 transition-all font-bold"
+            >
+              Back
+            </button>
+            <button
+              onClick={handleConfirm}
+              className="px-16 py-5 bg-emerald-600 text-white rounded-2xl hover:bg-emerald-700 transition-all font-black text-xl shadow-2xl shadow-emerald-900/20 active:scale-95 flex items-center gap-3"
+            >
+              Finalize Booking
+              <LucideIcon name="check-circle" className="w-6 h-6" />
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
 };
+
+const MealCheckbox = ({ id, label, time, checked, disabled, onChange, packed, onPackedChange }) => (
+  <div className={`p-2 rounded-xl transition-all flex flex-col gap-1.5 ${disabled ? 'opacity-40 grayscale' : checked ? 'bg-emerald-50/50' : 'hover:bg-stone-50'}`}>
+    <div className="flex items-center gap-2">
+      <input
+        id={id}
+        type="checkbox"
+        checked={checked}
+        disabled={disabled}
+        onChange={(e) => onChange(e.target.checked)}
+        className="w-4 h-4 rounded border-stone-300 text-emerald-600 focus:ring-emerald-500 transition-all cursor-pointer disabled:cursor-not-allowed shrink-0"
+      />
+      <div className="flex-1 flex items-baseline justify-between truncate">
+        <label htmlFor={id} className={`text-xs font-bold cursor-pointer select-none truncate ${disabled ? 'line-through text-stone-400' : 'text-stone-700'}`}>
+          {label}
+        </label>
+        <span className="text-[9px] text-stone-400 font-bold ml-2 shrink-0">{time}</span>
+      </div>
+    </div>
+
+    {checked && !disabled && (
+      <div className="flex items-center gap-2 pl-6 animate-in slide-in-from-top-1 fade-in mt-1">
+        <input
+          id={`packed-${id}`}
+          type="checkbox"
+          checked={packed}
+          onChange={(e) => onPackedChange(e.target.checked)}
+          className="w-3.5 h-3.5 rounded-sm border-stone-300 text-amber-500 focus:ring-amber-500 transition-all cursor-pointer"
+        />
+        <label htmlFor={`packed-${id}`} className={`text-[10px] font-bold uppercase tracking-widest cursor-pointer select-none transition-colors ${packed ? 'text-amber-600' : 'text-stone-400 hover:text-stone-600'}`}>
+          To-go box
+        </label>
+      </div>
+    )}
+  </div>
+);
+
 
 // Edit Booking View
 const EditBookingDetails = ({ booking, onSave, onCancel, onDelete, currentUser }) => {
@@ -1616,35 +2295,44 @@ const EditBookingDetails = ({ booking, onSave, onCancel, onDelete, currentUser }
   const isMealAvailable = (dateStr, mealType) => {
     const date = new Date(dateStr + 'T00:00:00');
     const dayOfWeek = date.getDay();
-    if (dayOfWeek === 0 && mealType === 'lunch') return false;
-    if (dayOfWeek === 0 && mealType === 'barSupper') return false;
+    if (dayOfWeek === 0 && (mealType === 'lunch' || mealType === 'barSupper')) return false;
     if (dayOfWeek === 1) return false;
-    if (dayOfWeek === 2 && mealType === 'breakfast') return false;
+    if (dayOfWeek === 2 && (mealType === 'breakfast' || mealType === 'lunch')) return false;
     return true;
   };
 
   const dates = getDatesInRange(booking.startDate, booking.endDate);
   const nights = dates.length;
 
-  const [guests, setGuests] = React.useState(booking.guests);
-  const [isGuest, setIsGuest] = React.useState(booking.isGuest !== false);
-  const [guestName, setGuestName] = React.useState(booking.isGuest === false ? (booking.guestName || booking.member) : (booking.guestName || ''));
+  const [guests, setGuests] = React.useState(booking.guests || 1);
+  const [isGuest, setIsGuest] = React.useState(booking.isGuest === 'GUEST' || booking.isGuest === true);
+  const [guestNames, setGuestNames] = React.useState(() => {
+    if (booking.guestNames && Array.from(booking.guestNames).length > 0) return [...booking.guestNames];
+    return [booking.guestName || (booking.isGuest === 'MEMBER' || booking.isGuest === false ? (booking.member || currentUser) : '')];
+  });
+  const [dietary, setDietary] = React.useState(booking.dietary || '');
   const [arrivalTime, setArrivalTime] = React.useState(booking.memberArrival || '');
+  const [stayingInCottage, setStayingInCottage] = React.useState(booking.stayingInCottage || false);
+
   const [dailyMeals, setDailyMeals] = React.useState(
     JSON.parse(JSON.stringify(booking.dailyMeals || {}))
   );
 
-  const handleMemberOccupiedToggle = () => {
-    if (isGuest) {
-      // Switching to member-occupied
-      setIsGuest(false);
-      setGuestName(currentUser || booking.member);
+  const handleMemberOccupiedToggle = (val) => {
+    setIsGuest(!val);
+    const updatedNames = [...guestNames];
+    if (val) {
+      updatedNames[0] = currentUser || booking.member;
+      setStayingInCottage(false);
     } else {
-      // Switching to guest room
-      setIsGuest(true);
-      setGuestName('');
+      if (updatedNames[0] === (currentUser || booking.member)) {
+        updatedNames[0] = '';
+      }
+      setStayingInCottage(true);
     }
+    setGuestNames(updatedNames);
   };
+
 
   const updateMeal = (dateStr, mealField, value) => {
     setDailyMeals(prev => ({
@@ -1656,415 +2344,615 @@ const EditBookingDetails = ({ booking, onSave, onCancel, onDelete, currentUser }
   const handleSave = () => {
     onSave({
       ...booking,
-      guests,
-      isGuest,
-      guestName,
+      guests: guestNames.length,
+      isGuest: isGuest ? 'GUEST' : 'MEMBER',
+      isGuestRoom: isGuest ? 'GUEST' : 'MEMBER',
+      guestNames,
+      guestName: guestNames[0], // Keep for backward compatibility
+      dietary,
       memberArrival: arrivalTime,
       guestArrival: arrivalTime,
-      dailyMeals
+      dailyMeals,
+      stayingInCottage
     });
   };
 
+
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h2 className="text-2xl font-light text-emerald-900">Edit Booking</h2>
-        <button onClick={onCancel} className="text-sm text-stone-600 hover:text-emerald-700">
-          ← Back
+    <div className="max-w-4xl mx-auto py-6 px-4 animate-in fade-in duration-500">
+      <div className="flex items-center justify-between mb-6">
+        <div>
+          <h2 className="text-2xl font-light text-stone-900 tracking-tight">Modify Reservation</h2>
+          <p className="text-stone-500 text-xs mt-1">Review and update details for your stay.</p>
+        </div>
+        <button
+          onClick={onCancel}
+          className="flex items-center gap-1.5 text-stone-400 hover:text-emerald-700 font-bold transition-all group p-2 hover:bg-emerald-50 rounded-xl"
+        >
+          <LucideIcon name="arrow-left" className="w-4 h-4" />
+          <span className="text-xs uppercase tracking-widest">Discard</span>
         </button>
       </div>
 
-      {/* Room Info (read-only) */}
-      <div className="bg-blue-50 border border-blue-200 rounded-lg p-6">
-        <h3 className="font-semibold text-emerald-900 mb-1">
-          {booking.roomName} ({booking.building})
-        </h3>
-        <div className="text-sm text-stone-600">
-          {new Date(booking.startDate + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })} - {new Date(booking.endDate + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
-          <span className="ml-2">({nights} night{nights !== 1 ? 's' : ''})</span>
-        </div>
-        {booking.provisional && (
-          <span className="inline-block mt-2 px-2 py-1 bg-amber-100 text-amber-800 text-xs rounded font-medium">
-            Provisional
-          </span>
-        )}
-        <p className="text-xs text-stone-500 mt-2">To change dates or room, cancel and rebook.</p>
-      </div>
+      <div className="flex flex-col gap-6 w-full max-w-2xl mx-auto pb-24">
+        {/* Summary & Basics */}
+        <div className="flex flex-col sm:flex-row gap-4 w-full">
+          <div className="bg-emerald-900 rounded-2xl p-5 text-white shadow-lg flex-1">
+            <div className="flex justify-between items-start mb-3">
+              <div>
+                <div className="text-[9px] font-black uppercase tracking-[0.2em] text-emerald-400/80 mb-1">{booking.building}</div>
+                <h3 className="text-xl font-light leading-tight">{booking.roomName}</h3>
+              </div>
+              <div className="text-right">
+                <span className="text-[10px] font-bold text-emerald-100 bg-white/10 px-2.5 py-1 rounded-lg backdrop-blur-sm border border-white/10 block mb-1">
+                  {new Date(booking.startDate + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} - {new Date(booking.endDate + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                </span>
+                <span className="text-[10px] font-bold text-emerald-300">
+                  {nights} night stay
+                </span>
+              </div>
+            </div>
 
-      {/* Arrival Time */}
-      <div className="bg-stone-50 rounded-lg p-6">
-        <h3 className="font-medium text-emerald-900 mb-4">Party Information</h3>
-        <div className="grid grid-cols-2 gap-4">
-          <div>
-            <label className="block text-sm font-medium text-stone-700 mb-2">
-              Arrival Time
-            </label>
-            <select
-              value={arrivalTime}
-              onChange={(e) => setArrivalTime(e.target.value)}
-              className="w-full px-4 py-2 border border-stone-300 rounded-lg focus:ring-2 focus:ring-emerald-600 bg-white"
-            >
-              <option value="">Select arrival time...</option>
-              <option value="07:00">7:00 AM</option>
-              <option value="07:30">7:30 AM</option>
-              <option value="08:00">8:00 AM</option>
-              <option value="08:30">8:30 AM</option>
-              <option value="09:00">9:00 AM</option>
-              <option value="09:30">9:30 AM</option>
-              <option value="10:00">10:00 AM</option>
-              <option value="10:30">10:30 AM</option>
-              <option value="11:00">11:00 AM</option>
-              <option value="11:30">11:30 AM</option>
-              <option value="12:00">12:00 PM</option>
-              <option value="12:30">12:30 PM</option>
-              <option value="13:00">1:00 PM</option>
-              <option value="13:30">1:30 PM</option>
-              <option value="14:00">2:00 PM</option>
-              <option value="14:30">2:30 PM</option>
-              <option value="15:00">3:00 PM</option>
-              <option value="15:30">3:30 PM</option>
-              <option value="16:00">4:00 PM</option>
-              <option value="16:30">4:30 PM</option>
-              <option value="17:00">5:00 PM</option>
-              <option value="17:30">5:30 PM</option>
-              <option value="18:00">6:00 PM</option>
-              <option value="18:30">6:30 PM</option>
-              <option value="19:00">7:00 PM</option>
-              <option value="19:30">7:30 PM</option>
-              <option value="20:00">8:00 PM</option>
-              <option value="20:30">8:30 PM</option>
-              <option value="21:00">9:00 PM</option>
-              <option value="21:30">9:30 PM</option>
-              <option value="22:00">10:00 PM</option>
-            </select>
+            {booking.provisional && (
+              <div className="mt-3 bg-amber-400/10 text-amber-100 p-2.5 rounded-xl border border-amber-400/20 text-[10px] leading-relaxed flex items-center gap-2">
+                <LucideIcon name="alert-triangle" className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+                <p><strong>Provisional:</strong> Subject to priority policy.</p>
+              </div>
+            )}
           </div>
-          <div>
-            <label className="block text-sm font-medium text-stone-700 mb-2">
-              Number of Guests
-            </label>
-            <input
-              type="number"
-              min="1"
-              value={guests}
-              onChange={(e) => setGuests(parseInt(e.target.value) || 1)}
-              className="w-full px-4 py-2 border border-stone-300 rounded-lg focus:ring-2 focus:ring-emerald-600"
-            />
-          </div>
+
+          <button
+            onClick={() => {
+              if (confirm('Are you sure you want to cancel this entire reservation? This action cannot be undone.')) {
+                onDelete(booking.id);
+              }
+            }}
+            className="flex flex-col items-center justify-center gap-2 p-5 text-red-600 bg-red-50 hover:bg-red-100 transition-all rounded-2xl font-bold border border-red-100 sm:w-32 shrink-0 group"
+          >
+            <LucideIcon name="trash-2" className="w-5 h-5 group-hover:scale-110 transition-transform" />
+            <span className="text-[9px] uppercase tracking-widest text-center leading-tight">Cancel<br />Stay</span>
+          </button>
         </div>
-        <div className="mt-4">
-          <label className="flex items-center gap-2 mb-3">
-            <input
-              type="checkbox"
-              checked={!isGuest}
-              onChange={handleMemberOccupiedToggle}
-              className="w-4 h-4"
-            />
-            <span className="text-sm font-medium text-stone-700">Member occupied</span>
-          </label>
-          <div>
-            <label className="block text-sm font-medium text-stone-700 mb-2">
-              Room Occupant(s)
-            </label>
-            <input
-              type="text"
-              value={guestName}
-              onChange={(e) => setGuestName(e.target.value)}
-              placeholder={isGuest ? "e.g., Smith Family" : ""}
-              disabled={!isGuest}
-              className={`w-full px-4 py-2 border border-stone-300 rounded-lg focus:ring-2 focus:ring-emerald-600 ${!isGuest ? 'bg-stone-100 text-stone-600' : ''}`}
-            />
-          </div>
-        </div>
-      </div>
 
-      {/* Meals by Day */}
-      <div className="border border-stone-300 rounded-lg p-6 bg-white">
-        <h3 className="font-medium text-emerald-900 mb-4">Meals</h3>
-        <div className="space-y-2">
-          {dates.map((date, dayIndex) => {
-            const dayData = dailyMeals[date] || {};
-            const isFirstDay = dayIndex === 0;
-            const isLastDay = dayIndex === dates.length - 1;
-            const dateObj = new Date(date + 'T00:00:00');
-            const dayOfWeek = dateObj.getDay();
-            const showNoMeals = dayOfWeek === 1;
+        {/* Forms Container */}
+        <div className="space-y-6">
+          {/* Occupancy Section */}
+          <section className="bg-white rounded-2xl p-6 border border-stone-200">
+            <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-stone-800 mb-6 flex items-center gap-2">
+              <div className="w-1.5 h-1.5 bg-emerald-500 rounded-full"></div>
+              Party & Arrival
+            </h4>
 
-            return (
-              <div key={date} className="grid grid-cols-[140px_1fr] gap-4 border border-stone-200 rounded p-3 bg-stone-50">
-                <div className="flex flex-col justify-center">
-                  <div className="font-medium text-sm text-stone-800">
-                    {dateObj.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
-                  </div>
-                  {showNoMeals && (
-                    <div className="text-xs text-amber-700 mt-1">No meals served</div>
-                  )}
-                </div>
-
-                <div className="space-y-1">
-                  {/* Breakfast - not shown on first day */}
-                  {!isFirstDay && (
-                    <div className={`flex items-center justify-between ${!isMealAvailable(date, 'breakfast') ? 'opacity-60' : ''}`}>
-                      <label className="flex items-center gap-2 text-xs">
-                        <input
-                          type="checkbox"
-                          checked={dayData.breakfast || false}
-                          disabled={!isMealAvailable(date, 'breakfast')}
-                          onChange={(e) => updateMeal(date, 'breakfast', e.target.checked)}
-                          className="w-4 h-4"
-                        />
-                        <span className={`font-medium ${!isMealAvailable(date, 'breakfast') ? 'line-through' : ''}`}>
-                          Breakfast
-                        </span>
-                      </label>
-                      {dayData.breakfast && (
-                        <label className="flex items-center gap-1 text-xs text-stone-600">
-                          <input
-                            type="checkbox"
-                            checked={dayData.packedBreakfast || false}
-                            onChange={(e) => updateMeal(date, 'packedBreakfast', e.target.checked)}
-                            className="w-3 h-3"
-                          />
-                          <span>Packed</span>
-                        </label>
-                      )}
-                    </div>
-                  )}
-
-                  {/* Lunch */}
-                  {(isFirstDay || !isLastDay || dates.length > 1) && (
-                    <div className={`flex items-center justify-between ${!isMealAvailable(date, 'lunch') ? 'opacity-60' : ''}`}>
-                      <label className="flex items-center gap-2 text-xs">
-                        <input
-                          type="checkbox"
-                          checked={dayData.lunch || false}
-                          disabled={!isMealAvailable(date, 'lunch')}
-                          onChange={(e) => updateMeal(date, 'lunch', e.target.checked)}
-                          className="w-4 h-4"
-                        />
-                        <span className={`font-medium ${!isMealAvailable(date, 'lunch') ? 'line-through' : ''}`}>
-                          Lunch
-                        </span>
-                      </label>
-                      {dayData.lunch && (
-                        <label className="flex items-center gap-1 text-xs text-stone-600">
-                          <input
-                            type="checkbox"
-                            checked={dayData.packedLunch || false}
-                            onChange={(e) => updateMeal(date, 'packedLunch', e.target.checked)}
-                            className="w-3 h-3"
-                          />
-                          <span>Packed</span>
-                        </label>
-                      )}
-                    </div>
-                  )}
-
-                  {/* Bar Supper - not shown on last day */}
-                  {!isLastDay && (
-                    <div className={`flex items-center justify-between ${!isMealAvailable(date, 'barSupper') ? 'opacity-60' : ''}`}>
-                      <label className="flex items-center gap-2 text-xs">
-                        <input
-                          type="checkbox"
-                          checked={dayData.barSupper || false}
-                          disabled={!isMealAvailable(date, 'barSupper')}
-                          onChange={(e) => updateMeal(date, 'barSupper', e.target.checked)}
-                          className="w-4 h-4"
-                        />
-                        <span className={`font-medium ${!isMealAvailable(date, 'barSupper') ? 'line-through' : ''}`}>
-                          Bar Supper
-                        </span>
-                      </label>
-                      {dayData.barSupper && (
-                        <label className="flex items-center gap-1 text-xs text-stone-600">
-                          <input
-                            type="checkbox"
-                            checked={dayData.packedBarSupper || false}
-                            onChange={(e) => updateMeal(date, 'packedBarSupper', e.target.checked)}
-                            className="w-3 h-3"
-                          />
-                          <span>Packed</span>
-                        </label>
-                      )}
-                    </div>
-                  )}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 mb-6">
+              <div className="space-y-1.5">
+                <label className="text-[9px] font-black uppercase tracking-widest text-stone-400 ml-1">Arrival Time</label>
+                <div className="relative">
+                  <select
+                    value={arrivalTime}
+                    onChange={(e) => setArrivalTime(e.target.value)}
+                    className="w-full pl-10 pr-4 py-2 bg-stone-50 border border-stone-200 rounded-xl focus:ring-1 focus:ring-emerald-500 focus:bg-white transition-all outline-none font-bold text-sm text-stone-800 appearance-none"
+                  >
+                    <option value="">Select time...</option>
+                    {['08:00', '09:00', '10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00', '17:00', '18:00', '19:00', '20:00', '21:00', '22:00'].map(t => (
+                      <option key={t} value={t}>{new Date(`2000-01-01T${t}`).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}</option>
+                    ))}
+                  </select>
+                  <LucideIcon name="clock" className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-stone-400" />
                 </div>
               </div>
-            );
-          })}
-        </div>
-      </div>
 
-      {/* Actions */}
-      <div className="flex justify-between">
-        <button
-          onClick={() => {
-            if (confirm('Are you sure you want to cancel this reservation?')) {
-              onDelete(booking.id);
-            }
-          }}
-          className="px-6 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700"
-        >
-          Cancel Booking
-        </button>
-        <div className="flex gap-3">
-          <button
-            onClick={onCancel}
-            className="px-6 py-2 border border-stone-300 rounded-lg hover:bg-stone-50"
-          >
-            Discard Changes
-          </button>
-          <button
-            onClick={handleSave}
-            className="px-6 py-2 bg-emerald-700 text-white rounded-lg hover:bg-emerald-800"
-          >
-            Save Changes
-          </button>
+              <div className="space-y-1.5">
+                <label className="text-[9px] font-black uppercase tracking-widest text-stone-400 ml-1">Guests</label>
+                <div className="relative">
+                  <input
+                    type="number"
+                    min="1"
+                    max="10"
+                    value={guests}
+                    onChange={(e) => setGuests(parseInt(e.target.value) || 1)}
+                    className="w-full pl-10 pr-4 py-2 bg-stone-50 border border-stone-200 rounded-xl focus:ring-1 focus:ring-emerald-500 focus:bg-white transition-all outline-none font-bold text-sm text-stone-800"
+                  />
+                  <LucideIcon name="users" className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-stone-400" />
+                </div>
+              </div>
+            </div>
+
+            <div className="space-y-5 pt-6 border-t border-stone-100">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h5 className="font-bold text-sm text-stone-800">Room Occupant</h5>
+                  <p className="text-[10px] text-stone-400 mt-0.5">Member or guest stay?</p>
+                </div>
+                <div className="flex bg-stone-100 p-1 rounded-lg">
+                  <button
+                    onClick={() => handleMemberOccupiedToggle(true)}
+                    className={`px-3 py-1.5 rounded-md text-[10px] font-black uppercase tracking-widest transition-all ${!isGuest ? 'bg-white text-emerald-700 shadow-sm' : 'text-stone-400 hover:text-stone-600'}`}
+                  >
+                    Member
+                  </button>
+                  <button
+                    onClick={() => handleMemberOccupiedToggle(false)}
+                    className={`px-3 py-1.5 rounded-md text-[10px] font-black uppercase tracking-widest transition-all ${isGuest ? 'bg-white text-emerald-700 shadow-sm' : 'text-stone-400 hover:text-stone-600'}`}
+                  >
+                    Guest
+                  </button>
+                </div>
+              </div>
+
+              <div className={`p-3 rounded-xl border transition-all flex items-center justify-between ${stayingInCottage ? 'bg-emerald-50 border-emerald-200' : 'bg-stone-50 border-stone-200'}`}>
+                <div className="flex items-center gap-3">
+                  <div className={`w-8 h-8 rounded-lg flex items-center justify-center transition-all ${stayingInCottage ? 'bg-emerald-100 text-emerald-700' : 'bg-white border border-stone-200 text-stone-400'}`}>
+                    <LucideIcon name="home" className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <p className="text-xs font-bold text-stone-900">Staying in Cottage?</p>
+                    <p className="text-[9px] font-bold text-stone-400 uppercase tracking-widest mt-0.5">Check if member has own cottage</p>
+                  </div>
+                </div>
+                <input
+                  type="checkbox"
+                  checked={stayingInCottage}
+                  onChange={(e) => {
+                    const val = e.target.checked;
+                    setStayingInCottage(val);
+                    if (val) {
+                      setIsGuest(true);
+                    } else if (isGuest) {
+                      handleMemberOccupiedToggle(true);
+                    }
+                  }}
+                  className="w-5 h-5 rounded border-2 border-stone-300 text-emerald-600 focus:ring-emerald-500 transition-all cursor-pointer"
+                />
+              </div>
+
+              <div className="space-y-3 pt-2">
+                <label className="text-[9px] font-black uppercase tracking-widest text-stone-400 block">Occupant Names</label>
+                <div className="space-y-2.5 flex flex-col items-start w-full">
+                  {guestNames.map((name, idx) => (
+                    <div key={idx} className="flex items-center gap-2 w-full">
+                      <span className="text-[10px] font-bold text-stone-300 w-3">{idx + 1}.</span>
+                      <input
+                        type="text"
+                        value={name}
+                        onChange={(e) => {
+                          const updated = [...guestNames];
+                          updated[idx] = e.target.value;
+                          setGuestNames(updated);
+                        }}
+                        placeholder={idx === 0 && !isGuest ? "Your name" : `Guest ${idx + 1} name`}
+                        className="flex-1 px-3 py-2 bg-stone-50 border border-stone-200 hover:border-stone-300 focus:bg-white rounded-lg focus:ring-1 focus:ring-emerald-500 outline-none transition-all text-sm font-medium"
+                      />
+                      {guestNames.length > 1 && (
+                        <button
+                          onClick={() => setGuestNames(guestNames.filter((_, i) => i !== idx))}
+                          className="p-1.5 text-stone-400 hover:text-red-500 transition-colors bg-stone-100 rounded-md hover:bg-red-50"
+                        >
+                          <LucideIcon name="x" className="w-3.5 h-3.5" />
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                  <button
+                    onClick={() => setGuestNames([...guestNames, ''])}
+                    className="flex items-center gap-1.5 text-emerald-600 hover:text-emerald-700 text-[10px] font-bold mt-1 ml-5 px-2 py-1 bg-emerald-50 rounded-md transition-colors"
+                  >
+                    <LucideIcon name="plus" className="w-3 h-3" />
+                    Add guest
+                  </button>
+                </div>
+              </div>
+
+              <div className="space-y-1.5 pt-5 border-t border-stone-100">
+                <label className="text-[9px] font-black uppercase tracking-widest text-stone-400 block ml-1">Dietary Preferences</label>
+                <textarea
+                  value={dietary}
+                  onChange={(e) => setDietary(e.target.value)}
+                  placeholder="Notes, allergies, etc..."
+                  className="w-full px-3 py-2 bg-stone-50 border border-stone-200 rounded-xl focus:ring-1 focus:ring-emerald-500 focus:bg-white transition-all outline-none font-medium text-sm text-stone-800 min-h-[60px] resize-none"
+                />
+              </div>
+            </div>
+          </section>
+
+          {/* Meals Section */}
+          <section className="bg-white rounded-2xl p-6 border border-stone-200">
+            <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-stone-800 mb-6 flex items-center gap-2">
+              <div className="w-1.5 h-1.5 bg-emerald-500 rounded-full"></div>
+              Meal Plan
+            </h4>
+
+            <div className="space-y-3">
+              {dates.map((date) => {
+                const dayMeals = dailyMeals[date] || {};
+                const dateObj = new Date(date + 'T00:00:00');
+                const isSunNoSupper = dateObj.getDay() === 0;
+                const isMonNoMeals = dateObj.getDay() === 1;
+                const isTueNoBreakfastLunch = dateObj.getDay() === 2;
+
+                return (
+                  <div key={date} className="flex flex-col sm:flex-row items-center gap-3 p-3 rounded-xl bg-stone-50/50 border border-stone-100">
+                    <div className="w-full sm:w-24 shrink-0 px-1">
+                      <div className="text-[9px] font-black uppercase tracking-widest text-emerald-600 mb-0.5">
+                        {dateObj.toLocaleDateString('en-US', { weekday: 'short' })}
+                      </div>
+                      <div className="text-xs font-bold text-stone-800">
+                        {dateObj.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                      </div>
+                    </div>
+
+                    <div className="w-full grid grid-cols-1 sm:grid-cols-3 gap-2">
+                      <div className="bg-white rounded-lg border border-stone-200 shadow-sm">
+                        <MealCheckbox
+                          id={`break-${date}`}
+                          label="Breakfast"
+                          time="8:00 AM"
+                          checked={dayMeals.breakfast || false}
+                          disabled={isMonNoMeals || isTueNoBreakfastLunch}
+                          onChange={(val) => updateMeal(date, 'breakfast', val)}
+                          packed={dayMeals.packedBreakfast || false}
+                          onPackedChange={(val) => updateMeal(date, 'packedBreakfast', val)}
+                        />
+                      </div>
+                      <div className="bg-white rounded-lg border border-stone-200 shadow-sm">
+                        <MealCheckbox
+                          id={`lunch-${date}`}
+                          label="Lunch"
+                          time="12:30 PM"
+                          checked={dayMeals.lunch || false}
+                          disabled={isMonNoMeals || isTueNoBreakfastLunch || isSunNoSupper}
+                          onChange={(val) => updateMeal(date, 'lunch', val)}
+                          packed={dayMeals.packedLunch || false}
+                          onPackedChange={(val) => updateMeal(date, 'packedLunch', val)}
+                        />
+                      </div>
+                      <div className="bg-white rounded-lg border border-stone-200 shadow-sm">
+                        <MealCheckbox
+                          id={`supper-${date}`}
+                          label="Supper"
+                          time="6:00 PM"
+                          checked={dayMeals.barSupper || false}
+                          disabled={isMonNoMeals || isSunNoSupper}
+                          onChange={(val) => updateMeal(date, 'barSupper', val)}
+                          packed={dayMeals.packedBarSupper || false}
+                          onPackedChange={(val) => updateMeal(date, 'packedBarSupper', val)}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </section>
+
+          {/* Sticky Actions */}
+          <div className="fixed bottom-0 left-0 right-0 sm:bottom-6 sm:left-1/2 sm:-translate-x-1/2 bg-white/90 backdrop-blur-md sm:rounded-2xl p-4 sm:p-3 border-t sm:border border-stone-200 shadow-[0_-10px_40px_-10px_rgba(0,0,0,0.1)] sm:shadow-xl flex justify-between items-center gap-4 z-20 max-w-2xl w-full">
+            <button
+              onClick={onCancel}
+              className="px-4 py-2.5 text-stone-500 hover:bg-stone-100 rounded-xl font-bold transition-all text-[10px] uppercase tracking-widest shrink-0"
+            >
+              Discard
+            </button>
+            <button
+              onClick={handleSave}
+              className="flex-1 bg-emerald-700 text-white py-2.5 rounded-xl hover:bg-emerald-800 transition-all font-bold text-sm shadow-md active:scale-95"
+            >
+              Save Changes
+            </button>
+          </div>
         </div>
       </div>
     </div>
   );
 };
 
+
 // My Reservations View
-const MyReservationsView = ({ bookings, currentUser, getRoomById, cancelBooking, setView, onEditBooking }) => {
-  const userBookings = bookings.filter(b => b.member === currentUser);
+const MyReservationsView = ({ bookings, currentUser, getRoomById, cancelBooking, setView, onEditBooking, approveBooking }) => {
+  const isAdmin = currentUser === 'admin';
+  const userBookings = isAdmin ? bookings : bookings.filter(b => b.member === currentUser);
+
+  const staysMap = userBookings.reduce((acc, booking) => {
+    // If admin, group by member as well so different members' stays on the same dates don't merge
+    const stayId = isAdmin ? `${booking.member}_${booking.startDate}_${booking.endDate}` : `${booking.startDate}_${booking.endDate}`;
+    if (!acc[stayId]) {
+      acc[stayId] = { member: booking.member, startDate: booking.startDate, endDate: booking.endDate, bookings: [], provisional: false, stayingInCottage: false };
+    }
+    acc[stayId].bookings.push(booking);
+    if (booking.provisional) acc[stayId].provisional = true;
+    if (booking.stayingInCottage) acc[stayId].stayingInCottage = true;
+    return acc;
+  }, {});
+
+  const stays = Object.values(staysMap).sort((a, b) => new Date(a.startDate) - new Date(b.startDate));
+  const today = new Date().toISOString().split('T')[0];
+
+  const getDates = (start, end) => {
+    const dates = []; let cur = new Date(start + 'T00:00:00');
+    const e = new Date(end + 'T00:00:00');
+    while (cur < e) { dates.push(cur.toISOString().split('T')[0]); cur.setDate(cur.getDate() + 1); }
+    return dates;
+  };
+
+  const fmtTime = (t) => { try { return new Date(`2000-01-01T${t}`).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }); } catch { return t; } };
+
+  const MealDot = ({ date, type, ordered, packed }) => {
+    if (!IS_MEAL_AVAILABLE(date, type)) return <span className="text-stone-200 text-[9px]">―</span>;
+    if (!ordered) return <span className="text-stone-300 text-[9px]">·</span>;
+    return (
+      <span className={`inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[8px] font-black ${packed ? 'bg-amber-100 text-amber-800' : 'bg-emerald-100 text-emerald-800'}`}>
+        {packed ? '📦 Packed' : '✓'}
+      </span>
+    );
+  };
 
   return (
-    <div className="space-y-6">
-      <h2 className="text-2xl font-light text-stone-800">My Reservations</h2>
-
-      {userBookings.length === 0 ? (
-        <div className="text-center py-12">
-          <CalendarIcon className="w-16 h-16 mx-auto text-gray-300 mb-4" />
-          <p className="text-stone-500">No reservations found</p>
-          <button
-            onClick={() => setView('calendar')}
-            className="mt-4 px-6 py-2 bg-emerald-700 text-white rounded-lg hover:bg-emerald-800"
-          >
-            Make a Reservation
+    <div className="max-w-5xl mx-auto py-8 px-4">
+      {/* Page Header */}
+      <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 mb-10 pb-8 border-b border-stone-100">
+        <div>
+          <h2 className="text-4xl font-light text-stone-900 tracking-tight">{isAdmin ? 'All Reservations' : 'Your Reservations'}</h2>
+          <p className="text-stone-500 mt-2">{isAdmin ? 'Manage all member and guest bookings across the system.' : 'A crisp summary of your upcoming visits and accommodations.'}</p>
+        </div>
+        <div className="flex flex-col sm:flex-row items-center gap-3">
+          <button onClick={() => setView('calendar')}
+            className="flex items-center gap-2 bg-emerald-900 text-white px-6 py-3 rounded-2xl hover:bg-emerald-950 transition-all font-bold shadow-md hover:shadow-lg active:scale-95 group">
+            <LucideIcon name="plus" className="w-4 h-4 group-hover:rotate-90 transition-transform" />
+            New Reservation
           </button>
+          {stays.length > 0 && (
+            <button
+              onClick={() => {
+                if (confirm('Are you sure you want to cancel ALL reservations? This action cannot be undone.')) {
+                  userBookings.forEach(b => cancelBooking(b.id));
+                }
+              }}
+              className="flex items-center gap-2 bg-red-50 border border-red-200 text-red-700 px-6 py-3 rounded-2xl hover:bg-red-100 transition-all font-bold shadow-sm hover:shadow-md active:scale-95 group"
+            >
+              <LucideIcon name="trash-2" className="w-4 h-4 group-hover:scale-110 transition-transform" />
+              Cancel All
+            </button>
+          )}
+        </div>
+      </div>
+
+      {stays.length === 0 ? (
+        <div className="text-center py-20 bg-stone-50/50 outline-dashed outline-2 outline-stone-200 rounded-3xl">
+          <div className="w-16 h-16 bg-white shadow-sm border border-stone-100 rounded-2xl flex items-center justify-center mx-auto mb-6">
+            <LucideIcon name="calendar-days" className="w-8 h-8 text-stone-300" />
+          </div>
+          <h3 className="text-2xl font-light text-stone-900">{isAdmin ? 'No Reservations' : 'No Upcoming Stays'}</h3>
+          <p className="text-stone-500 mt-2 mb-8">{isAdmin ? 'No bookings have been made yet.' : 'You haven\'t made any reservations yet.'}</p>
+          <button onClick={() => setView('calendar')} className="px-8 py-3 bg-white border border-stone-200 text-stone-700 rounded-xl hover:border-emerald-200 hover:text-emerald-700 hover:bg-emerald-50 transition-all font-bold shadow-sm">Browse Calendar</button>
         </div>
       ) : (
-        <div className="space-y-4">
-          {userBookings.map(booking => {
-            const room = getRoomById(booking.roomId);
+        <div className="space-y-12">
+          {stays.map((stay) => {
+            const nights = Math.ceil((new Date(stay.endDate) - new Date(stay.startDate)) / 86400000);
+            const isActive = today >= stay.startDate && today < stay.endDate;
+            const dates = getDates(stay.startDate, stay.endDate);
+            const buildings = [...new Set(stay.bookings.map(b => b.building))].join(', ');
+
             return (
-              <div key={booking.id} className="border border-stone-200 rounded-lg p-4 space-y-3 bg-white shadow-sm">
-                {/* Line 1: Room, Dates, and Action Buttons */}
-                <div className="flex justify-between items-start">
-                  <div className="flex items-center gap-2">
-                    <h3 className="font-medium text-base">{booking.building} - {booking.roomName}</h3>
-                    {booking.provisional && (
-                      <span className="px-2 py-0.5 bg-amber-100 text-amber-800 text-xs rounded font-medium">
-                        Provisional
+              <div key={isAdmin ? `${stay.member}_${stay.startDate}_${stay.endDate}` : `${stay.startDate}_${stay.endDate}`}
+                className={`bg-white rounded-3xl overflow-hidden border transition-all ${isActive ? 'border-emerald-300 shadow-xl shadow-emerald-500/5' : 'border-stone-200 shadow-sm'}`}>
+
+                {/* ── STAY HEADER ── */}
+                <div className={`px-6 py-5 border-b flex flex-wrap items-center justify-between gap-4 ${isActive ? 'bg-emerald-50 border-emerald-100' : 'bg-white border-stone-100'}`}>
+                  <div className="flex items-center gap-5">
+                    <div className="flex items-center gap-3">
+                      {isAdmin && (
+                        <div className="flex flex-col mr-3">
+                          <span className="text-[9px] font-black uppercase tracking-widest text-emerald-600 mb-0.5">Member</span>
+                          <span className="text-lg font-semibold text-stone-800">{stay.member}</span>
+                        </div>
+                      )}
+
+                      {isAdmin && <div className="h-8 w-px bg-stone-200 hidden md:block mr-2"></div>}
+
+                      <div className="text-3xl font-light text-stone-900 tracking-tight">
+                        {new Date(stay.startDate + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                        <span className="text-stone-300 mx-2 text-2xl font-normal">→</span>
+                        {new Date(stay.endDate + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                      </div>
+                      {isActive && <span className="bg-emerald-500 text-white px-2.5 py-0.5 rounded-full text-[9px] font-black uppercase tracking-widest shadow-sm animate-pulse">Live</span>}
+                    </div>
+
+                    <div className="h-6 w-px bg-stone-200 hidden md:block"></div>
+
+                    <div className="flex flex-col gap-0.5">
+                      <div className="flex items-center gap-1.5 text-stone-500 text-sm">
+                        <LucideIcon name="moon" className="w-3.5 h-3.5" />
+                        <span className="font-medium">{nights} Night{nights !== 1 ? 's' : ''}</span>
+                      </div>
+                      <div className="flex items-center gap-1.5 text-stone-500 text-sm">
+                        <LucideIcon name="building-2" className="w-3.5 h-3.5" />
+                        <span className="font-medium">{stay.bookings.length} Room{stay.bookings.length !== 1 ? 's' : ''} ({buildings})</span>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    {stay.stayingInCottage && (
+                      <span className="flex items-center gap-1.5 bg-stone-50 border border-stone-200 text-stone-700 px-3 py-1.5 rounded-lg text-[10px] font-bold tracking-wide">
+                        <LucideIcon name="home" className="w-3.5 h-3.5 text-stone-400" /> Cottage Stay
                       </span>
                     )}
-                    <span className="text-sm text-stone-600">•</span>
-                    <span className="text-sm text-stone-600">
-                      {new Date(booking.startDate).toLocaleDateString('en-US', {
-                        weekday: 'short', month: 'short', day: 'numeric'
-                      })} - {new Date(booking.endDate).toLocaleDateString('en-US', {
-                        weekday: 'short', month: 'short', day: 'numeric'
-                      })}
-                    </span>
-                  </div>
-                  <div className="flex gap-3">
-                    <button
-                      type="button"
-                      onClick={() => onEditBooking(booking)}
-                      className="text-emerald-700 hover:text-emerald-800 text-sm font-medium"
-                    >
-                      Edit
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        if (confirm('Are you sure you want to cancel this reservation?')) {
-                          cancelBooking(booking.id);
-                        }
-                      }}
-                      className="text-red-600 hover:text-red-700 text-sm font-medium"
-                    >
-                      Cancel
-                    </button>
+                    {stay.provisional && (
+                      <span className="flex items-center gap-1.5 bg-amber-50 text-amber-800 border border-amber-200 px-3 py-1.5 rounded-lg text-[10px] font-bold tracking-wide">
+                        <LucideIcon name="alert-triangle" className="w-3.5 h-3.5 text-amber-500" /> Provisional
+                      </span>
+                    )}
                   </div>
                 </div>
 
-                {/* Line 2: Occupant, Guests, Arrival */}
-                <div className="flex gap-6 text-sm text-stone-600">
-                  <div>
-                    <span className="text-stone-500">Occupant:</span>
-                    <span className="ml-1.5 font-medium text-stone-800">
-                      {booking.isGuest ? (booking.guestName || 'Guest') : booking.member}
-                      {booking.isGuest && <span className="ml-1 text-stone-400 text-xs">(guest)</span>}
-                    </span>
+                <div className="p-6">
+                  {/* ── ROOM CARDS ── */}
+                  <div className={`grid gap-4 mb-8 items-start ${stay.bookings.length > 1 ? 'grid-cols-1 lg:grid-cols-2' : 'grid-cols-1 max-w-2xl'}`}>
+                    {stay.bookings.map(room => {
+                      const names = (room.guestNames && room.guestNames.length > 0)
+                        ? room.guestNames
+                        : [room.guestName || (room.isGuest === 'GUEST' || room.isGuest === true ? 'Guest' : currentUser)];
+                      return (
+                        <div key={room.id} className="bg-white rounded-2xl border border-stone-200 overflow-hidden shadow-sm hover:border-emerald-200 hover:shadow-md transition-all">
+                          {/* Room Title */}
+                          <div className="flex items-center justify-between px-5 py-3 border-b border-stone-100 bg-stone-50/50">
+                            <div>
+                              <div className="flex items-center gap-2 mb-0.5">
+                                <p className="text-[10px] font-bold text-stone-500 tracking-wide">{room.building}</p>
+                                {(room.isGuest === 'GUEST' || room.isGuest === true)
+                                  ? <span className="bg-stone-200 text-stone-700 px-1.5 py-0.5 rounded text-[8px] font-black uppercase tracking-widest">Guest</span>
+                                  : <span className="bg-emerald-100/50 text-emerald-700 border border-emerald-200/50 px-1.5 py-0.5 rounded text-[8px] font-black uppercase tracking-widest">Member</span>
+                                }
+                              </div>
+                              <h4 className="font-semibold text-stone-900">{room.roomName}</h4>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              {isAdmin && room.provisional && (
+                                <button onClick={() => approveBooking(room)} title="Accept"
+                                  className="px-3 py-1.5 flex items-center gap-1.5 text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg transition-colors shadow-sm">
+                                  <LucideIcon name="check-circle" className="w-3.5 h-3.5" />
+                                  Accept
+                                </button>
+                              )}
+                              {isAdmin && room.provisional && (
+                                <button onClick={() => { if (confirm(`Reject provisional booking for ${room.roomName}?`)) cancelBooking(room.id); }} title="Reject"
+                                  className="px-3 py-1.5 flex items-center gap-1.5 text-xs font-bold text-white bg-red-600 hover:bg-red-700 rounded-lg transition-colors shadow-sm">
+                                  <LucideIcon name="x-circle" className="w-3.5 h-3.5" />
+                                  Reject
+                                </button>
+                              )}
+                              <button onClick={() => onEditBooking(room)} title="Edit"
+                                className="px-3 py-1.5 flex items-center gap-1.5 text-xs font-bold text-emerald-800 bg-emerald-100/80 hover:bg-emerald-200/80 rounded-lg transition-colors border border-emerald-200/50">
+                                <LucideIcon name="edit-3" className="w-3.5 h-3.5" />
+                                Edit
+                              </button>
+                              <button onClick={() => { if (confirm(`Cancel ${room.roomName}?`)) cancelBooking(room.id); }} title="Cancel"
+                                className="px-3 py-1.5 flex items-center gap-1.5 text-xs font-bold text-red-800 bg-red-100/80 hover:bg-red-200/80 rounded-lg transition-colors border border-red-200/50">
+                                <LucideIcon name="trash-2" className="w-3.5 h-3.5" />
+                                Cancel
+                              </button>
+                            </div>
+                          </div>
+
+                          {/* Minimalist Info Grid */}
+                          <div className="p-5">
+                            <ul className="space-y-4 text-sm">
+                              {/* Arrival Time */}
+                              <li className="flex items-start gap-3">
+                                <LucideIcon name="clock" className="w-4 h-4 text-stone-400 shrink-0 mt-0.5" />
+                                <div>
+                                  <p className="text-[10px] font-bold uppercase tracking-wider text-stone-400 mb-0.5">Arrival</p>
+                                  <p className="font-medium text-stone-800">
+                                    {room.memberArrival ? fmtTime(room.memberArrival) : <span className="text-stone-300 italic font-normal">Not specified</span>}
+                                  </p>
+                                </div>
+                              </li>
+
+                              {/* Occupants */}
+                              <li className="flex items-start gap-3 pt-4 border-t border-stone-100">
+                                <LucideIcon name="users" className="w-4 h-4 text-stone-400 shrink-0 mt-0.5" />
+                                <div>
+                                  <p className="text-[10px] font-bold uppercase tracking-wider text-stone-400 mb-1.5">Occupants ({names.length})</p>
+                                  <ul className="space-y-1.5">
+                                    {names.map((name, i) => (
+                                      <li key={i} className="flex items-center gap-2">
+                                        <div className="w-1.5 h-1.5 rounded-full bg-stone-300 shrink-0"></div>
+                                        <span className="font-medium text-stone-800">
+                                          {name || <span className="text-stone-300 italic font-normal">Unnamed</span>}
+                                        </span>
+                                        {name === currentUser && !room.isGuest && (
+                                          <span className="text-[8px] font-black uppercase text-stone-400 tracking-widest">(Member)</span>
+                                        )}
+                                      </li>
+                                    ))}
+                                  </ul>
+                                </div>
+                              </li>
+
+                              {/* Dietary */}
+                              {room.dietary && (
+                                <li className="flex items-start gap-3 pt-4 border-t border-stone-100">
+                                  <LucideIcon name="leaf" className="w-4 h-4 text-emerald-500 shrink-0 mt-0.5" />
+                                  <div>
+                                    <p className="text-[10px] font-bold uppercase tracking-wider text-stone-400 mb-0.5">Dietary Notes</p>
+                                    <p className="text-stone-700 leading-snug">{room.dietary}</p>
+                                  </div>
+                                </li>
+                              )}
+                            </ul>
+                          </div>
+                        </div>
+                      );
+                    })}
                   </div>
-                  <div>
-                    <span className="text-stone-500">Guests:</span>
-                    <span className="ml-1.5 font-medium text-stone-800">{booking.guests}</span>
+
+                  {/* ── MEAL PLAN TABLE ── */}
+                  <div className="mt-8 border border-stone-200 rounded-2xl overflow-hidden shadow-sm">
+                    <div className="bg-stone-50 border-b border-stone-200 px-5 py-3 flex items-center justify-between">
+                      <h4 className="text-xs font-bold text-stone-700 flex items-center gap-2">
+                        <LucideIcon name="utensils" className="w-4 h-4 text-stone-400" /> Meal Schedule
+                      </h4>
+                      <div className="flex gap-4">
+                        <span className="flex items-center gap-1.5 text-[10px] text-stone-500"><span className="bg-emerald-100 text-emerald-700 px-1 py-0.5 rounded text-[8px] font-black">✓</span>Reserved</span>
+                        <span className="flex items-center gap-1.5 text-[10px] text-stone-500"><span className="bg-amber-100 text-amber-700 px-1 py-0.5 rounded text-[8px] font-black">📦</span>Packed</span>
+                      </div>
+                    </div>
+
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-left text-xs bg-white">
+                        <thead>
+                          <tr className="border-b border-stone-100 bg-white">
+                            <th className="px-5 py-3 font-semibold text-stone-500 w-32 border-r border-stone-100">Date</th>
+                            {stay.bookings.map(room => (
+                              <th key={room.id} className="px-5 py-3 font-semibold text-stone-700 text-center border-r border-stone-100 last:border-0 min-w-[200px]">
+                                <div>{room.roomName}</div>
+                                <div className="grid grid-cols-3 gap-1 mt-1 font-normal text-stone-400 text-[10px] uppercase tracking-wider">
+                                  <span>Brkfast</span><span>Lunch</span><span>Supper</span>
+                                </div>
+                              </th>
+                            ))}
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {dates.map((date) => {
+                            const dayName = new Date(date + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'short' });
+                            const dayNum = new Date(date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+                            const isMonday = new Date(date + 'T00:00:00').getDay() === 1;
+                            return (
+                              <tr key={date} className={`border-b border-stone-100 last:border-0 hover:bg-stone-50/50 transition-colors ${isMonday ? 'bg-stone-50/50' : ''}`}>
+                                <td className="px-5 py-4 border-r border-stone-100">
+                                  <div className="font-semibold text-stone-800">{dayName}</div>
+                                  <div className="text-stone-500">{dayNum}</div>
+                                  {isMonday && <div className="text-[9px] font-medium text-stone-400 mt-1">No Service</div>}
+                                </td>
+                                {stay.bookings.map(room => {
+                                  const m = (room.dailyMeals && room.dailyMeals[date]) || {};
+                                  return (
+                                    <td key={room.id} className="px-5 py-4 border-r border-stone-100 last:border-0">
+                                      <div className="grid grid-cols-3 gap-1 place-items-center">
+                                        <MealDot date={date} type="breakfast" ordered={m.breakfast} packed={m.packedBreakfast} />
+                                        <MealDot date={date} type="lunch" ordered={m.lunch} packed={m.packedLunch} />
+                                        <MealDot date={date} type="barSupper" ordered={m.barSupper} packed={m.packedBarSupper} />
+                                      </div>
+                                    </td>
+                                  );
+                                })}
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
                   </div>
-                  <div>
-                    <span className="text-stone-500">Arrival:</span>
-                    <span className="ml-1.5 font-medium text-stone-800">{booking.memberArrival}</span>
-                  </div>
+
+                  {stay.provisional && (
+                    <div className="mt-6 bg-amber-50 border border-amber-200 rounded-xl p-4 flex items-start gap-3">
+                      <LucideIcon name="info" className="w-4 h-4 text-amber-500 shrink-0 mt-0.5" />
+                      <p className="text-sm text-amber-800 leading-snug">
+                        <strong>Provisional Lazy Lodge Booking:</strong> This reservation may be bumped by a priority member who hasn't used Lazy Lodge this year.
+                      </p>
+                    </div>
+                  )}
                 </div>
-
-                {/* Meals Table */}
-                {booking.dailyMeals && Object.keys(booking.dailyMeals).length > 0 && (
-                  <div className="text-xs">
-                    <table className="w-auto border-collapse">
-                      <thead>
-                        <tr className="text-stone-600">
-                          <th className="text-left font-bold pb-1 pr-4">Day</th>
-                          <th className="text-left font-bold pb-1 pr-4">Breakfast</th>
-                          <th className="text-left font-bold pb-1 pr-4">Lunch</th>
-                          <th className="text-left font-bold pb-1">Bar Supper</th>
-                        </tr>
-                      </thead>
-                      <tbody className="text-stone-700">
-                        {Object.entries(booking.dailyMeals).map(([date, meals]) => {
-                          const hasMeals = meals.breakfast || meals.lunch || meals.barSupper;
-                          if (!hasMeals) return null;
-
-                          return (
-                            <tr key={date}>
-                              <td className="py-1 pr-4 font-medium">
-                                {new Date(date).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
-                              </td>
-                              <td className="py-1 pr-4">
-                                {meals.breakfast && (
-                                  <span className="bg-amber-50 px-2 py-0.5 rounded text-emerald-700">
-                                    Breakfast{meals.packedBreakfast ? ' (Packed)' : ''}
-                                  </span>
-                                )}
-                              </td>
-                              <td className="py-1 pr-4">
-                                {meals.lunch && (
-                                  <span className="bg-amber-50 px-2 py-0.5 rounded text-emerald-700">
-                                    Lunch{meals.packedLunch ? ' (Packed)' : ''}
-                                  </span>
-                                )}
-                              </td>
-                              <td className="py-1">
-                                {meals.barSupper && (
-                                  <span className="bg-amber-50 px-2 py-0.5 rounded text-emerald-700">
-                                    Bar Supper{meals.packedBarSupper ? ' (Packed)' : ''}
-                                  </span>
-                                )}
-                              </td>
-                            </tr>
-                          );
-                        })}
-                      </tbody>
-                    </table>
-                  </div>
-                )}
-
-                {booking.provisional && (
-                  <div className="text-xs text-amber-700 bg-amber-50 p-3 rounded">
-                    This is a provisional booking. You've already rented Lazy Lodge this year, so members who haven't used it yet have priority and may bump this reservation.
-                  </div>
-                )}
               </div>
             );
           })}
@@ -2073,6 +2961,14 @@ const MyReservationsView = ({ bookings, currentUser, getRoomById, cancelBooking,
     </div>
   );
 };
+
+
+
+
+
+
+
+
 
 // Admin Inventory View
 const AdminInventoryView = ({
@@ -2083,91 +2979,167 @@ const AdminInventoryView = ({
   inventory
 }) => {
   return (
-    <div className="space-y-8">
-      <h2 className="text-2xl font-light text-stone-800">Room Inventory Management</h2>
-
-      {/* System Settings */}
-      <div className="bg-stone-50 rounded-lg p-6 space-y-4">
-        <h3 className="font-medium text-stone-800">System Settings</h3>
-
-        <div className="grid grid-cols-2 gap-4">
-          <div>
-            <label className="block text-sm font-medium text-stone-700 mb-2">
-              Multi-Room Booking Threshold
-            </label>
-            <input
-              type="number"
-              min="1"
-              value={maxRoomThreshold}
-              onChange={(e) => setMaxRoomThreshold(parseInt(e.target.value))}
-              className="w-full px-4 py-2 border border-stone-300 rounded-lg focus:ring-2 focus:ring-emerald-600"
-            />
-            <p className="text-xs text-stone-500 mt-1">
-              Triggers House Committee Chairman consultation
-            </p>
-          </div>
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium text-stone-700 mb-3">Meal Times</label>
-          <div className="grid grid-cols-3 gap-4">
-            {Object.entries(mealTimes).map(([meal, time]) => (
-              <div key={meal}>
-                <label className="block text-xs text-stone-600 mb-1 capitalize">
-                  {meal === 'barSupper' ? 'Bar Supper' : meal}
-                </label>
-                <input
-                  type="time"
-                  value={time}
-                  onChange={(e) => setMealTimes({ ...mealTimes, [meal]: e.target.value })}
-                  className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                />
-              </div>
-            ))}
-          </div>
-        </div>
+    <div className="max-w-6xl mx-auto py-8 px-4 animate-in fade-in duration-500">
+      <div className="mb-10 border-b border-stone-100 pb-8">
+        <h2 className="text-4xl font-light text-stone-900 tracking-tight">Management Dashboard</h2>
+        <p className="text-stone-500 mt-2">Configure system thresholds, meal schedules, and room details.</p>
       </div>
 
-      {/* Room Inventory by Building */}
-      {Object.entries(inventory).map(([building, rooms]) => (
-        <div key={building} className="border border-stone-200 rounded-lg p-6 space-y-4 bg-white shadow-sm">
-          <h3 className="font-medium text-lg">{building}</h3>
+      <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
+        {/* Sidebar: Global Settings */}
+        <div className="lg:col-span-1 space-y-6">
+          <div className="bg-white rounded-[2.5rem] p-8 border border-stone-100 shadow-sm">
+            <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-emerald-600 mb-6 flex items-center gap-2">
+              <LucideIcon name="settings" className="w-3 h-3" />
+              System Config
+            </h3>
 
-          <div className="space-y-2">
-            {rooms.map(room => (
-              <div key={room.id} className="flex items-center justify-between p-4 bg-stone-50 rounded-lg">
-                <div className="flex-1 grid grid-cols-4 gap-4">
-                  <div>
-                    <div className="text-xs text-stone-600">Room</div>
-                    <div className="font-medium">{room.name}</div>
+            <div className="space-y-6">
+              <div>
+                <label className="text-[10px] font-black uppercase tracking-widest text-stone-400 block mb-2 px-1">Booking Threshold</label>
+                <div className="relative">
+                  <input
+                    type="number"
+                    min="1"
+                    value={maxRoomThreshold}
+                    onChange={(e) => setMaxRoomThreshold(parseInt(e.target.value))}
+                    className="w-full pl-10 pr-4 py-3 bg-stone-50 border border-stone-100 rounded-2xl focus:ring-2 focus:ring-emerald-500 focus:bg-white transition-all font-bold text-stone-800"
+                  />
+                  <LucideIcon name="alert-circle" className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-stone-300" />
+                </div>
+                <p className="text-[9px] text-stone-400 mt-2 leading-relaxed px-1">
+                  Alert House Committee Chairman for bookings exceeding this number of rooms.
+                </p>
+              </div>
+
+              <div className="pt-6 border-t border-stone-100">
+                <label className="text-[10px] font-black uppercase tracking-widest text-stone-400 block mb-4 px-1">Meal Service Hours</label>
+                <div className="space-y-4">
+                  {Object.entries(mealTimes).map(([meal, time]) => (
+                    <div key={meal}>
+                      <label className="text-[10px] font-bold text-stone-500 mb-1.5 block capitalize">
+                        {meal === 'barSupper' ? 'Bar Supper' : meal}
+                      </label>
+                      <div className="relative">
+                        <input
+                          type="time"
+                          value={time}
+                          onChange={(e) => setMealTimes({ ...mealTimes, [meal]: e.target.value })}
+                          className="w-full pl-10 pr-4 py-3 bg-stone-50 border border-stone-100 rounded-2xl focus:ring-2 focus:ring-emerald-500 focus:bg-white transition-all font-bold text-stone-800 text-sm"
+                        />
+                        <LucideIcon name="clock" className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-stone-300" />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Main: Room Inventory */}
+        <div className="lg:col-span-3 space-y-8">
+          {Object.entries(inventory).map(([building, rooms]) => (
+            <div key={building} className="bg-white rounded-[3rem] border border-stone-100 overflow-hidden shadow-sm">
+              <div className="bg-stone-50/50 px-8 py-6 border-b border-stone-100 flex items-center justify-between">
+                <div className="flex items-center gap-4">
+                  <div className="p-3 bg-white rounded-2xl shadow-sm border border-stone-100">
+                    <LucideIcon name="home" className="w-5 h-5 text-emerald-700" />
                   </div>
                   <div>
-                    <div className="text-xs text-stone-600">Beds</div>
-                    <div className="font-medium">{room.beds}</div>
-                  </div>
-                  <div>
-                    <div className="text-xs text-stone-600">Bathroom</div>
-                    <div className="font-medium">{room.bathroom ? 'Yes' : 'No'}</div>
-                  </div>
-                  <div>
-                    <div className="text-xs text-stone-600">Price</div>
-                    <div className="font-medium">${room.price}/night</div>
+                    <h3 className="text-xl font-light text-stone-900 leading-tight">{building}</h3>
+                    <p className="text-[10px] font-black uppercase tracking-widest text-stone-400 mt-0.5">{rooms.length} Rooms Available</p>
                   </div>
                 </div>
               </div>
-            ))}
-          </div>
+
+              <div className="p-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {rooms.map(room => (
+                    <div key={room.id} className="group p-6 bg-white hover:bg-stone-50 rounded-[2rem] border border-transparent hover:border-emerald-100 transition-all flex items-center justify-between">
+                      <div className="flex items-center gap-4">
+                        <div className="w-12 h-12 rounded-2xl bg-stone-50 flex items-center justify-center text-stone-400 group-hover:bg-white group-hover:text-emerald-600 transition-all shadow-sm">
+                          <LucideIcon name="door-open" className="w-6 h-6" />
+                        </div>
+                        <div>
+                          <div className="text-sm font-bold text-stone-800">{room.name}</div>
+                          <div className="flex items-center gap-3 mt-1 text-xs text-stone-400">
+                            <span className="flex items-center gap-1">
+                              <LucideIcon name="bed" className="w-3 h-3" />
+                              {room.beds}
+                            </span>
+                            {room.bathroom && (
+                              <span className="flex items-center gap-1 text-emerald-600">
+                                <LucideIcon name="check-circle" className="w-3 h-3" />
+                                Private Bath
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <div className="text-lg font-light text-stone-900">${room.price}</div>
+                        <div className="text-[9px] font-black uppercase tracking-tighter text-stone-400">Per Night</div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          ))}
         </div>
-      ))}
+      </div>
     </div>
   );
 };
 
-// Reporting View
-const ReportingView = ({ bookings }) => {
-  const [expandedMeals, setExpandedMeals] = React.useState({});
 
-  // Get all dates with meals from today forward
+// Reporting View
+// Dashboard View (Admin Only)
+const DashboardView = ({ bookings, inventory, maxRoomThreshold, setMaxRoomThreshold, mealTimes, setMealTimes }) => {
+  const [activeTab, setActiveTab] = React.useState('reports');
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between bg-white/50 backdrop-blur-md p-4 rounded-3xl border border-white/20 shadow-xl shadow-emerald-900/5">
+        <h2 className="text-2xl font-light text-emerald-900 px-2">Admin Dashboard</h2>
+        <div className="flex bg-stone-100 p-1 rounded-2xl">
+          <button
+            onClick={() => setActiveTab('reports')}
+            className={`px-6 py-2 rounded-xl text-sm font-bold transition-all flex items-center gap-2 ${activeTab === 'reports' ? 'bg-white text-emerald-700 shadow-sm' : 'text-stone-500 hover:text-stone-700'}`}
+          >
+            <LucideIcon name="bar-chart" className="w-4 h-4" />
+            <span>Reports</span>
+          </button>
+          <button
+            onClick={() => setActiveTab('settings')}
+            className={`px-6 py-2 rounded-xl text-sm font-bold transition-all flex items-center gap-2 ${activeTab === 'settings' ? 'bg-white text-emerald-700 shadow-sm' : 'text-stone-500 hover:text-stone-700'}`}
+          >
+            <LucideIcon name="settings" className="w-4 h-4" />
+            <span>Settings</span>
+          </button>
+        </div>
+      </div>
+
+      <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
+        {activeTab === 'reports' ? (
+          <ReportingView bookings={bookings} />
+        ) : (
+          <AdminInventoryView
+            inventory={inventory}
+            maxRoomThreshold={maxRoomThreshold}
+            setMaxRoomThreshold={setMaxRoomThreshold}
+            mealTimes={mealTimes}
+            setMealTimes={setMealTimes}
+          />
+        )}
+      </div>
+    </div>
+  );
+};
+
+
+const ReportingView = ({ bookings }) => {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
 
@@ -2175,129 +3147,94 @@ const ReportingView = ({ bookings }) => {
 
   bookings.forEach(booking => {
     if (booking.dailyMeals) {
-      Object.keys(booking.dailyMeals).forEach(dateStr => {
-        const bookingDate = new Date(dateStr);
+      Object.entries(booking.dailyMeals).forEach(([dateStr, meals]) => {
+        const bookingDate = new Date(dateStr + 'T00:00:00');
         if (bookingDate >= today) {
           if (!mealDataByDate[dateStr]) {
             mealDataByDate[dateStr] = {
-              breakfast: [],
-              packedBreakfast: [],
-              lunch: [],
-              packedLunch: [],
-              barSupper: [],
-              membersCountedBreakfast: new Set(),
-              membersCountedPackedBreakfast: new Set(),
-              membersCountedLunch: new Set(),
-              membersCountedPackedLunch: new Set(),
-              membersCountedBarSupper: new Set()
+              breakfast: [], packedBreakfast: [],
+              lunch: [], packedLunch: [],
+              barSupper: [], packedBarSupper: [],
+              membersCounted: { breakfast: new Set(), lunch: new Set(), barSupper: new Set() }
             };
           }
 
-          const meals = booking.dailyMeals[dateStr];
           const guestCount = booking.guests || 1;
+          const isMemberRoom = (booking.isGuest === 'MEMBER' || booking.isGuest === false);
+          const isCottageStay = booking.stayingInCottage;
 
-          // For member-occupied rooms (isGuest=false): count the member + additional guests
-          // For guest rooms (isGuest=true): count only the guests (don't re-add the member)
-          const isMemberRoom = !booking.isGuest;
-          const addMealEntries = (mealArray, membersCountedSet) => {
-            if (isMemberRoom) {
-              // Member's room: add the member once (if not already counted), then their guests
-              if (!membersCountedSet.has(booking.member)) {
-                mealArray.push(booking.member);
-                membersCountedSet.add(booking.member);
-                // Add additional guests for this booking
+          ['breakfast', 'lunch', 'barSupper'].forEach(m => {
+            if (meals[m]) {
+              const packedField = `packed${m.charAt(0).toUpperCase() + m.slice(1)}`;
+              const isPacked = meals[packedField];
+              const targetList = isPacked ? mealDataByDate[dateStr][packedField] : mealDataByDate[dateStr][m];
+              const countedSet = mealDataByDate[dateStr].membersCounted[m];
+
+              // 1. Handle Member Counting (if they occupy this room OR stay in cottage)
+              if ((isMemberRoom || isCottageStay) && !countedSet.has(booking.member)) {
+                targetList.push(booking.member);
+                countedSet.add(booking.member);
+              }
+
+              // 2. Handle Guest Counting
+              if (isMemberRoom) {
+                // If it's the member's room, add their additional guests
                 for (let i = 1; i < guestCount; i++) {
-                  mealArray.push(`Guest of ${booking.member}`);
+                  targetList.push(`Guest of ${booking.member}`);
                 }
               } else {
-                // Member already counted from another room, just add all guests
+                // If it's a guest room, add all occupants by guestName
+                const label = booking.guestName || `Guest of ${booking.member}`;
                 for (let i = 0; i < guestCount; i++) {
-                  mealArray.push(`Guest of ${booking.member}`);
+                  targetList.push(label);
                 }
               }
-            } else {
-              // Guest room: add each guest by the occupant name (or "Guest of member" if no name)
-              const guestLabel = booking.guestName || `Guest of ${booking.member}`;
-              for (let i = 0; i < guestCount; i++) {
-                mealArray.push(guestLabel);
-              }
             }
-          };
-
-          if (meals.breakfast) addMealEntries(mealDataByDate[dateStr].breakfast, mealDataByDate[dateStr].membersCountedBreakfast);
-          if (meals.packedBreakfast) addMealEntries(mealDataByDate[dateStr].packedBreakfast, mealDataByDate[dateStr].membersCountedPackedBreakfast);
-          if (meals.lunch) addMealEntries(mealDataByDate[dateStr].lunch, mealDataByDate[dateStr].membersCountedLunch);
-          if (meals.packedLunch) addMealEntries(mealDataByDate[dateStr].packedLunch, mealDataByDate[dateStr].membersCountedPackedLunch);
-          if (meals.barSupper) addMealEntries(mealDataByDate[dateStr].barSupper, mealDataByDate[dateStr].membersCountedBarSupper);
+          });
         }
       });
     }
   });
 
-  // Sort dates chronologically
-  const sortedDates = Object.keys(mealDataByDate).sort((a, b) => new Date(a) - new Date(b));
-
-  const toggleMeal = (dateStr, mealType) => {
-    const key = `${dateStr}-${mealType}`;
-    setExpandedMeals(prev => ({
-      ...prev,
-      [key]: !prev[key]
-    }));
-  };
+  const sortedDates = Object.keys(mealDataByDate).sort((a, b) => new Date(a + 'T00:00:00') - new Date(b + 'T00:00:00'));
 
   const renderMealRow = (dateStr, mealType, label, members, packedMembers = []) => {
-    const key = `${dateStr}-${mealType}`;
-    const isExpanded = expandedMeals[key];
-    const totalCount = members.length;
-    const packedCount = packedMembers.length;
-    const hasMembers = totalCount > 0 || packedCount > 0;
+    const totalCount = members.length + packedMembers.length;
+    const isServiceAvailable = IS_MEAL_AVAILABLE(dateStr, mealType);
+    const displayCount = isServiceAvailable ? totalCount : 0;
 
     return (
-      <div className="py-2 border-b border-stone-100">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            {hasMembers && (
-              <button
-                onClick={() => toggleMeal(dateStr, mealType)}
-                className="p-1 hover:bg-stone-100 rounded transition-colors text-stone-600"
-              >
-                {isExpanded ? '▼' : '▶'}
-              </button>
-            )}
-            <span className="text-stone-700 font-medium">{label}:</span>
+      <div className="py-6 border-b border-stone-100 last:border-0">
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-3">
+            <div className={`w-2 h-2 rounded-full ${isServiceAvailable && totalCount > 0 ? 'bg-emerald-500' : 'bg-red-500'}`}></div>
+            <div>
+              <span className="text-lg font-bold text-stone-900">{label}</span>
+              {!isServiceAvailable && <span className="ml-3 text-[9px] bg-red-50 text-red-500 px-2.5 py-1 rounded-md font-black uppercase tracking-widest border border-red-100">No Service</span>}
+            </div>
           </div>
-          <span className="text-stone-900">
-            {totalCount}
-            {packedCount > 0 && (
-              <span className="text-amber-600 ml-2">({packedCount} packed)</span>
-            )}
-          </span>
+          <div className="flex items-center gap-5">
+            <div className="text-right flex flex-col items-end justify-center">
+              <span className="text-2xl font-light text-stone-900 leading-none">{displayCount}</span>
+              <span className="text-[9px] font-black uppercase tracking-[0.2em] text-stone-400 mt-1">Total</span>
+            </div>
+          </div>
         </div>
 
-        {isExpanded && hasMembers && (
-          <div className="mt-2 ml-8 space-y-1">
+        {totalCount > 0 && IS_MEAL_AVAILABLE(dateStr, mealType) && (
+          <div className="pl-5 space-y-4">
             {members.length > 0 && (
-              <div>
-                <div className="text-xs text-stone-500 mb-1">Regular:</div>
-                <div className="flex flex-wrap gap-2">
-                  {members.map((member, idx) => (
-                    <span key={idx} className="px-2 py-1 bg-emerald-50 text-emerald-800 text-sm rounded">
-                      {member}
-                    </span>
-                  ))}
-                </div>
+              <div className="flex flex-wrap gap-2">
+                {members.map((m, i) => <span key={i} className="px-3 py-1.5 bg-white text-emerald-900 text-[11px] font-bold rounded-xl border border-stone-200/60 shadow-sm">{m}</span>)}
               </div>
             )}
             {packedMembers.length > 0 && (
-              <div className="mt-2">
-                <div className="text-xs text-stone-500 mb-1">Packed:</div>
-                <div className="flex flex-wrap gap-2">
-                  {packedMembers.map((member, idx) => (
-                    <span key={idx} className="px-2 py-1 bg-amber-50 text-amber-800 text-sm rounded">
-                      {member}
-                    </span>
-                  ))}
-                </div>
+              <div className="flex flex-wrap gap-2 pt-1">
+                {packedMembers.map((m, i) => <span key={i} className="px-3 py-1.5 bg-amber-50 text-amber-900 text-[11px] font-bold rounded-xl border border-amber-200/60 shadow-sm flex items-center gap-2">
+                  <LucideIcon name="package" className="w-3.5 h-3.5 text-amber-600" />
+                  {m}
+                  <span className="text-[9px] bg-amber-200 px-1.5 py-0.5 rounded-full font-black uppercase tracking-tighter">To-Go</span>
+                </span>)}
               </div>
             )}
           </div>
@@ -2306,86 +3243,50 @@ const ReportingView = ({ bookings }) => {
     );
   };
 
-  const exportMealsToCSV = () => {
-    const headers = ['Date', 'Day of Week', 'Breakfast', 'Breakfast (Packed)', 'Lunch', 'Lunch (Packed)', 'Dinner', 'Breakfast Names', 'Lunch Names', 'Dinner Names'];
-    const rows = sortedDates.map(dateStr => {
-      const date = new Date(dateStr);
-      const dayOfWeek = date.toLocaleDateString('en-US', { weekday: 'long' });
-      const formattedDate = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
-      const data = mealDataByDate[dateStr];
-
-      return [
-        formattedDate,
-        dayOfWeek,
-        data.breakfast.length,
-        data.packedBreakfast.length,
-        data.lunch.length,
-        data.packedLunch.length,
-        data.barSupper.length,
-        data.breakfast.join('; '),
-        data.lunch.join('; '),
-        data.barSupper.join('; ')
-      ];
-    });
-
-    const csvContent = [
-      headers.join(','),
-      ...rows.map(row => row.map(cell => `"${cell}"`).join(','))
-    ].join('\n');
-
-    // Create download
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const link = document.createElement('a');
-    const url = URL.createObjectURL(blob);
-    link.setAttribute('href', url);
-    link.setAttribute('download', `meal-report-${new Date().toISOString().split('T')[0]}.csv`);
-    link.style.visibility = 'hidden';
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-  };
-
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
+    <div className="max-w-4xl mx-auto py-8 px-4">
+      <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-10 pb-8 border-b border-stone-100">
         <div>
-          <h2 className="text-2xl font-light text-stone-800">Meal Count Report</h2>
-          <p className="text-sm text-stone-600">Showing all future bookings from today forward. Click arrows to see member names.</p>
+          <h2 className="text-4xl font-light text-stone-900 tracking-tight">Reporting & Logistics</h2>
+          <p className="text-stone-500 mt-2">Aggregated daily meal counts and rosters for kitchen planning.</p>
         </div>
-        <button
-          onClick={exportMealsToCSV}
-          className="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors flex items-center gap-2"
-        >
-          <span>Export to CSV</span>
+        <button onClick={() => alert('Exporting meal report...')} className="flex items-center gap-2 bg-emerald-900 text-white px-6 py-3 rounded-2xl hover:bg-emerald-950 transition-all font-bold shadow-md hover:shadow-lg active:scale-95 text-sm">
+          <LucideIcon name="download" className="w-4 h-4" />
+          Export Report
         </button>
       </div>
 
       {sortedDates.length === 0 ? (
-        <div className="text-center py-12">
-          <div className="text-stone-500">No meal bookings found</div>
+        <div className="text-center py-24 bg-stone-50/50 outline-dashed outline-2 outline-stone-200 rounded-3xl">
+          <div className="w-16 h-16 bg-white shadow-sm border border-stone-100 rounded-2xl flex items-center justify-center mx-auto mb-6">
+            <LucideIcon name="bar-chart-3" className="w-8 h-8 text-stone-300" />
+          </div>
+          <h3 className="text-2xl font-light text-stone-900">No Data Available</h3>
+          <p className="text-stone-500 mt-2 mb-8">No future meal reservations have been recorded yet.</p>
         </div>
       ) : (
-        <div className="space-y-6">
+        <div className="space-y-8">
           {sortedDates.map(dateStr => {
-            const date = new Date(dateStr);
-            const dayOfWeek = date.toLocaleDateString('en-US', { weekday: 'long' });
-            const formattedDate = date.toLocaleDateString('en-US', {
-              month: 'long',
-              day: 'numeric',
-              year: 'numeric'
-            });
             const data = mealDataByDate[dateStr];
-
+            const dateObj = new Date(dateStr + 'T00:00:00');
             return (
-              <div key={dateStr} className="border border-stone-200 rounded-lg p-6 bg-white">
-                <h3 className="text-lg font-semibold text-stone-900 mb-4">
-                  {dayOfWeek}, {formattedDate}
-                </h3>
+              <div key={dateStr} className="bg-white rounded-[2.5rem] border border-stone-200 overflow-hidden shadow-sm hover:shadow-md hover:border-emerald-200 transition-all">
+                {/* Clean, Elegant Header */}
+                <div className="bg-stone-50/50 px-8 py-5 border-b border-stone-100 flex items-center gap-5">
+                  <div className="flex-shrink-0 w-14 h-14 bg-white rounded-2xl shadow-sm border border-stone-100 flex flex-col items-center justify-center">
+                    <span className="text-[9px] font-black uppercase tracking-widest text-emerald-600 mb-0.5">{dateObj.toLocaleDateString('en-US', { month: 'short' })}</span>
+                    <span className="text-xl font-light text-stone-900 leading-none">{dateObj.getDate()}</span>
+                  </div>
+                  <div>
+                    <h3 className="text-2xl font-light text-stone-900 tracking-tight">{dateObj.toLocaleDateString('en-US', { weekday: 'long' })}</h3>
+                  </div>
+                </div>
 
-                <div className="space-y-3">
-                  {renderMealRow(dateStr, 'breakfast', 'Breakfast', data.breakfast, data.packedBreakfast)}
-                  {renderMealRow(dateStr, 'lunch', 'Lunch', data.lunch, data.packedLunch)}
-                  {renderMealRow(dateStr, 'dinner', 'Dinner (Bar Supper)', data.barSupper)}
+                {/* Meal Rows Container */}
+                <div className="px-8 pb-4">
+                  {renderMealRow(dateStr, 'breakfast', 'Breakfast Service', data.breakfast, data.packedBreakfast)}
+                  {renderMealRow(dateStr, 'lunch', 'Lunch Service', data.lunch, data.packedLunch)}
+                  {renderMealRow(dateStr, 'barSupper', 'Bar Supper', data.barSupper, data.packedBarSupper)}
                 </div>
               </div>
             );
@@ -2396,49 +3297,169 @@ const ReportingView = ({ bookings }) => {
   );
 };
 
+
 // Messages View
-const MessagesView = ({ messages, currentUser }) => {
+const MessagesView = ({ messages, currentUser, validUsers, sendMessage }) => {
+  const [isComposing, setIsComposing] = useState(false);
+  const [newRecipient, setNewRecipient] = useState('');
+  const [newSubject, setNewSubject] = useState('');
+  const [newBody, setNewBody] = useState('');
+
   const userMessages = messages.filter(m => m.recipient === currentUser);
 
+  const handleSend = () => {
+    if (!newRecipient || !newSubject || !newBody) {
+      alert("Please fill out all fields before sending.");
+      return;
+    }
+    sendMessage(newRecipient, newSubject, newBody);
+    setIsComposing(false);
+    setNewRecipient('');
+    setNewSubject('');
+    setNewBody('');
+    // A subtle visual cue could be added here later
+  };
+
   return (
-    <div className="space-y-6">
-      <h2 className="text-2xl font-light text-stone-800">Messages</h2>
+    <div className="max-w-4xl mx-auto py-8">
+      <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 mb-10 border-b border-stone-100 pb-8">
+        <div>
+          <h2 className="text-4xl font-light text-stone-900 tracking-tight">Your Inbox</h2>
+          <p className="text-stone-500 mt-2">Personal notifications and club announcements.</p>
+        </div>
+        <div className="flex items-center gap-3">
+          <div className="bg-emerald-50 text-emerald-800 px-4 py-2 rounded-2xl text-xs font-bold border border-emerald-100 flex items-center gap-2">
+            <LucideIcon name="mail" className="w-4 h-4" />
+            {userMessages.filter(m => !m.read).length} New Messages
+          </div>
+          <button
+            onClick={() => setIsComposing(true)}
+            className="flex items-center gap-2 bg-emerald-900 text-white px-5 py-2 rounded-2xl hover:bg-emerald-950 transition-all font-bold shadow-md hover:shadow-lg active:scale-95 group text-sm"
+          >
+            <LucideIcon name="pen-square" className="w-4 h-4 group-hover:scale-110 transition-transform" />
+            Compose
+          </button>
+        </div>
+      </div>
 
       {userMessages.length === 0 ? (
-        <div className="text-center py-12">
-          <div className="text-stone-500">No messages</div>
+        <div className="text-center py-24 bg-white rounded-[3rem] border border-stone-100">
+          <LucideIcon name="mailbox" className="w-12 h-12 text-stone-200 mx-auto mb-4" />
+          <p className="text-stone-400 font-medium">No messages in your inbox.</p>
         </div>
       ) : (
         <div className="space-y-4">
           {userMessages.map(message => (
             <div
               key={message.id}
-              className={`border rounded-lg p-6 space-y-3 ${message.read ? 'bg-white border-stone-200' : 'bg-amber-50 border-amber-200'}`}
+              className={`rounded-[2.5rem] p-8 border transition-all hover:shadow-lg ${message.read ? 'bg-white border-stone-100' : 'bg-emerald-50/30 border-emerald-200 ring-1 ring-emerald-500/5'}`}
             >
-              <div className="flex items-start justify-between">
-                <div>
-                  <h3 className="font-semibold text-lg text-stone-900">{message.subject}</h3>
-                  <p className="text-xs text-stone-500 mt-1">
-                    {new Date(message.timestamp).toLocaleString('en-US', {
-                      weekday: 'short',
-                      month: 'short',
-                      day: 'numeric',
-                      hour: 'numeric',
-                      minute: '2-digit'
-                    })}
-                  </p>
+              <div className="flex items-start justify-between mb-4">
+                <div className="flex items-center gap-4">
+                  <div className={`w-12 h-12 rounded-2xl flex items-center justify-center ${message.read ? 'bg-stone-50 text-stone-400' : 'bg-emerald-900 text-amber-300 shadow-xl shadow-emerald-900/10'}`}>
+                    <LucideIcon name={message.read ? "mail-open" : "mail"} className="w-6 h-6" />
+                  </div>
+                  <div>
+                    <h3 className="text-xl font-bold text-stone-900">{message.subject}</h3>
+                    <div className="flex items-center gap-2 text-stone-400 text-[10px] font-bold uppercase tracking-widest mt-1">
+                      <span className="text-emerald-700 font-black">From: {message.sender}</span>
+                      <span>•</span>
+                      <LucideIcon name="clock" className="w-3 h-3" />
+                      {new Date(message.timestamp).toLocaleString('en-US', {
+                        month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit'
+                      })}
+                    </div>
+                  </div>
                 </div>
                 {!message.read && (
-                  <span className="px-2 py-1 bg-amber-500 text-white text-xs rounded font-medium">
+                  <span className="px-4 py-1.5 bg-amber-400 text-amber-950 text-[10px] font-black uppercase tracking-[0.2em] rounded-full shadow-sm">
                     New
                   </span>
                 )}
               </div>
-              <div className="text-sm text-stone-700 whitespace-pre-line">
+              <div className="text-stone-600 leading-relaxed pl-16">
                 {message.body}
               </div>
             </div>
           ))}
+        </div>
+      )}
+
+      {/* Compose Modal */}
+      {isComposing && (
+        <div className="fixed inset-0 bg-stone-900/40 backdrop-blur-sm flex items-center justify-center z-[100] p-4 animate-in fade-in duration-300" onClick={() => setIsComposing(false)}>
+          <div className="bg-white rounded-[3rem] shadow-2xl p-8 w-full max-w-2xl mx-auto border border-stone-100 animate-in zoom-in-95 duration-300 flex flex-col max-h-[90vh]" onClick={(e) => e.stopPropagation()}>
+            <div className="flex justify-between items-start mb-6 shrink-0">
+              <div>
+                <h3 className="text-3xl font-light text-stone-900 tracking-tight">Compose Message</h3>
+                <p className="text-stone-500 text-sm mt-1">Send a notification or update to another member.</p>
+              </div>
+              <button onClick={() => setIsComposing(false)} className="p-3 hover:bg-stone-50 rounded-2xl text-stone-400 hover:text-stone-900 transition-all">
+                <LucideIcon name="x" className="w-6 h-6" />
+              </button>
+            </div>
+
+            <div className="space-y-5 overflow-y-auto pr-2 pb-4 flex-1">
+              <div>
+                <label className="text-[10px] font-black uppercase tracking-widest text-stone-400 block mb-2 px-1">Recipient</label>
+                <div className="relative">
+                  <select
+                    value={newRecipient}
+                    onChange={(e) => setNewRecipient(e.target.value)}
+                    className="w-full pl-10 pr-4 py-3 bg-stone-50 border border-stone-200 rounded-2xl focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all font-bold text-stone-800 appearance-none text-sm"
+                  >
+                    <option value="" disabled>Select a member...</option>
+                    {validUsers.map(u => (
+                      <option key={u} value={u}>{u}</option>
+                    ))}
+                  </select>
+                  <LucideIcon name="user" className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-stone-400 pointer-events-none" />
+                  <LucideIcon name="chevron-down" className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-stone-400 pointer-events-none" />
+                </div>
+              </div>
+
+              <div>
+                <label className="text-[10px] font-black uppercase tracking-widest text-stone-400 block mb-2 px-1">Subject</label>
+                <div className="relative">
+                  <input
+                    type="text"
+                    value={newSubject}
+                    onChange={(e) => setNewSubject(e.target.value)}
+                    placeholder="Brief subject line"
+                    className="w-full pl-10 pr-4 py-3 bg-stone-50 border border-stone-200 rounded-2xl focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all font-bold text-stone-800 text-sm"
+                  />
+                  <LucideIcon name="type" className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-stone-400" />
+                </div>
+              </div>
+
+              <div>
+                <label className="text-[10px] font-black uppercase tracking-widest text-stone-400 block mb-2 px-1">Message Body</label>
+                <textarea
+                  value={newBody}
+                  onChange={(e) => setNewBody(e.target.value)}
+                  placeholder="Type your message here..."
+                  className="w-full p-4 bg-stone-50 border border-stone-200 rounded-2xl focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all font-medium text-stone-700 text-sm min-h-[200px] resize-y"
+                />
+              </div>
+            </div>
+
+            <div className="flex flex-col sm:flex-row gap-4 mt-6 pt-6 border-t border-stone-100 shrink-0">
+              <button
+                onClick={() => setIsComposing(false)}
+                className="flex-1 px-8 py-3.5 bg-white border-2 border-stone-100 text-stone-600 rounded-2xl hover:bg-stone-50 transition-all font-bold text-sm uppercase tracking-widest"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleSend}
+                disabled={!newRecipient || !newSubject || !newBody}
+                className="flex-1 flex items-center justify-center gap-2 px-8 py-3.5 bg-emerald-900 text-white rounded-2xl hover:bg-emerald-950 transition-all font-bold text-sm uppercase tracking-widest shadow-lg shadow-emerald-900/10 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <LucideIcon name="send" className="w-4 h-4" />
+                Send Message
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>
@@ -2447,99 +3468,101 @@ const MessagesView = ({ messages, currentUser }) => {
 
 // Main Navigation
 const Navigation = ({ currentUser, view, setView, setCurrentUser, downloadCSV, onLogoutClick }) => {
+  const [showDropdown, setShowDropdown] = useState(false);
+
   if (!currentUser) return null;
 
+  const NavButton = ({ id, label, icon, active }) => (
+    <button
+      onClick={() => setView(id)}
+      className={`flex items-center gap-2 px-4 py-2.5 rounded-xl transition-all duration-200 ${active
+        ? 'bg-emerald-800 text-amber-200 shadow-inner scale-[0.98]'
+        : 'text-emerald-100 hover:bg-emerald-800/50 hover:text-white'
+        }`}
+    >
+      <LucideIcon name={icon} className={`w-5 h-5 ${active ? 'text-amber-300' : 'text-emerald-300'}`} />
+      <span className="font-medium">{label}</span>
+    </button>
+  );
+
   return (
-    <div className="bg-emerald-900 border-b border-emerald-800">
+    <div className="bg-emerald-900 border-b border-emerald-800 shadow-lg sticky top-0 z-50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex justify-between items-center h-16">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 flex items-center justify-center">
+        <div className="flex justify-between items-center h-24">
+          <div className="flex items-center gap-4 cursor-pointer" onClick={() => setView('calendar')}>
+            <div className="w-24 h-24 flex items-center justify-center bg-white/10 rounded-full p-3 border border-white/20 shadow-lg">
               <img
                 src="logo.png"
                 alt="Tuscarora Club Logo"
                 className="w-full h-full object-contain"
-                style={{ backgroundColor: 'transparent' }}
               />
             </div>
-            <div className="flex items-center gap-2">
-              <h1 className="text-xl font-light text-amber-200" style={{ fontFamily: 'Georgia, serif' }}>The Tuscarora Club</h1>
-              <span className="text-stone-400 text-xs">v5.1</span>
+            <div className="flex flex-col">
+              <h1 className="text-2xl font-light text-amber-400 tracking-tight leading-none" style={{ fontFamily: 'Georgia, serif' }}>
+                The Tuscarora Club
+              </h1>
+              <span className="text-white/80 text-[10px] uppercase font-bold tracking-[0.2em] mt-1">
+                Reservations Portal
+              </span>
             </div>
           </div>
 
-          <div className="flex items-center gap-6">
-            <button
-              onClick={() => setView('calendar')}
-              className={`flex items-center gap-2 px-3 py-2 rounded-lg transition-colors ${view === 'calendar' ? 'bg-emerald-800 text-amber-200' : 'text-stone-200 hover:text-white'
-                }`}
-            >
-              <CalendarIcon className="w-5 h-5" />
-              <span>Calendar</span>
-            </button>
-
-            <button
-              onClick={() => setView('my-reservations')}
-              className={`flex items-center gap-2 px-3 py-2 rounded-lg transition-colors ${view === 'my-reservations' ? 'bg-emerald-800 text-amber-200' : 'text-stone-200 hover:text-white'
-                }`}
-            >
-              <UsersIcon className="w-5 h-5" />
-              <span>My Reservations</span>
-            </button>
-
-            <button
-              onClick={() => setView('messages')}
-              className={`flex items-center gap-2 px-3 py-2 rounded-lg transition-colors ${view === 'messages' ? 'bg-emerald-800 text-amber-200' : 'text-stone-200 hover:text-white'
-                }`}
-            >
-              <LucideIcon name="mail" className="w-5 h-5" />
-              <span>Messages</span>
-            </button>
-
-            <button
-              onClick={() => setView('reporting')}
-              className={`flex items-center gap-2 px-3 py-2 rounded-lg transition-colors ${view === 'reporting' ? 'bg-emerald-800 text-amber-200' : 'text-stone-200 hover:text-white'
-                }`}
-            >
-              <LucideIcon name="bar-chart" className="w-5 h-5" />
-              <span>Reporting</span>
-            </button>
-
-            {currentUser === 'admin' && (
-              <button
-                onClick={() => setView('admin')}
-                className={`flex items-center gap-2 px-3 py-2 rounded-lg transition-colors ${view === 'admin' ? 'bg-emerald-800 text-amber-200' : 'text-stone-200 hover:text-white'
-                  }`}
-              >
-                <SettingsIcon className="w-5 h-5" />
-                <span>Admin</span>
-              </button>
+          <div className="flex items-center gap-2">
+            <NavButton id="calendar" label="Make Reservation" icon="calendar" active={view === 'calendar'} />
+            <NavButton id="my-reservations" label="My Reservations" icon="user" active={view === 'my-reservations'} />
+            <NavButton id="messages" label="Inbox" icon="mail" active={view === 'messages'} />
+            {currentUser === 'admin' ? (
+              <NavButton id="dashboard" label="Dashboard" icon="layout" active={view === 'dashboard'} />
+            ) : (
+              <NavButton id="reporting" label="Reports" icon="bar-chart" active={view === 'reporting'} />
             )}
 
-            <div className="border-l border-emerald-700 pl-6 flex items-center gap-6">
-              <button
-                onClick={downloadCSV}
-                className="flex items-center gap-2 text-stone-200 hover:text-amber-200 transition-colors"
-                title="Export to Spreadsheet"
-              >
-                <LucideIcon name="download" className="w-5 h-5" />
-                <span className="text-sm font-medium">Export</span>
-              </button>
-              <div className="flex items-center gap-3">
-                <span className="text-sm text-stone-200">{currentUser}</span>
+            <div className="border-l border-emerald-800 ml-4 pl-6 flex items-center gap-6 relative">
+              {currentUser === 'admin' && (
                 <button
-                  type="button"
-                  onClick={onLogoutClick}
-                  className="text-stone-200 hover:text-white p-2 rounded-lg hover:bg-emerald-800 transition-colors"
-                  title="Sign Out"
+                  onClick={downloadCSV}
+                  className="flex items-center gap-2 text-emerald-100 hover:text-white transition-colors bg-white/5 hover:bg-white/10 px-3 py-2 rounded-lg"
+                  title="Export Data"
                 >
-                  <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
-                    <polyline points="16 17 21 12 16 7"></polyline>
-                    <line x1="21" y1="12" x2="9" y2="12"></line>
-                  </svg>
+                  <LucideIcon name="download" className="w-4 h-4 text-emerald-400" />
+                  <span className="text-sm font-medium">Export</span>
                 </button>
+              )}
+
+              <div
+                className="flex items-center gap-3 cursor-pointer group"
+                onClick={() => setShowDropdown(!showDropdown)}
+              >
+                <div className="text-right hidden sm:block">
+                  <p className="text-xs font-bold text-white leading-none group-hover:text-amber-200 transition-colors">{currentUser}</p>
+                  <p className="text-[9px] text-emerald-400 mt-1 uppercase tracking-tighter">Member</p>
+                </div>
+                <div className="w-10 h-10 bg-emerald-800 rounded-xl flex items-center justify-center text-emerald-100 font-bold border border-emerald-700/50 group-hover:border-amber-500/30 transition-all shadow-sm">
+                  {currentUser[0].toUpperCase()}
+                </div>
+                <LucideIcon name="chevron-down" className={`w-3 h-3 text-emerald-400 transition-transform duration-300 ${showDropdown ? 'rotate-180' : ''}`} />
               </div>
+
+              {showDropdown && (
+                <div className="absolute right-0 top-[calc(100%+12px)] w-56 bg-white rounded-2xl shadow-2xl border border-stone-200 py-2 z-[60] animate-in fade-in slide-in-from-top-2 duration-200">
+                  <div className="px-5 py-3 border-b border-stone-100">
+                    <p className="text-[10px] text-stone-400 font-bold uppercase tracking-widest leading-tight">Authenticating</p>
+                    <p className="text-sm font-semibold text-stone-900 truncate">{currentUser}</p>
+                  </div>
+                  <div className="p-1">
+                    <button
+                      onClick={() => {
+                        setShowDropdown(false);
+                        onLogoutClick();
+                      }}
+                      className="w-full text-left px-4 py-3 text-sm text-stone-600 hover:bg-red-50 hover:text-red-700 rounded-xl flex items-center gap-3 transition-all group"
+                    >
+                      <LucideIcon name="log-out" className="w-4 h-4 transition-colors" />
+                      <span className="font-medium">Sign Out</span>
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -2547,6 +3570,7 @@ const Navigation = ({ currentUser, view, setView, setCurrentUser, downloadCSV, o
     </div>
   );
 };
+
 
 function ClubReservationSystem() {
   const [currentUser, setCurrentUser] = useState(null);
@@ -2560,59 +3584,39 @@ function ClubReservationSystem() {
   }, []); // Empty array = run only once on mount
 
   const [inventory, setInventory] = useState(INITIAL_INVENTORY);
-  const [bookings, setBookings] = useState([
-    // Farm House bookings
-    { "id": "b1", "member": "Chris", "building": "Farm House", "roomId": "fh1", "roomName": "Farmhouse #1", "startDate": "2026-02-01", "endDate": "2026-02-04", "guests": 2, "isGuest": false, "dailyMeals": { "2026-02-01": { "breakfast": false, "lunch": true, "barSupper": true, "packedBreakfast": false, "packedLunch": false }, "2026-02-02": { "breakfast": false, "lunch": false, "barSupper": false, "packedBreakfast": false, "packedLunch": false }, "2026-02-03": { "breakfast": false, "lunch": false, "barSupper": false, "packedBreakfast": false, "packedLunch": false } }, "memberArrival": "10:00", "guestArrival": "10:00", "provisional": false },
-    { "id": "b2", "member": "David", "building": "Farm House", "roomId": "fh1", "roomName": "Farmhouse #1", "startDate": "2026-02-06", "endDate": "2026-02-09", "guests": 1, "isGuest": false, "dailyMeals": { "2026-02-06": { "breakfast": false, "lunch": true, "barSupper": true, "packedBreakfast": false, "packedLunch": true }, "2026-02-07": { "breakfast": true, "lunch": true, "barSupper": true, "packedBreakfast": false, "packedLunch": true }, "2026-02-08": { "breakfast": false, "lunch": false, "barSupper": false, "packedBreakfast": false, "packedLunch": false }, "2026-02-09": { "breakfast": true, "lunch": false, "barSupper": false, "packedBreakfast": false, "packedLunch": false } }, "memberArrival": "14:30", "guestArrival": "14:30", "provisional": false },
-    { "id": "b3", "member": "Rob", "building": "Farm House", "roomId": "fh1", "roomName": "Farmhouse #1", "startDate": "2026-02-13", "endDate": "2026-02-17", "guests": 4, "isGuest": true, "dailyMeals": { "2026-02-13": { "breakfast": false, "lunch": true, "barSupper": true, "packedBreakfast": false, "packedLunch": false }, "2026-02-14": { "breakfast": true, "lunch": true, "barSupper": true, "packedBreakfast": false, "packedLunch": false }, "2026-02-15": { "breakfast": true, "lunch": false, "barSupper": true, "packedBreakfast": false, "packedLunch": false }, "2026-02-16": { "breakfast": false, "lunch": false, "barSupper": false, "packedBreakfast": false, "packedLunch": false }, "2026-02-17": { "breakfast": true, "lunch": false, "barSupper": false, "packedBreakfast": false, "packedLunch": false } }, "memberArrival": "16:00", "guestArrival": "16:00", "provisional": false },
+  const [bookings, setBookings] = useState([]);
 
-    { "id": "b4", "member": "Kerry", "building": "Farm House", "roomId": "fh2", "roomName": "Farmhouse #2", "startDate": "2026-02-02", "endDate": "2026-02-05", "guests": 3, "isGuest": true, "dailyMeals": { "2026-02-02": { "breakfast": false, "lunch": false, "barSupper": false, "packedBreakfast": false, "packedLunch": false }, "2026-02-03": { "breakfast": false, "lunch": false, "barSupper": false, "packedBreakfast": false, "packedLunch": false }, "2026-02-04": { "breakfast": true, "lunch": true, "barSupper": true, "packedBreakfast": false, "packedLunch": false }, "2026-02-05": { "breakfast": true, "lunch": false, "barSupper": false, "packedBreakfast": false, "packedLunch": false } }, "memberArrival": "09:00", "guestArrival": "09:00", "provisional": false },
-    { "id": "b5", "member": "Chris", "building": "Farm House", "roomId": "fh2", "roomName": "Farmhouse #2", "startDate": "2026-02-10", "endDate": "2026-02-12", "guests": 1, "isGuest": false, "dailyMeals": { "2026-02-10": { "breakfast": false, "lunch": false, "barSupper": false, "packedBreakfast": false, "packedLunch": false }, "2026-02-11": { "breakfast": true, "lunch": true, "barSupper": true, "packedBreakfast": false, "packedLunch": false }, "2026-02-12": { "breakfast": true, "lunch": false, "barSupper": false, "packedBreakfast": false, "packedLunch": false } }, "memberArrival": "18:00", "guestArrival": "18:00", "provisional": false },
+  // Load bookings from backend
+  useEffect(() => {
+    fetch('http://localhost:3001/api/bookings')
+      .then(res => res.json())
+      .then(data => {
+        if (!data.error) {
+          setBookings(data);
+        } else {
+          console.error("Error loading bookings:", data.error);
+        }
+      })
+      .catch(err => console.error("Failed to fetch bookings from server:", err));
+  }, []);
 
-    { "id": "b6", "member": "Markley", "building": "Farm House", "roomId": "fh3", "roomName": "Farmhouse #3", "startDate": "2026-02-05", "endDate": "2026-02-09", "guests": 2, "isGuest": false, "dailyMeals": { "2026-02-05": { "breakfast": false, "lunch": true, "barSupper": true, "packedBreakfast": false, "packedLunch": false }, "2026-02-06": { "breakfast": true, "lunch": true, "barSupper": true, "packedBreakfast": true, "packedLunch": false }, "2026-02-07": { "breakfast": true, "lunch": true, "barSupper": true, "packedBreakfast": false, "packedLunch": true }, "2026-02-08": { "breakfast": true, "lunch": false, "barSupper": true, "packedBreakfast": false, "packedLunch": false }, "2026-02-09": { "breakfast": true, "lunch": false, "barSupper": false, "packedBreakfast": false, "packedLunch": false } }, "memberArrival": "11:30", "guestArrival": "11:30", "provisional": false },
-    { "id": "b7", "member": "David", "building": "Farm House", "roomId": "fh3", "roomName": "Farmhouse #3", "startDate": "2026-02-11", "endDate": "2026-02-15", "guests": 3, "isGuest": true, "dailyMeals": { "2026-02-11": { "breakfast": false, "lunch": false, "barSupper": false, "packedBreakfast": false, "packedLunch": false }, "2026-02-12": { "breakfast": true, "lunch": true, "barSupper": true, "packedBreakfast": false, "packedLunch": false }, "2026-02-13": { "breakfast": true, "lunch": true, "barSupper": true, "packedBreakfast": false, "packedLunch": false }, "2026-02-14": { "breakfast": true, "lunch": true, "barSupper": true, "packedBreakfast": false, "packedLunch": false }, "2026-02-15": { "breakfast": true, "lunch": false, "barSupper": false, "packedBreakfast": false, "packedLunch": false } }, "memberArrival": "15:00", "guestArrival": "15:00", "provisional": false },
-
-    { "id": "b8", "member": "Rob", "building": "Farm House", "roomId": "fh4", "roomName": "Farmhouse #4", "startDate": "2026-02-01", "endDate": "2026-02-04", "guests": 1, "isGuest": false, "dailyMeals": { "2026-02-01": { "breakfast": false, "lunch": false, "barSupper": false, "packedBreakfast": false, "packedLunch": false }, "2026-02-02": { "breakfast": false, "lunch": false, "barSupper": false, "packedBreakfast": false, "packedLunch": false }, "2026-02-03": { "breakfast": false, "lunch": false, "barSupper": false, "packedBreakfast": false, "packedLunch": false } }, "memberArrival": "08:00", "guestArrival": "08:00", "provisional": false },
-    { "id": "b9", "member": "Kerry", "building": "Farm House", "roomId": "fh4", "roomName": "Farmhouse #4", "startDate": "2026-02-07", "endDate": "2026-02-11", "guests": 2, "isGuest": false, "dailyMeals": { "2026-02-07": { "breakfast": false, "lunch": true, "barSupper": true, "packedBreakfast": false, "packedLunch": false }, "2026-02-08": { "breakfast": true, "lunch": false, "barSupper": true, "packedBreakfast": false, "packedLunch": false }, "2026-02-09": { "breakfast": false, "lunch": false, "barSupper": false, "packedBreakfast": false, "packedLunch": false }, "2026-02-10": { "breakfast": true, "lunch": true, "barSupper": true, "packedBreakfast": false, "packedLunch": true }, "2026-02-11": { "breakfast": true, "lunch": false, "barSupper": false, "packedBreakfast": false, "packedLunch": false } }, "memberArrival": "13:00", "guestArrival": "13:00", "provisional": false },
-
-    { "id": "b10", "member": "Chris", "building": "Farm House", "roomId": "fh5", "roomName": "Farmhouse #5", "startDate": "2026-02-03", "endDate": "2026-02-07", "guests": 5, "isGuest": true, "dailyMeals": { "2026-02-03": { "breakfast": false, "lunch": false, "barSupper": false, "packedBreakfast": false, "packedLunch": false }, "2026-02-04": { "breakfast": true, "lunch": true, "barSupper": true, "packedBreakfast": false, "packedLunch": false }, "2026-02-05": { "breakfast": true, "lunch": true, "barSupper": true, "packedBreakfast": false, "packedLunch": false }, "2026-02-06": { "breakfast": true, "lunch": true, "barSupper": true, "packedBreakfast": false, "packedLunch": false }, "2026-02-07": { "breakfast": true, "lunch": false, "barSupper": false, "packedBreakfast": false, "packedLunch": false } }, "memberArrival": "12:00", "guestArrival": "12:00", "provisional": false },
-    { "id": "b11", "member": "David", "building": "Farm House", "roomId": "fh5", "roomName": "Farmhouse #5", "startDate": "2026-02-12", "endDate": "2026-02-14", "guests": 1, "isGuest": false, "dailyMeals": { "2026-02-12": { "breakfast": false, "lunch": true, "barSupper": true, "packedBreakfast": false, "packedLunch": false }, "2026-02-13": { "breakfast": true, "lunch": true, "barSupper": true, "packedBreakfast": false, "packedLunch": false }, "2026-02-14": { "breakfast": true, "lunch": false, "barSupper": false, "packedBreakfast": false, "packedLunch": false } }, "memberArrival": "17:00", "guestArrival": "17:00", "provisional": false },
-
-    { "id": "b12", "member": "Rob", "building": "Farm House", "roomId": "fh6", "roomName": "Farmhouse #6", "startDate": "2026-02-02", "endDate": "2026-02-06", "guests": 3, "isGuest": false, "dailyMeals": { "2026-02-02": { "breakfast": false, "lunch": false, "barSupper": false, "packedBreakfast": false, "packedLunch": false }, "2026-02-03": { "breakfast": false, "lunch": false, "barSupper": false, "packedBreakfast": false, "packedLunch": false }, "2026-02-04": { "breakfast": true, "lunch": true, "barSupper": true, "packedBreakfast": false, "packedLunch": false }, "2026-02-05": { "breakfast": true, "lunch": true, "barSupper": true, "packedBreakfast": false, "packedLunch": false }, "2026-02-06": { "breakfast": true, "lunch": false, "barSupper": false, "packedBreakfast": false, "packedLunch": false } }, "memberArrival": "10:30", "guestArrival": "10:30", "provisional": false },
-    { "id": "b13", "member": "Markley", "building": "Farm House", "roomId": "fh6", "roomName": "Farmhouse #6", "startDate": "2026-02-10", "endDate": "2026-02-13", "guests": 2, "isGuest": true, "dailyMeals": { "2026-02-10": { "breakfast": false, "lunch": false, "barSupper": false, "packedBreakfast": false, "packedLunch": false }, "2026-02-11": { "breakfast": true, "lunch": true, "barSupper": true, "packedBreakfast": false, "packedLunch": true }, "2026-02-12": { "breakfast": true, "lunch": true, "barSupper": true, "packedBreakfast": false, "packedLunch": false }, "2026-02-13": { "breakfast": true, "lunch": false, "barSupper": false, "packedBreakfast": false, "packedLunch": false } }, "memberArrival": "14:00", "guestArrival": "14:00", "provisional": false },
-
-    // Club House bookings
-    { "id": "b14", "member": "Kerry", "building": "Club House", "roomId": "ch1", "roomName": "Clubhouse #1", "startDate": "2026-02-01", "endDate": "2026-02-05", "guests": 2, "isGuest": false, "dailyMeals": { "2026-02-01": { "breakfast": false, "lunch": true, "barSupper": true, "packedBreakfast": false, "packedLunch": false }, "2026-02-02": { "breakfast": false, "lunch": false, "barSupper": false, "packedBreakfast": false, "packedLunch": false }, "2026-02-03": { "breakfast": false, "lunch": false, "barSupper": false, "packedBreakfast": false, "packedLunch": false }, "2026-02-04": { "breakfast": true, "lunch": true, "barSupper": true, "packedBreakfast": false, "packedLunch": false }, "2026-02-05": { "breakfast": true, "lunch": false, "barSupper": false, "packedBreakfast": false, "packedLunch": false } }, "memberArrival": "11:00", "guestArrival": "11:00", "provisional": false },
-    { "id": "b15", "member": "Chris", "building": "Club House", "roomId": "ch1", "roomName": "Clubhouse #1", "startDate": "2026-02-08", "endDate": "2026-02-11", "guests": 1, "isGuest": false, "dailyMeals": { "2026-02-08": { "breakfast": false, "lunch": false, "barSupper": true, "packedBreakfast": false, "packedLunch": false }, "2026-02-09": { "breakfast": false, "lunch": false, "barSupper": false, "packedBreakfast": false, "packedLunch": false }, "2026-02-10": { "breakfast": true, "lunch": true, "barSupper": true, "packedBreakfast": false, "packedLunch": false }, "2026-02-11": { "breakfast": true, "lunch": false, "barSupper": false, "packedBreakfast": false, "packedLunch": false } }, "memberArrival": "19:00", "guestArrival": "19:00", "provisional": false },
-
-    { "id": "b16", "member": "David", "building": "Club House", "roomId": "ch2", "roomName": "Clubhouse #2", "startDate": "2026-02-01", "endDate": "2026-02-04", "guests": 4, "isGuest": true, "dailyMeals": { "2026-02-01": { "breakfast": false, "lunch": true, "barSupper": true, "packedBreakfast": false, "packedLunch": true }, "2026-02-02": { "breakfast": false, "lunch": false, "barSupper": false, "packedBreakfast": false, "packedLunch": false }, "2026-02-03": { "breakfast": false, "lunch": false, "barSupper": false, "packedBreakfast": false, "packedLunch": false } }, "memberArrival": "13:30", "guestArrival": "13:30", "provisional": false },
-    { "id": "b17", "member": "Rob", "building": "Club House", "roomId": "ch2", "roomName": "Clubhouse #2", "startDate": "2026-02-08", "endDate": "2026-02-13", "guests": 1, "isGuest": false, "dailyMeals": { "2026-02-08": { "breakfast": false, "lunch": false, "barSupper": true, "packedBreakfast": false, "packedLunch": false }, "2026-02-09": { "breakfast": false, "lunch": false, "barSupper": false, "packedBreakfast": false, "packedLunch": false }, "2026-02-10": { "breakfast": true, "lunch": true, "barSupper": true, "packedBreakfast": false, "packedLunch": false }, "2026-02-11": { "breakfast": true, "lunch": true, "barSupper": true, "packedBreakfast": false, "packedLunch": false }, "2026-02-12": { "breakfast": true, "lunch": true, "barSupper": true, "packedBreakfast": false, "packedLunch": false }, "2026-02-13": { "breakfast": true, "lunch": false, "barSupper": false, "packedBreakfast": false, "packedLunch": false } }, "memberArrival": "15:30", "guestArrival": "15:30", "provisional": false },
-
-    { "id": "b18", "member": "Kerry", "building": "Club House", "roomId": "ch3", "roomName": "Clubhouse #3", "startDate": "2026-02-05", "endDate": "2026-02-09", "guests": 3, "isGuest": true, "dailyMeals": { "2026-02-05": { "breakfast": false, "lunch": true, "barSupper": true, "packedBreakfast": false, "packedLunch": false }, "2026-02-06": { "breakfast": true, "lunch": true, "barSupper": true, "packedBreakfast": false, "packedLunch": false }, "2026-02-07": { "breakfast": true, "lunch": true, "barSupper": true, "packedBreakfast": false, "packedLunch": false }, "2026-02-08": { "breakfast": true, "lunch": false, "barSupper": true, "packedBreakfast": false, "packedLunch": false }, "2026-02-09": { "breakfast": true, "lunch": false, "barSupper": false, "packedBreakfast": false, "packedLunch": false } }, "memberArrival": "09:30", "guestArrival": "09:30", "provisional": false },
-    { "id": "b19", "member": "Chris", "building": "Club House", "roomId": "ch3", "roomName": "Clubhouse #3", "startDate": "2026-02-14", "endDate": "2026-02-18", "guests": 2, "isGuest": false, "dailyMeals": { "2026-02-14": { "breakfast": false, "lunch": true, "barSupper": true, "packedBreakfast": false, "packedLunch": false }, "2026-02-15": { "breakfast": true, "lunch": false, "barSupper": true, "packedBreakfast": false, "packedLunch": false }, "2026-02-16": { "breakfast": false, "lunch": false, "barSupper": false, "packedBreakfast": false, "packedLunch": false }, "2026-02-17": { "breakfast": false, "lunch": false, "barSupper": false, "packedBreakfast": false, "packedLunch": false } }, "memberArrival": "16:30", "guestArrival": "16:30", "provisional": false },
-
-    { "id": "b20", "member": "David", "building": "Club House", "roomId": "ch4", "roomName": "Clubhouse #4", "startDate": "2026-02-03", "endDate": "2026-02-06", "guests": 1, "isGuest": false, "dailyMeals": { "2026-02-03": { "breakfast": false, "lunch": false, "barSupper": false, "packedBreakfast": false, "packedLunch": false }, "2026-02-04": { "breakfast": true, "lunch": true, "barSupper": true, "packedBreakfast": false, "packedLunch": true }, "2026-02-05": { "breakfast": true, "lunch": true, "barSupper": true, "packedBreakfast": true, "packedLunch": false }, "2026-02-06": { "breakfast": true, "lunch": false, "barSupper": false, "packedBreakfast": false, "packedLunch": false } }, "memberArrival": "12:30", "guestArrival": "12:30", "provisional": false },
-    { "id": "b21", "member": "Markley", "building": "Club House", "roomId": "ch4", "roomName": "Clubhouse #4", "startDate": "2026-02-11", "endDate": "2026-02-14", "guests": 5, "isGuest": true, "dailyMeals": { "2026-02-11": { "breakfast": false, "lunch": false, "barSupper": false, "packedBreakfast": false, "packedLunch": false }, "2026-02-12": { "breakfast": true, "lunch": true, "barSupper": true, "packedBreakfast": false, "packedLunch": false }, "2026-02-13": { "breakfast": true, "lunch": true, "barSupper": true, "packedBreakfast": false, "packedLunch": false }, "2026-02-14": { "breakfast": true, "lunch": false, "barSupper": false, "packedBreakfast": false, "packedLunch": false } }, "memberArrival": "08:30", "guestArrival": "08:30", "provisional": false },
-
-    { "id": "b22", "member": "Rob", "building": "Club House", "roomId": "ch5", "roomName": "Clubhouse #5", "startDate": "2026-02-01", "endDate": "2026-02-05", "guests": 2, "isGuest": false, "dailyMeals": { "2026-02-01": { "breakfast": false, "lunch": true, "barSupper": true, "packedBreakfast": false, "packedLunch": false }, "2026-02-02": { "breakfast": false, "lunch": false, "barSupper": false, "packedBreakfast": false, "packedLunch": false }, "2026-02-03": { "breakfast": false, "lunch": false, "barSupper": false, "packedBreakfast": false, "packedLunch": false }, "2026-02-04": { "breakfast": true, "lunch": true, "barSupper": true, "packedBreakfast": false, "packedLunch": false }, "2026-02-05": { "breakfast": true, "lunch": false, "barSupper": false, "packedBreakfast": false, "packedLunch": false } }, "memberArrival": "14:00", "guestArrival": "14:00", "provisional": false },
-    { "id": "b23", "member": "Kerry", "building": "Club House", "roomId": "ch5", "roomName": "Clubhouse #5", "startDate": "2026-02-09", "endDate": "2026-02-12", "guests": 1, "isGuest": false, "dailyMeals": { "2026-02-09": { "breakfast": false, "lunch": false, "barSupper": false, "packedBreakfast": false, "packedLunch": false }, "2026-02-10": { "breakfast": true, "lunch": true, "barSupper": true, "packedBreakfast": false, "packedLunch": false }, "2026-02-11": { "breakfast": true, "lunch": true, "barSupper": true, "packedBreakfast": false, "packedLunch": false }, "2026-02-12": { "breakfast": true, "lunch": false, "barSupper": false, "packedBreakfast": false, "packedLunch": false } }, "memberArrival": "17:30", "guestArrival": "17:30", "provisional": false },
-
-    { "id": "b24", "member": "Chris", "building": "Club House", "roomId": "ch6", "roomName": "Clubhouse #6", "startDate": "2026-02-04", "endDate": "2026-02-08", "guests": 3, "isGuest": true, "dailyMeals": { "2026-02-04": { "breakfast": false, "lunch": true, "barSupper": true, "packedBreakfast": false, "packedLunch": false }, "2026-02-05": { "breakfast": true, "lunch": true, "barSupper": true, "packedBreakfast": false, "packedLunch": false }, "2026-02-06": { "breakfast": true, "lunch": true, "barSupper": true, "packedBreakfast": false, "packedLunch": false }, "2026-02-07": { "breakfast": true, "lunch": true, "barSupper": true, "packedBreakfast": false, "packedLunch": false }, "2026-02-08": { "breakfast": true, "lunch": false, "barSupper": false, "packedBreakfast": false, "packedLunch": false } }, "memberArrival": "11:30", "guestArrival": "11:30", "provisional": false },
-    { "id": "b25", "member": "David", "building": "Club House", "roomId": "ch6", "roomName": "Clubhouse #6", "startDate": "2026-02-13", "endDate": "2026-02-17", "guests": 4, "isGuest": true, "dailyMeals": { "2026-02-13": { "breakfast": false, "lunch": true, "barSupper": true, "packedBreakfast": false, "packedLunch": false }, "2026-02-14": { "breakfast": true, "lunch": true, "barSupper": true, "packedBreakfast": false, "packedLunch": false }, "2026-02-15": { "breakfast": true, "lunch": false, "barSupper": true, "packedBreakfast": false, "packedLunch": false }, "2026-02-16": { "breakfast": false, "lunch": false, "barSupper": false, "packedBreakfast": false, "packedLunch": false }, "2026-02-17": { "breakfast": true, "lunch": false, "barSupper": false, "packedBreakfast": false, "packedLunch": false } }, "memberArrival": "13:00", "guestArrival": "13:00", "provisional": false },
-
-    // Lazy Lodge bookings - Markley has priority booking at beginning of February
-    { "id": "b26", "member": "Markley", "building": "Lazy Lodge", "roomId": "ll1", "roomName": "Lazy Lodge #1", "startDate": "2026-02-01", "endDate": "2026-02-05", "guests": 3, "isGuest": false, "dailyMeals": { "2026-02-01": { "breakfast": false, "lunch": true, "barSupper": true, "packedBreakfast": false, "packedLunch": false }, "2026-02-02": { "breakfast": false, "lunch": false, "barSupper": false, "packedBreakfast": false, "packedLunch": false }, "2026-02-03": { "breakfast": false, "lunch": false, "barSupper": false, "packedBreakfast": false, "packedLunch": false }, "2026-02-04": { "breakfast": true, "lunch": true, "barSupper": true, "packedBreakfast": false, "packedLunch": false }, "2026-02-05": { "breakfast": true, "lunch": false, "barSupper": false, "packedBreakfast": false, "packedLunch": false } }, "memberArrival": "10:00", "guestArrival": "10:00", "provisional": false },
-    { "id": "b27", "member": "Chris", "building": "Lazy Lodge", "roomId": "ll1", "roomName": "Lazy Lodge #1", "startDate": "2026-02-08", "endDate": "2026-02-12", "guests": 2, "isGuest": true, "dailyMeals": { "2026-02-08": { "breakfast": false, "lunch": false, "barSupper": true, "packedBreakfast": false, "packedLunch": false }, "2026-02-09": { "breakfast": false, "lunch": false, "barSupper": false, "packedBreakfast": false, "packedLunch": false }, "2026-02-10": { "breakfast": true, "lunch": true, "barSupper": true, "packedBreakfast": false, "packedLunch": true }, "2026-02-11": { "breakfast": true, "lunch": true, "barSupper": true, "packedBreakfast": false, "packedLunch": false }, "2026-02-12": { "breakfast": true, "lunch": false, "barSupper": false, "packedBreakfast": false, "packedLunch": false } }, "memberArrival": "15:00", "guestArrival": "15:00", "provisional": false },
-  ]);
-  const [lazyLodgeHistory, setLazyLodgeHistory] = useState({
-    2026: ['Markley']
-  });
   const [messages, setMessages] = useState([]); // System messages for users
   const [maxRoomThreshold, setMaxRoomThreshold] = useState(5);
   const [mealTimes, setMealTimes] = useState(MEAL_TIMES);
 
+  const [memberList, setMemberList] = useState([]);
+
+  useEffect(() => {
+    fetch('http://localhost:3001/api/members')
+      .then(res => res.json())
+      .then(data => {
+        if (!data.error) setMemberList(data);
+      })
+      .catch(err => console.error("Failed to fetch members:", err));
+  }, []);
+
   // Calendar state
-  const [calendarView, setCalendarView] = useState('month');
+  const [calendarView, setCalendarView] = useState('week');
   const [currentDate, setCurrentDate] = useState(new Date()); // Current date
   const [selectedDate, setSelectedDate] = useState(null);
 
@@ -2644,8 +3648,19 @@ function ClubReservationSystem() {
   const [editingBooking, setEditingBooking] = useState(null);
 
   // Helper functions
-  const hasRentedLazyLodge = (member, year) => {
-    return (lazyLodgeHistory[year] && lazyLodgeHistory[year].includes(member)) || false;
+  const hasRentedLazyLodge = (member, dateStr) => {
+    if (member === 'admin') return false;
+    const date = new Date(dateStr);
+    const year = date.getFullYear();
+    const period = date.getMonth() < 6 ? 'H1' : 'H2';
+
+    return bookings.some(b => {
+      if (b.member !== member || b.provisional || b.building !== 'Lazy Lodge') return false;
+      const bDate = new Date(b.startDate);
+      const bYear = bDate.getFullYear();
+      const bPeriod = bDate.getMonth() < 6 ? 'H1' : 'H2';
+      return bYear === year && bPeriod === period;
+    });
   };
 
   const isRoomAvailable = (roomId, startDate, endDate) => {
@@ -2718,8 +3733,8 @@ function ClubReservationSystem() {
     const warnings = [];
     if (newBooking.building === 'Lazy Lodge') {
       const year = new Date(newBooking.startDate).getFullYear();
-      if (hasRentedLazyLodge(currentUser, year)) {
-        warnings.push('You have already rented Lazy Lodge this year. This will be a PROVISIONAL BOOKING and can be bumped by members who haven\'t used it yet.');
+      if (hasRentedLazyLodge(currentUser, newBooking.startDate)) {
+        warnings.push('You have already rented Lazy Lodge during this 6-month period. This will be a PROVISIONAL BOOKING and can be bumped by members who haven\'t used it yet.');
       }
     }
 
@@ -2728,14 +3743,14 @@ function ClubReservationSystem() {
       warnings.push(`You are booking ${roomCount} or more rooms simultaneously. Please confer with the House Committee Chairman.`);
     }
 
-    if (newBooking.isGuestRoom) {
+    if (newBooking.isGuestRoom && !newBooking.stayingInCottage) {
       const hostStays = bookings.filter(b =>
         b.member === currentUser &&
-        !b.isGuest &&
+        (b.isGuest === 'MEMBER' || b.isGuest === false) &&
         !(new Date(b.endDate) <= new Date(newBooking.startDate) || new Date(b.startDate) >= new Date(newBooking.endDate))
       );
       if (hostStays.length === 0) {
-        warnings.push("Guest Restriction: Members must have their own room booking during the guest stay period. Please book your own room first.");
+        warnings.push("Guest Restriction: Members must have their own room booking during the guest stay period. Please book your own room first, or check 'Member staying in cottage' if you are staying in your private cottage.");
       }
     }
 
@@ -2747,14 +3762,18 @@ function ClubReservationSystem() {
     }
   };
 
-  const confirmBooking = () => {
+  const confirmBooking = (memberName = null) => {
     const isProvisional = newBooking.building === 'Lazy Lodge' &&
-      hasRentedLazyLodge(currentUser, new Date(newBooking.startDate).getFullYear());
+      hasRentedLazyLodge(currentUser, newBooking.startDate);
 
     const room = getRoomById(newBooking.roomId);
+    const effectiveMember = (currentUser === 'admin' && memberName) ? memberName : currentUser;
+    const foundMember = memberList.find(m => m.full_name === effectiveMember);
     const booking = {
       id: `b${bookings.length + 1}`,
-      member: currentUser,
+      member: effectiveMember,
+      member_id: foundMember ? foundMember.id : null,
+      adminBooked: currentUser === 'admin',
       building: newBooking.building,
       roomId: newBooking.roomId,
       roomName: room.name,
@@ -2764,44 +3783,64 @@ function ClubReservationSystem() {
       dailyMeals: newBooking.dailyMeals,
       memberArrival: newBooking.memberArrival,
       guestArrival: newBooking.guestArrival,
-      isGuest: newBooking.isGuestRoom,
+      isGuest: newBooking.isGuestRoom ? 'GUEST' : 'MEMBER',
+      isGuestRoom: newBooking.isGuestRoom ? 'GUEST' : 'MEMBER',
+      stayingInCottage: newBooking.stayingInCottage || false,
       provisional: isProvisional
     };
 
-    setBookings([...bookings, booking]);
-
-    if (newBooking.building === 'Lazy Lodge' && !isProvisional) {
-      const year = new Date(newBooking.startDate).getFullYear();
-      setLazyLodgeHistory({
-        ...lazyLodgeHistory,
-        [year]: [...(lazyLodgeHistory[year] || []), currentUser]
+    fetch('http://localhost:3001/api/bookings', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(booking)
+    })
+      .then(() => {
+        setBookings([...bookings, booking]);
+        setView('my-reservations');
+        setBookingStep(1);
+        setNewBooking({
+          building: '',
+          roomId: '',
+          startDate: '',
+          endDate: '',
+          guests: 1,
+          dailyMeals: {},
+          memberArrival: '',
+          guestArrival: '',
+          isGuestRoom: false
+        });
+        setBookingWarnings([]);
+      })
+      .catch(err => {
+        console.error("Error saving booking:", err);
+        // Fallback to local state if server fails
+        setBookings([...bookings, booking]);
+        setView('my-reservations');
+        setBookingStep(1);
+        setNewBooking({
+          building: '',
+          roomId: '',
+          startDate: '',
+          endDate: '',
+          guests: 1,
+          dailyMeals: {},
+          memberArrival: '',
+          guestArrival: '',
+          isGuestRoom: false
+        });
+        setBookingWarnings([]);
       });
-    }
-
-    setView('my-reservations');
-    setBookingStep(1);
-    setNewBooking({
-      building: '',
-      roomId: '',
-      startDate: '',
-      endDate: '',
-      guests: 1,
-      dailyMeals: {},
-      memberArrival: '',
-      guestArrival: '',
-      isGuestRoom: false
-    });
-    setBookingWarnings([]);
   };
 
-  const confirmMultiRoomBooking = (roomBookings, partyArrivalTime) => {
+  const confirmMultiRoomBooking = (roomBookings, partyArrivalTime, stayingInCottage, bookingMember = currentUser) => {
+
     const newBookings = [];
     const bookingsToRemove = [];
     const bumpedMembers = new Set();
 
     roomBookings.forEach(roomBooking => {
       const isProvisional = roomBooking.building === 'Lazy Lodge' &&
-        hasRentedLazyLodge(currentUser, new Date(roomBooking.startDate).getFullYear());
+        hasRentedLazyLodge(currentUser, roomBooking.startDate);
 
       // Check for provisional bookings in this room/date range
       const startDate = new Date(roomBooking.startDate);
@@ -2809,7 +3848,7 @@ function ClubReservationSystem() {
 
       bookings.forEach(existingBooking => {
         if (existingBooking.provisional &&
-            existingBooking.roomId === roomBooking.roomId) {
+          existingBooking.roomId === roomBooking.roomId) {
           const existingStart = new Date(existingBooking.startDate);
           const existingEnd = new Date(existingBooking.endDate);
 
@@ -2823,59 +3862,119 @@ function ClubReservationSystem() {
 
       const booking = {
         id: `b${bookings.length + newBookings.length + 1}`,
-        member: currentUser,
+        member: bookingMember,
+        adminBooked: currentUser === 'admin',
         building: roomBooking.building,
         roomId: roomBooking.roomId,
         roomName: roomBooking.roomName,
         startDate: roomBooking.startDate,
         endDate: roomBooking.endDate,
-        guests: roomBooking.guests,
+        guests: roomBooking.guestNames ? roomBooking.guestNames.length : (roomBooking.guests || 1),
         dailyMeals: roomBooking.dailyMeals,
         memberArrival: partyArrivalTime,
         guestArrival: partyArrivalTime,
-        guestName: roomBooking.guestName,
-        isGuest: roomBooking.isGuest !== false,
+        guestNames: roomBooking.guestNames && roomBooking.guestNames.length > 0
+          ? roomBooking.guestNames
+          : [roomBooking.guestName || ''],
+        guestName: roomBooking.guestNames ? roomBooking.guestNames.join(', ') : (roomBooking.guestName || ''),
+        dietary: roomBooking.dietary || '',
+        isGuest: roomBooking.isGuest === 'MEMBER' || roomBooking.isGuest === false ? 'MEMBER' : 'GUEST',
+        isGuestRoom: roomBooking.isGuest === 'MEMBER' || roomBooking.isGuest === false ? 'MEMBER' : 'GUEST',
+        memberStayRoom: stayingInCottage ? 'Cottage' : null,
+        stayingInCottage: stayingInCottage || false,
         provisional: isProvisional
       };
 
       newBookings.push(booking);
 
-      // Track Lazy Lodge usage for non-provisional bookings
-      if (roomBooking.building === 'Lazy Lodge' && !isProvisional) {
-        const year = new Date(roomBooking.startDate).getFullYear();
-        setLazyLodgeHistory({
-          ...lazyLodgeHistory,
-          [year]: [...(lazyLodgeHistory[year] || []), currentUser]
+    });
+
+    // Refactored to save to SQLite backend
+    Promise.all(newBookings.map(booking =>
+      fetch('http://localhost:3001/api/bookings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(booking)
+      })
+    ))
+      .then(() => {
+        // Remove provisional bookings that were bumped
+        if (bookingsToRemove.length > 0) {
+          Promise.all(bookingsToRemove.map(id =>
+            fetch(`http://localhost:3001/api/bookings/${id}`, { method: 'DELETE' })
+          )).catch(err => console.error("Error deleting bumped bookings:", err));
+        }
+
+        const updatedBookings = bookings.filter(b => !bookingsToRemove.includes(b.id));
+
+        // Create messages for bumped members (in a real app, this would also POST to the backend)
+        const newMessages = [];
+        bumpedMembers.forEach(member => {
+          const message = {
+            id: `msg${messages.length + newMessages.length + 1}`,
+            recipient: member,
+            subject: 'Lazy Lodge Provisional Booking Bumped',
+            body: `Your provisional Lazy Lodge booking has been replaced by ${currentUser}, who has priority for Lazy Lodge this calendar year. Please make an alternative reservation.`,
+            timestamp: new Date().toISOString(),
+            read: false
+          };
+          newMessages.push(message);
+
+          fetch('http://localhost:3001/api/messages', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              from: 'System',
+              to: member,
+              text: message.body,
+            })
+          }).catch(err => console.error("Error sending message:", err));
         });
-      }
-    });
 
-    // Remove provisional bookings that were bumped
-    const updatedBookings = bookings.filter(b => !bookingsToRemove.includes(b.id));
+        setBookings([...updatedBookings, ...newBookings]);
+        setMessages([...messages, ...newMessages]);
+        setBookingMode('calendar');
+        setSelectedCells([]);
+        setView('my-reservations');
+      })
+      .catch(err => {
+        console.error("Error saving multi-room booking:", err);
+        // Fallback to local state if server fails
+        const updatedBookings = bookings.filter(b => !bookingsToRemove.includes(b.id));
+        setBookings([...updatedBookings, ...newBookings]);
+        setBookingMode('calendar');
+        setSelectedCells([]);
+        setView('my-reservations');
+      });
+  };
 
-    // Create messages for bumped members
-    const newMessages = [];
-    bumpedMembers.forEach(member => {
-      const message = {
-        id: `msg${messages.length + newMessages.length + 1}`,
-        recipient: member,
-        subject: 'Lazy Lodge Provisional Booking Bumped',
-        body: `Your provisional Lazy Lodge booking has been replaced by ${currentUser}, who has priority for Lazy Lodge this calendar year. Please make an alternative reservation.`,
-        timestamp: new Date().toISOString(),
-        read: false
-      };
-      newMessages.push(message);
-    });
-
-    setBookings([...updatedBookings, ...newBookings]);
-    setMessages([...messages, ...newMessages]);
-    setBookingMode('calendar');
-    setSelectedCells([]);
-    setView('my-reservations');
+  const approveBooking = (booking) => {
+    if (!confirm(`Accept provisional Lazy Lodge booking for ${booking.member}?`)) return;
+    const updated = { ...booking, provisional: false };
+    fetch(`http://localhost:3001/api/bookings/${booking.id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(updated)
+    })
+      .then(res => res.json())
+      .then(() => {
+        setBookings(prev => prev.map(b => b.id === booking.id ? updated : b));
+      })
+      .catch(err => console.error('Error approving booking:', err));
   };
 
   const cancelBooking = (bookingId) => {
-    setBookings(bookings.filter(b => b.id !== bookingId));
+    fetch(`http://localhost:3001/api/bookings/${bookingId}`, {
+      method: 'DELETE',
+    })
+      .then(() => {
+        setBookings(prev => prev.filter(b => b.id !== bookingId));
+      })
+      .catch(err => {
+        console.error("Error canceling booking:", err);
+        // Fallback
+        setBookings(prev => prev.filter(b => b.id !== bookingId));
+      });
   };
 
   const handleEditBooking = (booking) => {
@@ -2884,45 +3983,48 @@ function ClubReservationSystem() {
   };
 
   const saveBookingEdits = (updatedBooking) => {
-    setBookings(bookings.map(b => b.id === updatedBooking.id ? updatedBooking : b));
-    setEditingBooking(null);
+    fetch(`http://localhost:3001/api/bookings/${updatedBooking.id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(updatedBooking)
+    })
+      .then(() => {
+        setBookings(bookings.map(b => b.id === updatedBooking.id ? updatedBooking : b));
+        setEditingBooking(null);
+      })
+      .catch(err => {
+        console.error("Error editing booking:", err);
+        // Fallback
+        setBookings(bookings.map(b => b.id === updatedBooking.id ? updatedBooking : b));
+        setEditingBooking(null);
+      });
   };
 
   const downloadBookingsCSV = () => {
     const headers = [
       'ID', 'Member', 'Building', 'Room', 'Start Date', 'End Date',
-      'Nights', 'Guests', 'Provisional',
+      'Nights', 'Guests', 'Guest Room', 'Cottage Stay', 'Provisional',
       'Breakfasts', 'Lunches', 'Bar Suppers',
       'Packed Breakfasts', 'Packed Lunches', 'Packed Suppers'
     ];
 
     const rows = bookings.map(b => {
-      // Calculate duration in nights
-      const start = new Date(b.startDate);
-      const end = new Date(b.endDate);
-      const diffTime = Math.abs(end - start);
-      const nights = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+      const start = new Date(b.startDate + 'T00:00:00');
+      const end = new Date(b.endDate + 'T00:00:00');
+      const nights = Math.ceil(Math.abs(end - start) / (1000 * 60 * 60 * 24));
 
-      // Calculate meal counts with safe access
-      // Breakfast: 1 per night + departure morning = nights + 1
-      const hasBreakfast = (b.meals && b.meals.breakfast) || false;
-      const totalBreakfasts = hasBreakfast ? (nights + 1) * b.guests : 0;
-
-      // Lunch: 1 per full day (arrival lunch is assumed?) -> Requirement says:
-      // "first night... breakfast, lunch, and dinner... everyday... breakfast only on checkout"
-      // Interpretation: B/L/D on Arrival + Full Days. Checkout is B only.
-      // So Lunch count = 1 (Arrival) + (Nights - 1) (Full Days) = Nights
-      const hasLunch = (b.meals && b.meals.lunch) || false;
-      const totalLunches = hasLunch ? nights * b.guests : 0;
-
-      // Supper: 1 per night
-      const hasSupper = (b.meals && b.meals.barSupper) || false;
-      const totalSuppers = hasSupper ? nights * b.guests : 0;
-
-      // Safe access for packed meals
-      const packedBreakfast = (b.packedMeals && b.packedMeals.breakfast) ? 'Yes' : 'No';
-      const packedLunch = (b.packedMeals && b.packedMeals.lunch) ? 'Yes' : 'No';
-      const packedSupper = (b.packedMeals && b.packedMeals.barSupper) ? 'Yes' : 'No';
+      // Calculate meal counts from dailyMeals
+      let brk = 0, lun = 0, sup = 0, pBrk = 0, pLun = 0, pSup = 0;
+      if (b.dailyMeals) {
+        Object.values(b.dailyMeals).forEach(m => {
+          if (m.breakfast) brk++;
+          if (m.lunch) lun++;
+          if (m.barSupper) sup++;
+          if (m.packedBreakfast) pBrk++;
+          if (m.packedLunch) pLun++;
+          if (m.packedBarSupper) pSup++;
+        });
+      }
 
       return [
         b.id,
@@ -2933,13 +4035,15 @@ function ClubReservationSystem() {
         b.endDate,
         nights,
         b.guests,
+        b.isGuestRoom,
+        b.stayingInCottage ? 'Yes' : 'No',
         b.provisional ? 'Yes' : 'No',
-        totalBreakfasts,
-        totalLunches,
-        totalSuppers,
-        packedBreakfast,
-        packedLunch,
-        packedSupper
+        brk * b.guests,
+        lun * b.guests,
+        sup * b.guests,
+        pBrk * b.guests,
+        pLun * b.guests,
+        pSup * b.guests
       ];
     });
 
@@ -2985,72 +4089,90 @@ function ClubReservationSystem() {
             currentUser={currentUser}
           />
         ) : (<>
-        {view === 'calendar' && bookingMode !== 'details' && <CalendarView
-          currentDate={currentDate}
-          calendarView={calendarView}
-          setCalendarView={setCalendarView}
-          navigateCalendar={navigateCalendar}
-          setCurrentDate={setCurrentDate}
-          startBooking={startBooking}
-          inventory={inventory}
-          isRoomAvailable={isRoomAvailable}
-          bookings={bookings}
-          selectedCells={selectedCells}
-          setSelectedCells={setSelectedCells}
-          setBookingMode={setBookingMode}
-          currentUser={currentUser}
-          lazyLodgeHistory={lazyLodgeHistory}
-          hasRentedLazyLodge={hasRentedLazyLodge}
-          onEditBooking={handleEditBooking}
-        />}
-        {view === 'calendar' && bookingMode === 'details' && <MultiRoomBookingDetails
-          selectedCells={selectedCells}
-          setSelectedCells={setSelectedCells}
-          setBookingMode={setBookingMode}
-          getRoomById={getRoomById}
-          confirmMultiRoomBooking={confirmMultiRoomBooking}
-          mealTimesConfig={mealTimes}
-          currentUser={currentUser}
-        />}
-        {view === 'booking' && <BookingFlow
-          bookingStep={bookingStep}
-          setBookingStep={setBookingStep}
-          newBooking={newBooking}
-          setNewBooking={setNewBooking}
-          bookingWarnings={bookingWarnings}
-          setBookingWarnings={setBookingWarnings}
-          confirmBooking={confirmBooking}
-          setView={setView}
-          isRoomAvailable={isRoomAvailable}
-          getRoomById={getRoomById}
-          inventory={inventory}
-          validateAndProceed={validateAndProceed}
-          getAllRooms={getAllRooms}
-          mealTimesConfig={mealTimes}
-          bookings={bookings}
-        />}
-        {view === 'my-reservations' && <MyReservationsView
-          bookings={bookings}
-          currentUser={currentUser}
-          getRoomById={getRoomById}
-          cancelBooking={cancelBooking}
-          setView={setView}
-          onEditBooking={handleEditBooking}
-        />}
-        {view === 'admin' && currentUser === 'admin' && <AdminInventoryView
-          maxRoomThreshold={maxRoomThreshold}
-          setMaxRoomThreshold={setMaxRoomThreshold}
-          mealTimes={mealTimes}
-          setMealTimes={setMealTimes}
-          inventory={inventory}
-        />}
-        {view === 'messages' && <MessagesView
-          messages={messages}
-          currentUser={currentUser}
-        />}
-        {view === 'reporting' && <ReportingView
-          bookings={bookings}
-        />}
+          {view === 'calendar' && bookingMode !== 'details' && <CalendarView
+            currentDate={currentDate}
+            calendarView={calendarView}
+            setCalendarView={setCalendarView}
+            navigateCalendar={navigateCalendar}
+            setCurrentDate={setCurrentDate}
+            startBooking={startBooking}
+            inventory={inventory}
+            isRoomAvailable={isRoomAvailable}
+            bookings={bookings}
+            selectedCells={selectedCells}
+            setSelectedCells={setSelectedCells}
+            setBookingMode={setBookingMode}
+            currentUser={currentUser}
+            hasRentedLazyLodge={hasRentedLazyLodge}
+            onEditBooking={handleEditBooking}
+          />}
+          {view === 'calendar' && bookingMode === 'details' && <MultiRoomBookingDetails
+            selectedCells={selectedCells}
+            setSelectedCells={setSelectedCells}
+            setBookingMode={setBookingMode}
+            getRoomById={getRoomById}
+            confirmMultiRoomBooking={confirmMultiRoomBooking}
+            mealTimesConfig={mealTimes}
+            currentUser={currentUser}
+            memberList={memberList}
+          />}
+          {view === 'booking' && <BookingFlow
+            bookingStep={bookingStep}
+            setBookingStep={setBookingStep}
+            newBooking={newBooking}
+            setNewBooking={setNewBooking}
+            bookingWarnings={bookingWarnings}
+            setBookingWarnings={setBookingWarnings}
+            confirmBooking={confirmBooking}
+            setView={setView}
+            isRoomAvailable={isRoomAvailable}
+            getRoomById={getRoomById}
+            inventory={inventory}
+            validateAndProceed={validateAndProceed}
+            getAllRooms={getAllRooms}
+            mealTimesConfig={mealTimes}
+            bookings={bookings}
+            memberList={memberList}
+          />}
+          {view === 'my-reservations' && <MyReservationsView
+            bookings={bookings}
+            currentUser={currentUser}
+            getRoomById={getRoomById}
+            cancelBooking={cancelBooking}
+            approveBooking={approveBooking}
+            setView={setView}
+            onEditBooking={handleEditBooking}
+          />}
+          {view === 'dashboard' && currentUser === 'admin' && (
+            <DashboardView
+              bookings={bookings}
+              inventory={inventory}
+              maxRoomThreshold={maxRoomThreshold}
+              setMaxRoomThreshold={setMaxRoomThreshold}
+              mealTimes={mealTimes}
+              setMealTimes={setMealTimes}
+            />
+          )}
+          {view === 'messages' && <MessagesView
+            messages={messages}
+            currentUser={currentUser}
+            validUsers={['admin', 'Chris', 'Markley', 'David', 'Rob', 'Kerry'].filter(u => u !== currentUser)}
+            sendMessage={(recipient, subject, body) => {
+              const newMessage = {
+                id: `m${Date.now()}`,
+                sender: currentUser,
+                recipient,
+                subject,
+                body,
+                timestamp: new Date().toISOString(),
+                read: false
+              };
+              setMessages([newMessage, ...messages]);
+            }}
+          />}
+          {view === 'reporting' && currentUser !== 'admin' && <ReportingView
+            bookings={bookings}
+          />}
         </>)}
       </div>
 

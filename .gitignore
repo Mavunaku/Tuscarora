@@ -8,5 +8,14 @@
 *.swo
 *~
 
+# Dependencies
+node_modules/
+
+# Database
+*.db
+
 # Logs
 *.log
+
+# Debug/output files
+*.txt

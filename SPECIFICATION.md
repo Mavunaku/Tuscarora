@@ -147,20 +147,23 @@ dailyMeals: {
 }
 ```
 
-### Day-Based Defaults
+### Day-Based Defaults (for Full-Service Days)
 - **Arrival day (first day):** Lunch + Bar Supper
 - **Middle days:** All three meals
 - **Departure day (last day):** Breakfast + Lunch
 - **Single-day stay:** Lunch + Bar Supper only
 
+*Note: For Sunday, Monday, and Tuesday, defaults are restricted to the available meals only.*
+
 ### Packed Meals
 Each meal can optionally be marked as "packed" (to go) via a checkbox that appears when the meal is selected.
 
-### No-Service Period (Sunday Lunch through Tuesday Breakfast)
-The club does not serve meals during this window:
-- **Sunday:** No lunch, no bar supper (breakfast is served)
-- **Monday:** No meals at all
-- **Tuesday:** No breakfast (lunch and bar supper are served)
+### Weekly Schedule (Hardcoded)
+The club follows a specific meal service schedule across the week:
+- **Sunday:** Breakfast ONLY.
+- **Monday:** No Meal Service.
+- **Tuesday:** Dinner (Bar Supper) ONLY.
+- **Wednesday - Saturday:** Full Meal Service (Breakfast, Lunch, and Bar Supper).
 
 Unavailable meals are shown with strikethrough text, disabled checkboxes, and reduced opacity.
 
