@@ -128,7 +128,7 @@ Members can edit their own existing bookings. Admin can edit any booking. Two en
 
 ### Three Meals Per Day
 - **Breakfast** (8:00 AM)
-- **Lunch** (12:30 PM)
+- **Lunch** (1:30 PM)
 - **Bar Supper** (6:00 PM)
 
 ### Per-Day Meal Logic
@@ -250,5 +250,5 @@ In the multi-room booking form, a **"Member occupied" checkbox** controls which 
 - **No real authentication:** Username-only login with no passwords
 - **Messages are local only:** No email or push notification delivery
 - **CSV export uses legacy meal format:** The export function still references the old `meals`/`packedMeals` fields rather than `dailyMeals`
-- **Two booking flows exist:** Both the legacy 3-step wizard (BookingFlow) and the newer multi-room grid selection (MultiRoomBookingDetails) are in the code
+- **Unified Booking Flow:** The application has been refactored to use only the modern multi-room grid selection (`MultiRoomBookingDetails`) accessible through the `CalendarView`. The legacy 3-step wizard (`BookingFlow`) has been removed to streamline the booking process.
 - **Meal times are configurable in admin** but the no-service period (Sun lunch - Tue breakfast) is hardcoded

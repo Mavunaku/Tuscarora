@@ -75,20 +75,273 @@ const getAllRooms = (inventory) => {
 
 const MEAL_TIMES = {
   breakfast: '8:00 AM',
-  lunch: '12:30 PM',
+  lunch: '1:30 PM',
   barSupper: '6:00 PM'
 };
 const IS_MEAL_AVAILABLE = (dateStr, mealType) => {
   const date = new Date(dateStr + 'T00:00:00');
-  const dayOfWeek = date.getDay();
-  // Sunday: Breakfast ONLY
-  if (dayOfWeek === 0 && (mealType === 'lunch' || mealType === 'barSupper')) return false;
+  const month = date.getMonth(); // 0-11
+  const dayOfWeek = date.getDay(); // 0-6
+
   // Monday: No Meal Service
   if (dayOfWeek === 1) return false;
-  // Tuesday: Bar Supper ONLY
-  if (dayOfWeek === 2 && (mealType === 'breakfast' || mealType === 'lunch')) return false;
+
+  const isSeasonA = month >= 3 && month <= 8;
+
+  if (isSeasonA) {
+    // Season A: April-September (Sunday Bar Supper, Tuesday Breakfast)
+    if (dayOfWeek === 0 && (mealType === 'breakfast' || mealType === 'lunch')) return false;
+    if (dayOfWeek === 2 && (mealType === 'lunch' || mealType === 'barSupper')) return false;
+  } else {
+    // Season B: October-March (Standard: Sunday Breakfast, Tuesday Bar Supper)
+    if (dayOfWeek === 0 && (mealType === 'lunch' || mealType === 'barSupper')) return false;
+    if (dayOfWeek === 2 && (mealType === 'breakfast' || mealType === 'lunch')) return false;
+  }
   return true;
 };
+const calculateBookingTotal = (roomBookings, getRoomById) => {
+  let total = 0;
+  roomBookings.forEach(rb => {
+    const room = getRoomById(rb.roomId);
+    if (room && room.price) {
+      total += room.price * rb.dates.length;
+    }
+  });
+  return total;
+};
+
+// Payment Modal
+const PaymentModal = ({ isOpen, onClose, booking, currentUser, onPaymentSuccess }) => {
+  const [paymentData, setPaymentData] = useState({
+    cardholder: currentUser || '',
+    cardNumber: '',
+    expiry: '',
+    cvv: ''
+  });
+  const [isProcessing, setIsProcessing] = useState(false);
+
+  if (!isOpen || !booking) return null;
+
+  const handlePay = () => {
+    if (!paymentData.cardholder || !paymentData.cardNumber || !paymentData.expiry || !paymentData.cvv) {
+      alert("Please fill in all payment details");
+      return;
+    }
+    setIsProcessing(true);
+    // Mock processing delay
+    setTimeout(() => {
+      const refId = 'PAY-' + Math.random().toString(36).substr(2, 9).toUpperCase();
+      onPaymentSuccess(booking.id, booking.paymentAmount || 150, refId);
+      setIsProcessing(false);
+    }, 1500);
+  };
+
+  return (
+    <div className="fixed inset-0 bg-stone-900/40 backdrop-blur-sm flex items-center justify-center z-[300] p-4 animate-in fade-in duration-300" onClick={onClose}>
+      <div className="bg-white rounded-[2.5rem] border border-stone-200 overflow-hidden shadow-2xl w-full max-w-md animate-in zoom-in-95 duration-300" onClick={(e) => e.stopPropagation()}>
+        <div className="bg-emerald-900 p-8 text-white relative">
+          <button onClick={onClose} className="absolute top-6 right-6 hover:rotate-90 transition-transform">
+            <LucideIcon name="x" className="w-6 h-6 opacity-60 hover:opacity-100" />
+          </button>
+          <div className="flex justify-between items-center mb-6">
+            <h3 className="text-2xl font-light">Secure Checkout</h3>
+            <div className="flex gap-2">
+              <div className="w-10 h-6 bg-white/20 rounded flex items-center justify-center">
+                <span className="text-[8px] font-black italic">VISA</span>
+              </div>
+              <div className="w-10 h-6 bg-white/20 rounded flex items-center justify-center">
+                <span className="text-[8px] font-black italic">MC</span>
+              </div>
+            </div>
+          </div>
+          <div className="p-6 bg-white/10 rounded-2xl border border-white/10 backdrop-blur-md">
+            <p className="text-[10px] font-black uppercase tracking-widest text-emerald-300 mb-1">Room Total</p>
+            <p className="text-4xl font-light tracking-tight">${(booking.paymentAmount || 0).toFixed(2)}</p>
+            <p className="text-[9px] text-emerald-400 mt-2 font-medium">Processing for {booking.roomName}</p>
+          </div>
+        </div>
+
+        <div className="p-8 space-y-6">
+          <div className="space-y-4">
+            <div>
+              <label className="text-[10px] font-black uppercase tracking-widest text-stone-400 block mb-2 px-1">Cardholder Name</label>
+              <input 
+                type="text" 
+                value={paymentData.cardholder} 
+                onChange={(e) => setPaymentData({...paymentData, cardholder: e.target.value})}
+                className="w-full px-4 py-3 bg-stone-50 border border-stone-200 rounded-xl focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all outline-none font-bold text-stone-800" 
+              />
+            </div>
+            <div>
+              <label className="text-[10px] font-black uppercase tracking-widest text-stone-400 block mb-2 px-1">Card Number</label>
+              <div className="relative">
+                <input 
+                  type="text" 
+                  placeholder="0000 0000 0000 0000" 
+                  value={paymentData.cardNumber}
+                  onChange={(e) => setPaymentData({...paymentData, cardNumber: e.target.value})}
+                  className="w-full pl-12 pr-4 py-3 bg-stone-50 border border-stone-200 rounded-xl focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all outline-none font-bold text-stone-800" 
+                />
+                <LucideIcon name="credit-card" className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-stone-300" />
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="text-[10px] font-black uppercase tracking-widest text-stone-400 block mb-2 px-1">Expiry Date</label>
+                <input 
+                  type="text" 
+                  placeholder="MM / YY" 
+                  value={paymentData.expiry}
+                  onChange={(e) => setPaymentData({...paymentData, expiry: e.target.value})}
+                  className="w-full px-4 py-3 bg-stone-50 border border-stone-200 rounded-xl focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all outline-none font-bold text-stone-800 text-center" 
+                />
+              </div>
+              <div>
+                <label className="text-[10px] font-black uppercase tracking-widest text-stone-400 block mb-2 px-1">CVV</label>
+                <input 
+                  type="text" 
+                  placeholder="•••" 
+                  value={paymentData.cvv}
+                  onChange={(e) => setPaymentData({...paymentData, cvv: e.target.value})}
+                  className="w-full px-4 py-3 bg-stone-50 border border-stone-200 rounded-xl focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all outline-none font-bold text-stone-800 text-center" 
+                />
+              </div>
+            </div>
+          </div>
+
+          <button
+            onClick={handlePay}
+            disabled={isProcessing}
+            className="w-full py-4 bg-emerald-900 text-white rounded-2xl hover:bg-emerald-950 transition-all font-black text-lg shadow-xl shadow-emerald-900/20 active:scale-95 flex items-center justify-center gap-3 disabled:opacity-50"
+          >
+            {isProcessing ? 'Processing...' : 'Complete Payment'}
+            {!isProcessing && <LucideIcon name="shield-check" className="w-6 h-6 text-amber-300" />}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// Settings Modal for Password Change
+const SettingsModal = ({ isOpen, onClose, currentUser }) => {
+  const [oldPassword, setOldPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
+
+  if (!isOpen) return null;
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    setError('');
+    setSuccess('');
+
+    if (newPassword !== confirmPassword) {
+      setError("New passwords do not match");
+      return;
+    }
+
+    if (newPassword.length < 4) {
+      setError("Password must be at least 4 characters");
+      return;
+    }
+
+    setLoading(true);
+    fetch('/api/change-password', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ login: currentUser, oldPassword, newPassword })
+    })
+      .then(res => res.json())
+      .then(data => {
+        setLoading(false);
+        if (data.error) {
+          setError(data.error);
+        } else {
+          setSuccess("Password updated successfully!");
+          setOldPassword('');
+          setNewPassword('');
+          setConfirmPassword('');
+          setTimeout(onClose, 2000);
+        }
+      })
+      .catch(err => {
+        setLoading(false);
+        setError("Connection failed");
+      });
+  };
+
+  return (
+    <div className="fixed inset-0 bg-emerald-950/40 backdrop-blur-sm flex items-center justify-center z-[300] p-4 animate-in fade-in duration-300">
+      <div className="bg-white rounded-[2rem] shadow-2xl w-full max-w-md overflow-hidden animate-in slide-in-from-bottom-8 duration-500">
+        <div className="p-8 bg-emerald-900 text-white relative">
+          <button onClick={onClose} className="absolute top-6 right-6 hover:rotate-90 transition-transform">
+            <LucideIcon name="x" className="w-6 h-6 opacity-60 hover:opacity-100" />
+          </button>
+          <div className="flex items-center gap-4 mb-2">
+            <div className="w-12 h-12 bg-white/10 rounded-2xl flex items-center justify-center">
+              <LucideIcon name="shield-check" className="w-6 h-6 text-emerald-300" />
+            </div>
+            <div>
+              <h2 className="text-xl font-bold">Security Settings</h2>
+              <p className="text-emerald-300/60 text-[10px] font-black uppercase tracking-widest">Update Your Credentials</p>
+            </div>
+          </div>
+        </div>
+
+        <form onSubmit={handleSubmit} className="p-8 space-y-6">
+          {error && <div className="p-3 bg-red-50 text-red-600 rounded-xl text-xs font-bold border border-red-100 animate-pulse">{error}</div>}
+          {success && <div className="p-3 bg-emerald-50 text-emerald-700 rounded-xl text-xs font-bold border border-emerald-100">{success}</div>}
+
+          <div className="space-y-2">
+            <label className="text-[10px] font-black uppercase tracking-widest text-stone-400 ml-1">Current Password</label>
+            <input
+              type="password"
+              required
+              value={oldPassword}
+              onChange={(e) => setOldPassword(e.target.value)}
+              className="w-full h-12 px-4 bg-stone-50 border border-stone-200 rounded-xl focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all font-medium text-stone-800"
+            />
+          </div>
+
+          <div className="space-y-2">
+            <label className="text-[10px] font-black uppercase tracking-widest text-stone-400 ml-1">New Password</label>
+            <input
+              type="password"
+              required
+              value={newPassword}
+              onChange={(e) => setNewPassword(e.target.value)}
+              className="w-full h-12 px-4 bg-stone-50 border border-stone-200 rounded-xl focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all font-medium text-stone-800"
+            />
+          </div>
+
+          <div className="space-y-2">
+            <label className="text-[10px] font-black uppercase tracking-widest text-stone-400 ml-1">Confirm New Password</label>
+            <input
+              type="password"
+              required
+              value={confirmPassword}
+              onChange={(e) => setConfirmPassword(e.target.value)}
+              className="w-full h-12 px-4 bg-stone-50 border border-stone-200 rounded-xl focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all font-medium text-stone-800"
+            />
+          </div>
+
+          <button
+            type="submit"
+            disabled={loading}
+            className="w-full h-14 bg-emerald-900 text-white rounded-2xl font-black uppercase tracking-widest text-xs hover:bg-emerald-950 transition-all shadow-lg active:scale-95 disabled:opacity-50"
+          >
+            {loading ? 'Processing...' : 'Update Password'}
+          </button>
+        </form>
+      </div>
+    </div>
+  );
+};
+
 
 // Confirmation Modal Component
 const ConfirmModal = ({ isOpen, message, onConfirm, onCancel }) => {
@@ -118,73 +371,10 @@ const ConfirmModal = ({ isOpen, message, onConfirm, onCancel }) => {
 };
 
 // Export Modal Component
-const ExportModal = ({ isOpen, onClose, data, filename }) => {
-  if (!isOpen) return null;
 
-  const handleCopy = () => {
-    navigator.clipboard.writeText(data);
-    alert('CSV data copied to clipboard!');
-  };
-
-  const handleDownload = () => {
-    const dataUri = 'data:text/csv;charset=utf-8,' + encodeURIComponent(data);
-    const link = document.createElement('a');
-    link.href = dataUri;
-    link.download = filename;
-    document.body.appendChild(link);
-    link.click();
-    setTimeout(() => {
-      document.body.removeChild(link);
-    }, 100);
-  };
-
-  return (
-    <div className="fixed inset-0 bg-stone-900/40 backdrop-blur-sm flex items-center justify-center z-[100] p-4 animate-in fade-in duration-300" onClick={onClose}>
-      <div className="bg-white rounded-[3rem] shadow-2xl p-8 w-full max-w-2xl mx-auto border border-stone-100 animate-in zoom-in-95 duration-300" onClick={(e) => e.stopPropagation()}>
-        <div className="flex justify-between items-start mb-6">
-          <div>
-            <h3 className="text-3xl font-light text-stone-900 tracking-tight">Data Export</h3>
-            <p className="text-stone-500 text-sm mt-1">Review and download the club's reservation records.</p>
-          </div>
-          <button onClick={onClose} className="p-3 hover:bg-stone-50 rounded-2xl text-stone-400 hover:text-stone-900 transition-all">
-            <LucideIcon name="x" className="w-6 h-6" />
-          </button>
-        </div>
-
-        <div className="relative mb-6">
-          <div className="absolute top-4 right-4 flex gap-2">
-            <div className="bg-emerald-100 text-emerald-800 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest border border-emerald-200">CSV Mode</div>
-          </div>
-          <textarea
-            readOnly
-            value={data}
-            className="w-full h-80 p-6 bg-stone-50 border border-stone-200 rounded-[2rem] font-mono text-[10px] leading-relaxed focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-500 transition-all outline-none"
-          />
-        </div>
-
-        <div className="flex flex-col sm:flex-row gap-4">
-          <button
-            onClick={handleCopy}
-            className="flex-1 flex items-center justify-center gap-3 px-8 py-4 bg-white border-2 border-stone-100 text-stone-600 rounded-2xl hover:bg-stone-50 hover:border-emerald-200 hover:text-emerald-700 transition-all font-bold text-sm uppercase tracking-widest"
-          >
-            <LucideIcon name="copy" className="w-4 h-4" />
-            Copy Clipboard
-          </button>
-          <button
-            onClick={handleDownload}
-            className="flex-1 flex items-center justify-center gap-3 px-8 py-4 bg-emerald-900 text-white rounded-2xl hover:bg-emerald-950 transition-all font-bold text-sm uppercase tracking-widest shadow-xl shadow-emerald-900/10"
-          >
-            <LucideIcon name="download" className="w-4 h-4" />
-            Download .CSV
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-};
 
 // Login View
-const LoginView = ({ username, setUsername, handleLogin }) => {
+const LoginView = ({ username, setUsername, password, setPassword, handleLogin }) => {
   return (
     <div className="min-h-screen bg-stone-50 flex flex-col items-center justify-center p-6 relative overflow-hidden">
       {/* Background Accents */}
@@ -212,28 +402,43 @@ const LoginView = ({ username, setUsername, handleLogin }) => {
                 onChange={(e) => setUsername(e.target.value)}
                 onKeyPress={(e) => e.key === 'Enter' && handleLogin()}
                 className="w-full h-16 pl-14 pr-6 bg-stone-50 border-2 border-stone-100 rounded-2xl focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-500 transition-all font-bold text-stone-800 outline-none"
-                placeholder="Chris, Markley, Rob..."
+                placeholder="ChrisP, VS1, admin..."
               />
               <LucideIcon name="user" className="absolute left-5 top-1/2 -translate-y-1/2 w-6 h-6 text-stone-300" />
             </div>
           </div>
 
+          <div className="space-y-2">
+            <label className="text-[10px] font-black uppercase tracking-widest text-stone-400 ml-1">Password</label>
+            <div className="relative">
+              <input
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                onKeyPress={(e) => e.key === 'Enter' && handleLogin()}
+                className="w-full h-16 pl-14 pr-6 bg-stone-50 border-2 border-stone-100 rounded-2xl focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-500 transition-all font-bold text-stone-800 outline-none"
+                placeholder="••••••••"
+              />
+              <LucideIcon name="lock" className="absolute left-5 top-1/2 -translate-y-1/2 w-6 h-6 text-stone-300" />
+            </div>
+          </div>
+
           <button
             onClick={handleLogin}
-            className="w-full bg-emerald-900 text-white h-16 rounded-2xl hover:bg-emerald-950 transition-all font-black uppercase tracking-widest text-sm shadow-xl shadow-emerald-900/10 active:scale-95 flex items-center justify-center gap-3 transition-all duration-300"
+            className="w-full bg-emerald-900 text-white h-16 rounded-2xl hover:bg-emerald-950 transition-all font-black uppercase tracking-widest text-sm shadow-xl shadow-emerald-900/10 active:scale-95 flex items-center justify-center gap-3 transition-all duration-300 mt-4"
           >
             Access Portal
             <LucideIcon name="chevron-right" className="w-5 h-5" />
           </button>
 
           <div className="pt-8 text-center border-t border-stone-100">
-            <p className="text-[9px] text-stone-300 font-black uppercase tracking-[0.2em] mb-4">Authorized Access Only</p>
+            <p className="text-[9px] text-stone-300 font-black uppercase tracking-[0.2em] mb-4">Authorized Members</p>
             <div className="flex flex-wrap justify-center gap-2">
-              {['Chris', 'Markley', 'David', 'Rob', 'Kerry', 'admin'].map(name => (
+              {['ChrisP', 'VS1', 'VS2', 'VS3', 'VS4', 'admin'].map(name => (
                 <button
                   key={name}
-                  onClick={() => { setUsername(name); setTimeout(handleLogin, 100); }}
-                  className="px-3 py-1 bg-stone-50 text-[10px] font-bold text-stone-400 hover:text-emerald-700 hover:bg-emerald-50 rounded-lg transition-all border border-stone-100"
+                  onClick={() => setUsername(name)}
+                  className={`px-3 py-1 rounded-lg text-[10px] font-bold transition-all border ${username === name ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-stone-50 text-stone-400 border-stone-100 hover:text-emerald-700 hover:bg-emerald-50'}`}
                 >
                   {name}
                 </button>
@@ -309,84 +514,105 @@ const CalendarView = ({
     return date.toISOString().split('T')[0];
   };
 
-  const exportMonthlyReportToPDF = () => {
-    window.print();
-  };
+  const exportCalendarPDF = () => {
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF('l', 'mm', 'a4');
 
-  const exportCalendarToCSV = () => {
     const headers = [
-      'Date', 'Day of Week', 'Member', 'Room', 'Building', 'Guests',
-      'Room Occupant', 'Arrival Time', 'Cottage Stay',
-      'Breakfast', 'Lunch', 'Dinner',
-      'Packed Breakfast', 'Packed Lunch', 'Packed Dinner'
+      'Date', 'Day', 'Member', 'Room', 'Building',
+      'Occupant', 'Arrival',
+      'Brk', 'Lun', 'Sup', 'P-Brk', 'P-Lun', 'P-Sup'
     ];
 
     const rows = [];
-
-    // Get current month's date range
     const startDate = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
     const endDate = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0);
 
-    // Iterate through each booking
     bookings.forEach(booking => {
       const bookingStart = new Date(booking.startDate);
       const bookingEnd = new Date(booking.endDate);
 
-      // Check if booking overlaps with current month
       if (bookingStart <= endDate && bookingEnd >= startDate) {
-        // For each day of the booking
         let currentDay = new Date(Math.max(bookingStart, startDate));
         const lastDay = new Date(Math.min(bookingEnd, endDate));
 
+        const guestsCount = booking.guests || 1;
+        const isMemberRoom = booking.isGuest === 'GUEST' ? false : (booking.isGuest === 'MEMBER' || booking.isGuest === false);
+        const isCottageStay = booking.stayingInCottage;
+
+        const occupants = [];
+        if (isMemberRoom || isCottageStay) {
+          occupants.push({ name: booking.member, type: 'Member' });
+          for (let i = 1; i < guestsCount; i++) {
+            occupants.push({ name: `Guest of ${booking.member}`, type: 'Guest' });
+          }
+        } else {
+          const label = booking.guestName || `Guest of ${booking.member}`;
+          for (let i = 0; i < guestsCount; i++) {
+            occupants.push({ name: label, type: 'Guest' });
+          }
+        }
+
         while (currentDay < lastDay) {
           const dateStr = formatDate(currentDay);
-          const dayOfWeek = currentDay.toLocaleDateString('en-US', { weekday: 'long' });
-          const formattedDate = currentDay.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+          const dayOfWeek = currentDay.toLocaleDateString('en-US', { weekday: 'short' });
+          const formattedDate = currentDay.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 
           const meals = booking.dailyMeals?.[dateStr] || {};
 
-          rows.push([
-            formattedDate,
-            dayOfWeek,
-            booking.member,
-            booking.roomName,
-            booking.building,
-            booking.guests || 0,
-            booking.guestName || '',
-            booking.memberArrival || '',
-            booking.stayingInCottage ? 'Yes' : 'No',
-            meals.breakfast ? 'Yes' : 'No',
-            meals.lunch ? 'Yes' : 'No',
-            meals.barSupper ? 'Yes' : 'No',
-            meals.packedBreakfast ? 'Yes' : 'No',
-            meals.packedLunch ? 'Yes' : 'No',
-            meals.packedBarSupper ? 'Yes' : 'No'
-          ]);
+          occupants.forEach(occ => {
+            rows.push([
+              formattedDate,
+              dayOfWeek,
+              booking.member,
+              booking.roomName,
+              booking.building,
+              occ.name,
+              booking.memberArrival || '',
+              meals.breakfast ? '1' : '0',
+              meals.lunch ? '1' : '0',
+              meals.barSupper ? '1' : '0',
+              meals.packedBreakfast ? '1' : '0',
+              meals.packedLunch ? '1' : '0',
+              meals.packedBarSupper ? '1' : '0'
+            ]);
+          });
 
           currentDay.setDate(currentDay.getDate() + 1);
         }
       }
     });
 
-    // Sort by date
-    rows.sort((a, b) => new Date(a[0]) - new Date(b[0]));
+    rows.sort((a, b) => {
+      const dateA = new Date(a[0]);
+      const dateB = new Date(b[0]);
+      if (dateA - dateB !== 0) return dateA - dateB;
+      return a[2].localeCompare(b[2]);
+    });
 
-    const csvContent = [
-      headers.join(','),
-      ...rows.map(row => row.map(cell => `"${cell}"`).join(','))
-    ].join('\n');
+    const monthName = currentDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+    doc.text(`Calendar Export: ${monthName}`, 14, 15);
 
-    // Create download
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const link = document.createElement('a');
-    const url = URL.createObjectURL(blob);
-    link.setAttribute('href', url);
-    const monthName = currentDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' }).replace(' ', '-');
-    link.setAttribute('download', `calendar-${monthName}.csv`);
-    link.style.visibility = 'hidden';
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    doc.autoTable({
+      head: [headers],
+      body: rows,
+      startY: 20,
+      theme: 'striped',
+      styles: { fontSize: 7, cellPadding: 1 },
+      headStyles: { fillColor: [6, 78, 59], textColor: [255, 255, 255] },
+      columnStyles: {
+        0: { cellWidth: 15 },
+        1: { cellWidth: 10 },
+        7: { cellWidth: 7 },
+        8: { cellWidth: 7 },
+        9: { cellWidth: 7 },
+        10: { cellWidth: 10 },
+        11: { cellWidth: 10 },
+        12: { cellWidth: 10 }
+      }
+    });
+
+    doc.save(`calendar-${monthName.replace(' ', '-')}.pdf`);
   };
 
   return (
@@ -453,7 +679,7 @@ const CalendarView = ({
 
           {calendarView === 'month' && (
             <button
-              onClick={exportMonthlyReportToPDF}
+              onClick={exportCalendarPDF}
               className="px-4 py-2 bg-emerald-100/50 border border-emerald-200 text-emerald-900 rounded-xl hover:bg-emerald-200/50 transition-colors shadow-sm flex items-center gap-2 text-[10px] font-black uppercase tracking-widest"
             >
               <LucideIcon name="download" className="w-4 h-4 text-emerald-600" />
@@ -889,609 +1115,7 @@ const LegendItem = ({ color, ring, text, label }) => (
 );
 
 
-// Booking Flow
-const BookingFlow = ({
-  bookingStep,
-  setBookingStep,
-  newBooking: initialNewBooking,
-  setNewBooking: setParentNewBooking,
-  bookingWarnings,
-  setBookingWarnings,
-  confirmBooking,
-  setView,
-  isRoomAvailable,
-  getRoomById,
-  inventory,
-  validateAndProceed,
-  getAllRooms,
-  mealTimesConfig,
-  bookings
-}) => {
-  const [newBooking, setNewBooking] = useState(initialNewBooking);
-  const [gridStartDate, setGridStartDate] = useState(new Date(initialNewBooking.startDate || new Date()));
-  const [adminBookingMember, setAdminBookingMember] = useState('');
 
-  // Sync with parent if needed
-  useEffect(() => {
-    setParentNewBooking(newBooking);
-  }, [newBooking]);
-
-  // Step 1: Select Room & Dates (Grid View)
-  if (bookingStep === 1) {
-    const formatDate = (date) => date.toISOString().split('T')[0];
-
-    // Generate 7 days from gridStartDate
-    const gridDates = Array.from({ length: 7 }, (_, i) => {
-      const d = new Date(gridStartDate);
-      d.setDate(gridStartDate.getDate() + i);
-      return d;
-    });
-
-    const navigateGrid = (direction) => {
-      const d = new Date(gridStartDate);
-      d.setDate(gridStartDate.getDate() + (direction * 7));
-      setGridStartDate(d);
-    };
-
-    const handleGridClick = (room, date) => {
-      const dateStr = formatDate(date);
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-
-      if (date < today) return; // Prevent selection in past
-
-      // If clicking same room that is already selected
-      if (newBooking.roomId === room.id) {
-        // If clicking a date after start date, set end date
-        if (dateStr > newBooking.startDate) {
-          // Check if any dates in between are booked
-          const isRangeAvailable = isRoomAvailable(room.id, newBooking.startDate, dateStr);
-          if (isRangeAvailable) {
-            setNewBooking({ ...newBooking, endDate: formatDate(new Date(date.getTime() + 86400000)) }); // Set end date to next day (checkout)
-          } else {
-            alert('Cannot book range: room is occupied on intermediate dates.');
-          }
-        } else {
-          // Reset start date if clicking before or same
-          setNewBooking({ ...newBooking, startDate: dateStr, endDate: '' });
-        }
-      } else {
-        // New room selection
-        if (isRoomAvailable(room.id, dateStr, formatDate(new Date(date.getTime() + 86400000)))) {
-          setNewBooking({
-            ...newBooking,
-            roomId: room.id,
-            building: room.building,
-            startDate: dateStr,
-            endDate: ''
-          });
-        }
-      }
-    };
-
-    return (
-      <div className="space-y-6">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-6">
-            <h2 className="text-2xl font-light text-emerald-900">Select Room & Dates</h2>
-            <div className="flex items-center bg-stone-100 rounded-lg p-1">
-              <button
-                onClick={() => navigateGrid(-1)}
-                className="p-1 px-2 hover:bg-white rounded transition-colors text-stone-600 flex items-center gap-1 text-xs font-medium"
-                title="Previous Week"
-              >
-                <ChevronLeftIcon className="w-4 h-4" />
-                <span>Prev Week</span>
-              </button>
-              <div className="w-px h-4 bg-stone-300 mx-1"></div>
-              <button
-                onClick={() => setGridStartDate(new Date())}
-                className="p-1 px-3 hover:bg-white rounded transition-colors text-stone-600 text-xs font-medium"
-              >
-                Today
-              </button>
-              <div className="w-px h-4 bg-stone-300 mx-1"></div>
-              <button
-                onClick={() => navigateGrid(1)}
-                className="p-1 px-2 hover:bg-white rounded transition-colors text-stone-600 flex items-center gap-1 text-xs font-medium"
-                title="Next Week"
-              >
-                <span>Next Week</span>
-                <ChevronRightIcon className="w-4 h-4" />
-              </button>
-            </div>
-          </div>
-          <button onClick={() => setView('calendar')} className="text-stone-400 hover:text-stone-600 p-2 hover:bg-stone-100 rounded-full transition-all">
-            <XIcon className="w-5 h-5" />
-          </button>
-        </div>
-
-        <div className="bg-white rounded-lg shadow border border-stone-200 overflow-hidden">
-          <div className="grid grid-cols-[150px_repeat(7,1fr)] bg-stone-50 border-b border-stone-200">
-            <div className="p-3 text-xs font-semibold text-stone-500 uppercase tracking-wider">Room</div>
-            {gridDates.map((day, idx) => (
-              <div key={idx} className="p-2 text-center border-l border-stone-200">
-                <div className="text-xs font-bold text-stone-700">{day.toLocaleDateString('en-US', { weekday: 'short' })}</div>
-                <div className="text-xs text-stone-500">{day.getDate()}</div>
-              </div>
-            ))}
-          </div>
-
-          <div className="divide-y divide-stone-200">
-            {getAllRooms(inventory).map(room => (
-              <div key={room.id} className={`grid grid-cols-[150px_repeat(7,1fr)] hover:bg-stone-50 transition-colors ${newBooking.roomId === room.id ? 'bg-emerald-50' : ''}`}>
-                <div className="p-3 text-sm font-medium text-stone-900 truncate border-r border-stone-200 flex flex-col justify-center">
-                  {room.displayName}
-                  <span className="text-[10px] text-stone-500 font-normal">{room.beds} • {room.bathroom ? 'Pv' : 'Sh'}</span>
-                </div>
-                {gridDates.map((day, idx) => {
-                  const dateStr = formatDate(day);
-
-                  // Find actual booking object if occupied
-                  const booking = bookings && bookings.find(b =>
-                    b.roomId === room.id &&
-                    dateStr >= b.startDate &&
-                    dateStr < b.endDate
-                  );
-
-                  const isAvailable = !booking;
-                  const today = new Date();
-                  today.setHours(0, 0, 0, 0);
-                  const isPast = day < today;
-
-                  const isSelected = newBooking.roomId === room.id;
-                  const isStart = isSelected && newBooking.startDate === dateStr;
-                  const isEnd = isSelected && newBooking.endDate && dateStr === formatDate(new Date(new Date(newBooking.endDate).getTime() - 86400000));
-                  const isInRange = isSelected && newBooking.endDate && dateStr >= newBooking.startDate && dateStr < newBooking.endDate;
-
-                  return (
-                    <div
-                      key={idx}
-                      onClick={() => handleGridClick(room, day)}
-                      className={`h-16 cursor-pointer flex items-center justify-center relative px-1 transition-all
-                         ${!isAvailable ? 'bg-red-50/30 cursor-not-allowed' : 'hover:bg-emerald-50'}
-                         ${isPast ? 'bg-stone-100 opacity-40 cursor-not-allowed' : ''}
-                         ${isInRange ? 'bg-emerald-100/50' : ''}
-                         ${idx > 0 ? 'border-l border-stone-200' : ''}
-                       `}
-                    >
-                      {/* Selection Pill Background */}
-                      {isInRange && (
-                        <div className={`absolute inset-y-2 inset-x-0 bg-emerald-600/10
-                          ${isStart ? 'rounded-l-full ml-2' : ''}
-                          ${isEnd ? 'rounded-r-full mr-2' : ''}
-                          ${!isStart && !isEnd ? '' : ''}
-                        `}></div>
-                      )}
-
-                      {/* Selection Indicator Pill */}
-                      {isSelected && (isStart || isEnd || isInRange) && (
-                        <div className={`absolute inset-y-3 inset-x-0 flex items-center justify-center
-                          ${isStart || isEnd ? 'z-10' : 'z-0'}
-                        `}>
-                          {(isStart || isEnd) && (
-                            <div className={`w-10 h-10 bg-emerald-700 rounded-full flex items-center justify-center shadow-lg border-2 border-white
-                            ${isStart ? 'animate-in zoom-in' : ''}`}>
-                              {isStart ? <CheckIcon className="w-5 h-5 text-white" /> : <div className="w-1.5 h-1.5 bg-white rounded-full"></div>}
-                            </div>
-                          )}
-                        </div>
-                      )}
-
-                      {!isAvailable ? (
-                        <div className="text-red-800 font-semibold text-[9px] text-center leading-tight truncate w-full px-1 z-10" title={booking.member}>
-                          <div className="truncate">{booking.member}</div>
-                          {booking.isGuest && <div className="text-[7px] font-normal opacity-75 uppercase tracking-tighter">Guest</div>}
-                        </div>
-                      ) : (
-                        <div className={`text-[9px] font-bold z-10 transition-colors ${isStart || isEnd ? 'text-white hidden' : 'text-emerald-800'}`}>
-                          {isStart ? 'Start' : isEnd ? 'End' : isInRange ? 'Stay' : ''}
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-            ))}
-          </div>
-        </div>
-
-        <div className="flex justify-between items-center py-4 px-2 bg-stone-50 rounded-xl border border-stone-200 shadow-inner">
-          <div className="flex items-center gap-3 text-stone-500">
-            <LucideIcon name="info" className="w-4 h-4 text-emerald-600" />
-            <p className="text-xs italic font-medium">Click a date to start. Click a later date to confirm range.</p>
-          </div>
-          <div className="flex gap-3">
-            <button
-              onClick={() => setView('calendar')}
-              className="px-6 py-2.5 text-sm font-medium text-stone-600 bg-white border border-stone-300 rounded-xl hover:bg-stone-100 hover:text-stone-900 transition-all shadow-sm"
-            >
-              Cancel
-            </button>
-            <button
-              onClick={validateAndProceed}
-              disabled={!newBooking.roomId || !newBooking.startDate || !newBooking.endDate}
-              className="px-8 py-2.5 text-sm font-semibold bg-emerald-800 text-white rounded-xl hover:bg-emerald-900 disabled:opacity-30 disabled:grayscale disabled:cursor-not-allowed transition-all shadow-md hover:shadow-lg flex items-center gap-2"
-            >
-              <span>Next</span>
-              <ChevronRightIcon className="w-4 h-4" />
-            </button>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  // Step 2: Guests & Arrival
-  if (bookingStep === 2) {
-    return (
-      <div className="space-y-6">
-        <div className="flex items-center justify-between">
-          <h2 className="text-2xl font-light text-emerald-900">Guest Details</h2>
-          <div className="text-sm text-stone-500">Step 2 of 3</div>
-        </div>
-
-        <div className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium text-stone-700 mb-2">
-              Number of Guests (including yourself)
-            </label>
-            <input
-              type="number"
-              min="1"
-              value={newBooking.guests}
-              onChange={(e) => setNewBooking({ ...newBooking, guests: parseInt(e.target.value) })}
-              className="w-full px-4 py-2 border border-stone-300 rounded-lg focus:ring-2 focus:ring-emerald-600"
-            />
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-stone-700 mb-2">Member Arrival Time</label>
-              <input
-                type="time"
-                value={newBooking.memberArrival}
-                onChange={(e) => setNewBooking({ ...newBooking, memberArrival: e.target.value })}
-                className="w-full px-4 py-2 border border-stone-300 rounded-lg focus:ring-2 focus:ring-emerald-600"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-stone-700 mb-2">Guest Arrival Time</label>
-              <input
-                type="time"
-                value={newBooking.guestArrival}
-                onChange={(e) => setNewBooking({ ...newBooking, guestArrival: e.target.value })}
-                className="w-full px-4 py-2 border border-stone-300 rounded-lg focus:ring-2 focus:ring-emerald-600"
-              />
-            </div>
-          </div>
-
-          <div className="pt-4 space-y-4 border-t border-stone-200">
-            <label className="flex items-center gap-3 p-4 border border-amber-200 bg-amber-50 rounded-lg cursor-pointer hover:bg-amber-100 transition-colors">
-              <input
-                type="checkbox"
-                checked={newBooking.isGuestRoom}
-                onChange={(e) => {
-                  const val = e.target.checked;
-                  setNewBooking({
-                    ...newBooking,
-                    isGuestRoom: val,
-                    stayingInCottage: val ? true : false
-                  });
-                }}
-                className="w-5 h-5 text-emerald-700 rounded border-stone-300"
-              />
-              <div className="flex-1">
-                <div className="text-sm font-semibold text-amber-900">Guest-Only Room</div>
-                <div className="text-xs text-amber-700 leading-relaxed">
-                  Is this room for guests only (you will be staying in a different room or cottage)?
-                </div>
-              </div>
-            </label>
-
-            {newBooking.isGuestRoom && (
-              <label className="flex items-center gap-3 p-4 border border-emerald-200 bg-emerald-50 rounded-lg cursor-pointer hover:bg-emerald-100 transition-colors animate-in slide-in-from-top-2">
-                <input
-                  type="checkbox"
-                  checked={newBooking.stayingInCottage}
-                  onChange={(e) => setNewBooking({ ...newBooking, stayingInCottage: e.target.checked })}
-                  className="w-5 h-5 text-emerald-600 rounded border-emerald-300"
-                />
-                <div className="flex-1">
-                  <div className="text-sm font-semibold text-emerald-900">Member staying in cottage?</div>
-                  <div className="text-xs text-emerald-700 leading-relaxed text-balance">
-                    Check this if you are NOT sleeping in this room and are staying in your own cottage at the club.
-                  </div>
-                </div>
-              </label>
-            )}
-          </div>
-        </div>
-
-        <div className="flex justify-end gap-3">
-          <button
-            onClick={() => setBookingStep(1)}
-            className="px-6 py-2 border border-stone-300 rounded-lg hover:bg-stone-50"
-          >
-            Back
-          </button>
-          <button
-            onClick={validateAndProceed}
-            className="px-6 py-2 bg-emerald-700 text-white rounded-lg hover:bg-emerald-800"
-          >
-            Next
-          </button>
-        </div>
-      </div>
-    );
-  }
-
-  // Step 3: Meals & Confirmation
-  if (bookingStep === 3) {
-    const room = getRoomById(newBooking.roomId);
-
-    // Generate array of dates for the stay
-    const getDatesInStay = () => {
-      const dates = [];
-      const start = new Date(newBooking.startDate);
-      const end = new Date(newBooking.endDate);
-      const current = new Date(start);
-
-      while (current < end) {
-        dates.push(new Date(current));
-        current.setDate(current.getDate() + 1);
-      }
-      return dates;
-    };
-
-    const stayDates = getDatesInStay();
-
-    // Initialize dailyMeals if empty
-    if (Object.keys(newBooking.dailyMeals).length === 0 && stayDates.length > 0) {
-      const initialDailyMeals = {};
-      stayDates.forEach(date => {
-        const dateStr = date.toISOString().split('T')[0];
-        initialDailyMeals[dateStr] = {
-          breakfast: false,
-          lunch: false,
-          barSupper: false,
-          packedBreakfast: false,
-          packedLunch: false,
-          packedBarSupper: false
-        };
-      });
-      setNewBooking({ ...newBooking, dailyMeals: initialDailyMeals });
-    }
-
-    const updateMeal = (dateStr, meal, value) => {
-      setNewBooking({
-        ...newBooking,
-        dailyMeals: {
-          ...newBooking.dailyMeals,
-          [dateStr]: {
-            ...newBooking.dailyMeals[dateStr],
-            [meal]: value,
-            // Reset packed option if meal is unchecked
-            ...((!value && meal === 'breakfast') ? { packedBreakfast: false } : {}),
-            ...((!value && meal === 'lunch') ? { packedLunch: false } : {}),
-            ...((!value && meal === 'barSupper') ? { packedBarSupper: false } : {})
-          }
-        }
-      });
-    };
-
-    return (
-      <div className="space-y-6">
-        <div className="flex items-center justify-between">
-          <h2 className="text-2xl font-light text-emerald-900">Meals & Confirmation</h2>
-          <div className="text-sm text-stone-500">Step 3 of 3</div>
-        </div>
-
-        {bookingWarnings.length > 0 && (
-          <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 space-y-2">
-            {bookingWarnings.map((warning, idx) => (
-              <div key={idx} className="flex items-start gap-2">
-                <AlertCircleIcon className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
-                <p className="text-sm text-amber-800">{warning}</p>
-              </div>
-            ))}
-          </div>
-        )}
-
-        <div className="bg-stone-50 rounded-lg p-6 space-y-3">
-          <h3 className="font-medium text-emerald-900">Booking Summary</h3>
-          <div className="space-y-2 text-sm">
-            <div className="flex justify-between">
-              <span className="text-stone-600">Building:</span>
-              <span className="font-medium">{newBooking.building}</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-stone-600">Room:</span>
-              <span className="font-medium">{room ? room.name : ''} ({room ? room.beds : ''})</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-stone-600">Dates:</span>
-              <span className="font-medium">
-                {new Date(newBooking.startDate).toLocaleDateString()} - {new Date(newBooking.endDate).toLocaleDateString()}
-              </span>
-            </div>
-            <div className="flex justify-between items-center">
-              <span className="text-stone-600 text-xs uppercase tracking-widest font-bold">Party:</span>
-              {!newBooking.isGuestRoom && newBooking.guests === 1 ? (
-                <div className="flex items-center gap-2 text-stone-600">
-                  <LucideIcon name="user-check" className="w-4 h-4 text-emerald-600" />
-                  <span className="font-bold">You staying here</span>
-                </div>
-              ) : (
-                <span className="font-bold text-stone-800">
-                  {!newBooking.isGuestRoom ? `You + ${newBooking.guests - 1} guests` : `${newBooking.guests} guests`}
-                </span>
-              )}
-            </div>
-          </div>
-        </div>
-
-        <div className="space-y-4">
-          <div>
-            <label className="block text-stone-700 mb-3">
-              <span className="text-xs font-black uppercase tracking-widest text-stone-400 block mb-1">Meal Planning</span>
-              <span className="text-sm font-bold">
-                Daily meals for {!newBooking.isGuestRoom && newBooking.guests === 1 ? 'you' : (!newBooking.isGuestRoom ? `you and ${newBooking.guests - 1} guests` : `${newBooking.guests} guests`)}
-              </span>
-            </label>
-            <div className="space-y-4">
-              {stayDates.map((date, dayIndex) => {
-                const dateStr = date.toISOString().split('T')[0];
-                const dayData = newBooking.dailyMeals[dateStr] || {};
-                const isFirstDay = dayIndex === 0;
-                const isLastDay = dayIndex === stayDates.length - 1;
-
-                return (
-                  <div key={dateStr} className="border border-stone-300 rounded-lg p-4 bg-white">
-                    <div className="flex items-center justify-between mb-3">
-                      <h4 className="font-semibold text-emerald-900">
-                        Day {dayIndex + 1} - {date.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
-                      </h4>
-                      {isFirstDay && (
-                        <div className="flex gap-2 text-xs">
-                          <div className="flex items-center gap-1">
-                            <span className="text-stone-600">Arrival:</span>
-                            <span className="font-medium">{newBooking.memberArrival || 'Not set'}</span>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-
-                    <div className="grid grid-cols-1 gap-2">
-                      {/* Unified meal display for all stay lengths */}
-                      <>
-                        {isFirstDay && isLastDay && (
-                          <div className="text-xs text-stone-600 italic mb-2">
-                            Single day stay - available meals shown below
-                          </div>
-                        )}
-
-                        {/* Breakfast */}
-                        <div className={`flex items-center gap-3 p-2 border border-stone-200 rounded ${!isMealAvailable(dateStr, 'breakfast') ? 'opacity-40' : 'bg-stone-50'}`}>
-                          <input
-                            type="checkbox"
-                            checked={dayData.breakfast || false}
-                            disabled={!isMealAvailable(dateStr, 'breakfast')}
-                            onChange={(e) => updateMeal(dateStr, 'breakfast', e.target.checked)}
-                            className="w-4 h-4 text-emerald-700 rounded border-stone-300"
-                          />
-                          <div className="flex-1">
-                            <div className={`text-sm font-medium ${!isMealAvailable(dateStr, 'breakfast') ? 'line-through text-stone-400' : 'text-stone-800'}`}>Breakfast</div>
-                            <div className="text-xs text-stone-500">{mealTimesConfig.breakfast}</div>
-                          </div>
-                          {dayData.breakfast && isMealAvailable(dateStr, 'breakfast') && (
-                            <label className="flex items-center gap-1 px-2 py-1 bg-emerald-50 rounded cursor-pointer">
-                              <input
-                                type="checkbox"
-                                checked={dayData.packedBreakfast || false}
-                                onChange={(e) => updateMeal(dateStr, 'packedBreakfast', e.target.checked)}
-                                className="w-3 h-3 text-emerald-700 rounded"
-                              />
-                              <span className="text-xs text-emerald-800">Packed</span>
-                            </label>
-                          )}
-                        </div>
-
-                        {/* Lunch */}
-                        <div className={`flex items-center gap-3 p-2 border border-stone-200 rounded ${!isMealAvailable(dateStr, 'lunch') ? 'opacity-40' : 'bg-stone-50'}`}>
-                          <input
-                            type="checkbox"
-                            checked={dayData.lunch || false}
-                            disabled={!isMealAvailable(dateStr, 'lunch')}
-                            onChange={(e) => updateMeal(dateStr, 'lunch', e.target.checked)}
-                            className="w-4 h-4 text-emerald-700 rounded border-stone-300"
-                          />
-                          <div className="flex-1">
-                            <div className={`text-sm font-medium ${!isMealAvailable(dateStr, 'lunch') ? 'line-through text-stone-400' : 'text-stone-800'}`}>Lunch</div>
-                            <div className="text-xs text-stone-500">{mealTimesConfig.lunch}</div>
-                          </div>
-                          {dayData.lunch && isMealAvailable(dateStr, 'lunch') && (
-                            <label className="flex items-center gap-1 px-2 py-1 bg-emerald-50 rounded cursor-pointer">
-                              <input
-                                type="checkbox"
-                                checked={dayData.packedLunch || false}
-                                onChange={(e) => updateMeal(dateStr, 'packedLunch', e.target.checked)}
-                                className="w-3 h-3 text-emerald-700 rounded"
-                              />
-                              <span className="text-xs text-emerald-800">Packed</span>
-                            </label>
-                          )}
-                        </div>
-
-                        {/* Bar Supper */}
-                        <div className={`flex items-center gap-3 p-2 border border-stone-200 rounded ${!isMealAvailable(dateStr, 'barSupper') ? 'opacity-40' : 'bg-stone-50'}`}>
-                          <input
-                            type="checkbox"
-                            checked={dayData.barSupper || false}
-                            disabled={!isMealAvailable(dateStr, 'barSupper')}
-                            onChange={(e) => updateMeal(dateStr, 'barSupper', e.target.checked)}
-                            className="w-4 h-4 text-emerald-700 rounded border-stone-300"
-                          />
-                          <div className="flex-1">
-                            <div className={`text-sm font-medium ${!isMealAvailable(dateStr, 'barSupper') ? 'line-through text-stone-400' : 'text-stone-800'}`}>Bar Supper</div>
-                            <div className="text-xs text-stone-500">{mealTimesConfig.barSupper}</div>
-                          </div>
-                          {dayData.barSupper && isMealAvailable(dateStr, 'barSupper') && (
-                            <label className="flex items-center gap-1 px-2 py-1 bg-emerald-50 rounded cursor-pointer">
-                              <input
-                                type="checkbox"
-                                checked={dayData.packedBarSupper || false}
-                                onChange={(e) => updateMeal(dateStr, 'packedBarSupper', e.target.checked)}
-                                className="w-3 h-3 text-emerald-700 rounded"
-                              />
-                              <span className="text-xs text-emerald-800">Packed</span>
-                            </label>
-                          )}
-                        </div>
-                      </>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        </div>
-
-        <div className="flex justify-end gap-3 mt-8 pt-6 border-t border-stone-100">
-          {currentUser === 'admin' && (
-            <div className="flex-1 max-w-xs">
-              <label className="block text-[10px] font-black uppercase tracking-widest text-emerald-600 mb-1 ml-1">Admin: Book For Member</label>
-              <select
-                value={adminBookingMember}
-                onChange={(e) => setAdminBookingMember(e.target.value)}
-                className="w-full h-12 px-4 bg-emerald-50/50 border border-emerald-200 rounded-xl focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all font-medium text-sm text-emerald-900 placeholder:text-emerald-300"
-              >
-                <option value="">Select a member...</option>
-                {memberList.map(m => (
-                  <option key={m.id} value={m.full_name}>{m.full_name}</option>
-                ))}
-              </select>
-            </div>
-          )}
-          <div className="flex gap-3 items-end">
-            <button
-              onClick={() => setBookingStep(2)}
-              className="px-6 py-2 border border-stone-300 rounded-lg hover:bg-stone-50"
-            >
-              Back
-            </button>
-            <button
-              onClick={() => confirmBooking(adminBookingMember)}
-              className="px-6 py-2 bg-emerald-700 text-white rounded-lg hover:bg-emerald-800"
-            >
-              Confirm Booking
-            </button>
-          </div>
-        </div>
-      </div>
-    );
-  }
-};
 
 // Multi-Room Booking Details Page
 const MultiRoomBookingDetails = ({
@@ -1501,12 +1125,20 @@ const MultiRoomBookingDetails = ({
   getRoomById,
   confirmMultiRoomBooking,
   mealTimesConfig,
-  currentUser
+  currentUser,
+  isPayFlow = false
 }) => {
-  const [step, setStep] = React.useState(1); // 1: Occupancy, 2: Meals, 3: Review
+  const [step, setStep] = React.useState(1); // 1: Occupancy, 2: Meals, 3: Review, 4: Payment (if payflow)
   const [adminBookingMember, setAdminBookingMember] = React.useState('');
+  const [paymentData, setPaymentData] = React.useState({
+    cardholder: effectiveMember,
+    cardNumber: '',
+    expiry: '',
+    cvv: ''
+  });
 
   const effectiveMember = currentUser === 'admin' ? (adminBookingMember || 'Admin Booking') : currentUser;
+  const bookingTotal = calculateBookingTotal(roomBookings, getRoomById);
 
   // Group selected cells by room into continuous date ranges
   const groupSelectionsByRoom = () => {
@@ -1522,13 +1154,13 @@ const MultiRoomBookingDetails = ({
     // Sort dates for each room and create continuous ranges
     const roomBookings = [];
     Object.entries(roomGroups).forEach(([roomId, dates]) => {
-      dates.sort((a, b) => new Date(a) - new Date(b));
+      dates.sort((a, b) => new Date(a + 'T00:00:00') - new Date(b + 'T00:00:00'));
 
       // Group into continuous date ranges
       let currentRange = [dates[0]];
       for (let i = 1; i < dates.length; i++) {
-        const prevDate = new Date(dates[i - 1]);
-        const currDate = new Date(dates[i]);
+        const prevDate = new Date(dates[i - 1] + 'T00:00:00');
+        const currDate = new Date(dates[i] + 'T00:00:00');
         const dayDiff = (currDate - prevDate) / (1000 * 60 * 60 * 24);
 
         if (dayDiff === 1) {
@@ -1574,20 +1206,27 @@ const MultiRoomBookingDetails = ({
   };
 
   const getNextDay = (dateStr) => {
-    const date = new Date(dateStr);
+    const date = new Date(dateStr + 'T00:00:00');
     date.setDate(date.getDate() + 1);
     return date.toISOString().split('T')[0];
   };
 
   const isMealAvailable = (dateStr, mealType) => {
-    const date = new Date(dateStr);
-    const dayOfWeek = date.getDay(); // 0 = Sunday, 1 = Monday, etc.
-    if (dayOfWeek === 0 && mealType === 'lunch') return false;
-    if (dayOfWeek === 0 && mealType === 'barSupper') return false;
-    if (dayOfWeek === 1) return false;
-    if (dayOfWeek === 2 && mealType === 'breakfast') return false;
-    if (dayOfWeek === 2 && mealType === 'lunch') return false;
+    const date = new Date(dateStr + 'T00:00:00');
+    const month = date.getMonth();
+    const dayOfWeek = date.getDay();
 
+    if (dayOfWeek === 1) return false;
+
+    const isSeasonA = month >= 3 && month <= 8;
+
+    if (isSeasonA) {
+      if (dayOfWeek === 0 && (mealType === 'breakfast' || mealType === 'lunch')) return false;
+      if (dayOfWeek === 2 && (mealType === 'lunch' || mealType === 'barSupper')) return false;
+    } else {
+      if (dayOfWeek === 0 && (mealType === 'lunch' || mealType === 'barSupper')) return false;
+      if (dayOfWeek === 2 && (mealType === 'breakfast' || mealType === 'lunch')) return false;
+    }
     return true;
   };
 
@@ -1609,14 +1248,17 @@ const MultiRoomBookingDetails = ({
 
       // Default: Start with bar supper on first day, end with lunch on last day
       if (isSingleDay) {
-        // Single day: Dinner (Supper) only by default
+        // Single day: Lunch + Dinner (Supper) by default
+        meals[date].lunch = isMealAvailable(date, 'lunch');
         meals[date].barSupper = isMealAvailable(date, 'barSupper');
       } else if (isFirstDay) {
-        // First day: Dinner (Supper) only by default
+        // First day: Lunch + Dinner (Supper) by default
+        meals[date].lunch = isMealAvailable(date, 'lunch');
         meals[date].barSupper = isMealAvailable(date, 'barSupper');
       } else if (isLastDay) {
-        // Last day: Breakfast only by default
+        // Last day: Breakfast + Lunch by default
         meals[date].breakfast = isMealAvailable(date, 'breakfast');
+        meals[date].lunch = isMealAvailable(date, 'lunch');
       } else {
         // Middle days: All available meals by default
         meals[date].breakfast = isMealAvailable(date, 'breakfast');
@@ -1759,7 +1401,22 @@ const MultiRoomBookingDetails = ({
       dietary: sharedDietary
     }));
 
-    confirmMultiRoomBooking(finalizedRoomBookings, partyArrivalTime, stayingInCottage, effectiveMember);
+    if (isPayFlow && step === 3) {
+      setStep(4);
+      return;
+    }
+
+    const paymentDetails = isPayFlow ? {
+      paymentAmount: bookingTotal,
+      paymentStatus: 'PAID',
+      paymentMethod: 'CREDIT_CARD',
+      paymentReference: `REF-${Date.now()}`
+    } : {
+      paymentAmount: 0,
+      paymentStatus: 'PENDING'
+    };
+
+    confirmMultiRoomBooking(finalizedRoomBookings, partyArrivalTime, stayingInCottage, effectiveMember, paymentDetails);
   };
 
 
@@ -1785,6 +1442,12 @@ const MultiRoomBookingDetails = ({
         <StepIcon num={2} label="Meals" active={step === 2} completed={step > 2} onClick={() => setStep(2)} />
         <div className="w-12 h-px bg-stone-200"></div>
         <StepIcon num={3} label="Review" active={step === 3} completed={step > 3} onClick={() => setStep(3)} />
+        {isPayFlow && (
+          <>
+            <div className="w-12 h-px bg-stone-200"></div>
+            <StepIcon num={4} label="Payment" active={step === 4} completed={step > 4} onClick={() => step >= 4 && setStep(4)} />
+          </>
+        )}
       </div>
     </div>
   );
@@ -2090,7 +1753,7 @@ const MultiRoomBookingDetails = ({
                             <MealCheckbox
                               id={`lu-${roomIdx}-${date}`}
                               label="Lunch"
-                              time="12:30 PM"
+                              time="1:30 PM"
                               checked={meals.lunch}
                               disabled={!isMealAvailable(date, 'lunch')}
                               onChange={(val) => updateMeal(roomIdx, date, 'lunch', val)}
@@ -2232,8 +1895,106 @@ const MultiRoomBookingDetails = ({
               onClick={handleConfirm}
               className="px-16 py-5 bg-emerald-600 text-white rounded-2xl hover:bg-emerald-700 transition-all font-black text-xl shadow-2xl shadow-emerald-900/20 active:scale-95 flex items-center gap-3"
             >
-              Finalize Booking
-              <LucideIcon name="check-circle" className="w-6 h-6" />
+              {isPayFlow ? 'Continue to Payment' : 'Finalize Booking'}
+              <LucideIcon name={isPayFlow ? "credit-card" : "check-circle"} className="w-6 h-6" />
+            </button>
+          </div>
+        </div>
+      )}
+      
+      {/* STEP 4: Payment */}
+      {isPayFlow && step === 4 && (
+        <div className="space-y-8 animate-in fade-in zoom-in-95 duration-500 max-w-2xl mx-auto">
+          <div className="bg-white rounded-[2.5rem] border border-stone-200 overflow-hidden shadow-xl">
+            <div className="bg-emerald-900 p-8 text-white">
+              <div className="flex justify-between items-center mb-6">
+                <h3 className="text-2xl font-light">Payment Details</h3>
+                <div className="flex gap-2">
+                  <div className="w-10 h-6 bg-white/20 rounded flex items-center justify-center">
+                    <span className="text-[8px] font-black italic">VISA</span>
+                  </div>
+                  <div className="w-10 h-6 bg-white/20 rounded flex items-center justify-center">
+                    <span className="text-[8px] font-black italic">MC</span>
+                  </div>
+                </div>
+              </div>
+              <div className="p-6 bg-white/10 rounded-2xl border border-white/10 backdrop-blur-md">
+                <p className="text-[10px] font-black uppercase tracking-widest text-emerald-300 mb-1">Estimated Total</p>
+                <p className="text-4xl font-light tracking-tight">${bookingTotal.toFixed(2)}</p>
+                <p className="text-[9px] text-emerald-400 mt-2 font-medium">Payment will be processed securely.</p>
+              </div>
+            </div>
+
+            <div className="p-8 space-y-6">
+              <div className="space-y-4">
+                <div>
+                  <label className="text-[10px] font-black uppercase tracking-widest text-stone-400 block mb-2 px-1">Cardholder Name</label>
+                  <input 
+                    type="text" 
+                    value={paymentData.cardholder} 
+                    onChange={(e) => setPaymentData({...paymentData, cardholder: e.target.value})}
+                    className="w-full px-4 py-3 bg-stone-50 border border-stone-200 rounded-xl focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all outline-none font-bold text-stone-800" 
+                  />
+                </div>
+                <div>
+                  <label className="text-[10px] font-black uppercase tracking-widest text-stone-400 block mb-2 px-1">Card Number</label>
+                  <div className="relative">
+                    <input 
+                      type="text" 
+                      placeholder="0000 0000 0000 0000" 
+                      value={paymentData.cardNumber}
+                      onChange={(e) => setPaymentData({...paymentData, cardNumber: e.target.value})}
+                      className="w-full pl-12 pr-4 py-3 bg-stone-50 border border-stone-200 rounded-xl focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all outline-none font-bold text-stone-800" 
+                    />
+                    <LucideIcon name="credit-card" className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-stone-300" />
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="text-[10px] font-black uppercase tracking-widest text-stone-400 block mb-2 px-1">Expiry Date</label>
+                    <input 
+                      type="text" 
+                      placeholder="MM / YY" 
+                      value={paymentData.expiry}
+                      onChange={(e) => setPaymentData({...paymentData, expiry: e.target.value})}
+                      className="w-full px-4 py-3 bg-stone-50 border border-stone-200 rounded-xl focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all outline-none font-bold text-stone-800 text-center" 
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[10px] font-black uppercase tracking-widest text-stone-400 block mb-2 px-1">CVV</label>
+                    <input 
+                      type="text" 
+                      placeholder="•••" 
+                      value={paymentData.cvv}
+                      onChange={(e) => setPaymentData({...paymentData, cvv: e.target.value})}
+                      className="w-full px-4 py-3 bg-stone-50 border border-stone-200 rounded-xl focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all outline-none font-bold text-stone-800 text-center" 
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div className="bg-amber-50 rounded-2xl p-4 border border-amber-100 flex gap-3 items-start">
+                <LucideIcon name="shield-check" className="w-5 h-5 text-amber-600 mt-0.5" />
+                <p className="text-[11px] text-amber-900 leading-relaxed font-medium">
+                  This is a secure 256-bit encrypted payment. Final charges will be adjusted based on meal consumption and club policies.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <div className="flex justify-between items-center mb-12">
+            <button
+              onClick={() => setStep(3)}
+              className="px-8 py-4 bg-white border-2 border-stone-200 text-stone-600 rounded-xl hover:bg-stone-50 transition-all font-bold"
+            >
+              Back to Review
+            </button>
+            <button
+              onClick={handleConfirm}
+              className="px-16 py-5 bg-emerald-900 text-white rounded-2xl hover:bg-emerald-950 transition-all font-black text-xl shadow-2xl shadow-emerald-900/40 active:scale-95 flex items-center gap-3"
+            >
+              Pay & Confirm
+              <LucideIcon name="check-circle" className="w-6 h-6 text-amber-300" />
             </button>
           </div>
         </div>
@@ -2565,9 +2326,9 @@ const EditBookingDetails = ({ booking, onSave, onCancel, onDelete, currentUser }
               {dates.map((date) => {
                 const dayMeals = dailyMeals[date] || {};
                 const dateObj = new Date(date + 'T00:00:00');
-                const isSunNoSupper = dateObj.getDay() === 0;
-                const isMonNoMeals = dateObj.getDay() === 1;
-                const isTueNoBreakfastLunch = dateObj.getDay() === 2;
+                const isBreakfastAvailable = isMealAvailable(date, 'breakfast');
+                const isLunchAvailable = isMealAvailable(date, 'lunch');
+                const isSupperAvailable = isMealAvailable(date, 'barSupper');
 
                 return (
                   <div key={date} className="flex flex-col sm:flex-row items-center gap-3 p-3 rounded-xl bg-stone-50/50 border border-stone-100">
@@ -2587,7 +2348,7 @@ const EditBookingDetails = ({ booking, onSave, onCancel, onDelete, currentUser }
                           label="Breakfast"
                           time="8:00 AM"
                           checked={dayMeals.breakfast || false}
-                          disabled={isMonNoMeals || isTueNoBreakfastLunch}
+                          disabled={!isBreakfastAvailable}
                           onChange={(val) => updateMeal(date, 'breakfast', val)}
                           packed={dayMeals.packedBreakfast || false}
                           onPackedChange={(val) => updateMeal(date, 'packedBreakfast', val)}
@@ -2597,9 +2358,9 @@ const EditBookingDetails = ({ booking, onSave, onCancel, onDelete, currentUser }
                         <MealCheckbox
                           id={`lunch-${date}`}
                           label="Lunch"
-                          time="12:30 PM"
+                          time="1:30 PM"
                           checked={dayMeals.lunch || false}
-                          disabled={isMonNoMeals || isTueNoBreakfastLunch || isSunNoSupper}
+                          disabled={!isLunchAvailable}
                           onChange={(val) => updateMeal(date, 'lunch', val)}
                           packed={dayMeals.packedLunch || false}
                           onPackedChange={(val) => updateMeal(date, 'packedLunch', val)}
@@ -2611,7 +2372,7 @@ const EditBookingDetails = ({ booking, onSave, onCancel, onDelete, currentUser }
                           label="Supper"
                           time="6:00 PM"
                           checked={dayMeals.barSupper || false}
-                          disabled={isMonNoMeals || isSunNoSupper}
+                          disabled={!isSupperAvailable}
                           onChange={(val) => updateMeal(date, 'barSupper', val)}
                           packed={dayMeals.packedBarSupper || false}
                           onPackedChange={(val) => updateMeal(date, 'packedBarSupper', val)}
@@ -2647,7 +2408,7 @@ const EditBookingDetails = ({ booking, onSave, onCancel, onDelete, currentUser }
 
 
 // My Reservations View
-const MyReservationsView = ({ bookings, currentUser, getRoomById, cancelBooking, setView, onEditBooking, approveBooking }) => {
+const MyReservationsView = ({ bookings, currentUser, getRoomById, cancelBooking, setView, onEditBooking, approveBooking, setPaymentBooking, setShowPaymentModal }) => {
   const isAdmin = currentUser === 'admin';
   const userBookings = isAdmin ? bookings : bookings.filter(b => b.member === currentUser);
 
@@ -2663,7 +2424,7 @@ const MyReservationsView = ({ bookings, currentUser, getRoomById, cancelBooking,
     return acc;
   }, {});
 
-  const stays = Object.values(staysMap).sort((a, b) => new Date(a.startDate) - new Date(b.startDate));
+  const stays = Object.values(staysMap).sort((a, b) => new Date(a.startDate + 'T00:00:00') - new Date(b.startDate + 'T00:00:00'));
   const today = new Date().toISOString().split('T')[0];
 
   const getDates = (start, end) => {
@@ -2676,7 +2437,7 @@ const MyReservationsView = ({ bookings, currentUser, getRoomById, cancelBooking,
   const fmtTime = (t) => { try { return new Date(`2000-01-01T${t}`).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }); } catch { return t; } };
 
   const MealDot = ({ date, type, ordered, packed }) => {
-    if (!IS_MEAL_AVAILABLE(date, type)) return <span className="text-stone-200 text-[9px]">―</span>;
+    if (!IS_MEAL_AVAILABLE(date, type)) return <span className="text-stone-300 text-[9px]">―</span>;
     if (!ordered) return <span className="text-stone-300 text-[9px]">·</span>;
     return (
       <span className={`inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[8px] font-black ${packed ? 'bg-amber-100 text-amber-800' : 'bg-emerald-100 text-emerald-800'}`}>
@@ -2781,6 +2542,11 @@ const MyReservationsView = ({ bookings, currentUser, getRoomById, cancelBooking,
                         <LucideIcon name="alert-triangle" className="w-3.5 h-3.5 text-amber-500" /> Provisional
                       </span>
                     )}
+                    {stay.bookings.some(b => b.paymentStatus === 'PAID') && (
+                      <span className="flex items-center gap-1.5 bg-blue-50 text-blue-800 border border-blue-200 px-3 py-1.5 rounded-lg text-[10px] font-bold tracking-wide">
+                        <LucideIcon name="credit-card" className="w-3.5 h-3.5 text-blue-500" /> Paid: ${stay.bookings.reduce((sum, b) => sum + (b.paymentAmount || 0), 0).toFixed(2)}
+                      </span>
+                    )}
                   </div>
                 </div>
 
@@ -2831,6 +2597,13 @@ const MyReservationsView = ({ bookings, currentUser, getRoomById, cancelBooking,
                                 Cancel
                               </button>
                             </div>
+                            {room.paymentStatus === 'PENDING' && (
+                              <button onClick={() => { setPaymentBooking(room); setShowPaymentModal(true); }}
+                                className="px-3 py-1.5 flex items-center gap-1.5 text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors shadow-sm mt-2 w-full justify-center">
+                                <LucideIcon name="credit-card" className="w-3.5 h-3.5" />
+                                Pay Now
+                              </button>
+                            )}
                           </div>
 
                           {/* Minimalist Info Grid */}
@@ -2988,6 +2761,51 @@ const AdminInventoryView = ({
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
         {/* Sidebar: Global Settings */}
         <div className="lg:col-span-1 space-y-6">
+          <div className="bg-white rounded-[2.5rem] p-8 border border-stone-100 shadow-sm">
+            <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-emerald-600 mb-6 flex items-center gap-2">
+              <LucideIcon name="utensils" className="w-3 h-3" />
+              Seasonal Meal Schedule
+            </h3>
+            <div className="space-y-6">
+              <div className="overflow-hidden rounded-xl border border-stone-100">
+                <table className="w-full text-[10px] text-left">
+                  <thead>
+                    <tr className="bg-stone-50 text-stone-400 uppercase font-black tracking-tighter">
+                      <th className="px-3 py-2">Day</th>
+                      <th className="px-3 py-2">Apr-Sep</th>
+                      <th className="px-3 py-2">Oct-Mar</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-stone-50">
+                    <tr>
+                      <td className="px-3 py-2 font-bold text-stone-600">Sun</td>
+                      <td className="px-3 py-2 text-stone-500 italic">Supper only</td>
+                      <td className="px-3 py-2 text-stone-500 italic">Brkfast only</td>
+                    </tr>
+                    <tr>
+                      <td className="px-3 py-2 font-bold text-stone-600">Mon</td>
+                      <td className="px-3 py-2 text-red-400 font-bold">No Service</td>
+                      <td className="px-3 py-2 text-red-400 font-bold">No Service</td>
+                    </tr>
+                    <tr>
+                      <td className="px-3 py-2 font-bold text-stone-600">Tue</td>
+                      <td className="px-3 py-2 text-stone-500 italic">Brkfast only</td>
+                      <td className="px-3 py-2 text-stone-500 italic">Supper only</td>
+                    </tr>
+                    <tr>
+                      <td className="px-3 py-2 font-bold text-stone-600">Wed-Sat</td>
+                      <td className="px-3 py-2 text-stone-500 italic">Full Service</td>
+                      <td className="px-3 py-2 text-stone-500 italic">Full Service</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+              <p className="text-[9px] text-stone-400 italic px-1">
+                Packed options available for all scheduled meals.
+              </p>
+            </div>
+          </div>
+
           <div className="bg-white rounded-[2.5rem] p-8 border border-stone-100 shadow-sm">
             <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-emerald-600 mb-6 flex items-center gap-2">
               <LucideIcon name="settings" className="w-3 h-3" />
@@ -3243,6 +3061,55 @@ const ReportingView = ({ bookings }) => {
     );
   };
 
+  const downloadMealReportPDF = () => {
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF('p', 'mm', 'a4');
+
+    const headers = ['Date', 'Day', 'Meal Service', 'Count', 'Attendees'];
+    const rows = [];
+
+    sortedDates.forEach(dateStr => {
+      const data = mealDataByDate[dateStr];
+      const dateObj = new Date(dateStr + 'T00:00:00');
+      const dayName = dateObj.toLocaleDateString('en-US', { weekday: 'short' });
+
+      const services = [
+        { label: 'Breakfast', normal: data.breakfast, packed: data.packedBreakfast },
+        { label: 'Lunch', normal: data.lunch, packed: data.packedLunch },
+        { label: 'Bar Supper', normal: data.barSupper, packed: data.packedBarSupper }
+      ];
+
+      services.forEach(s => {
+        const mealType = s.label === 'Bar Supper' ? 'barSupper' : s.label.toLowerCase();
+        if (IS_MEAL_AVAILABLE(dateStr, mealType)) {
+          const allNames = [...s.normal, ...s.packed.map(p => `${p} (Packed)`)];
+          rows.push([
+            dateStr,
+            dayName,
+            s.label,
+            allNames.length,
+            allNames.join(', ')
+          ]);
+        }
+      });
+    });
+
+    doc.text('Monthly Meal Report', 14, 15);
+    doc.autoTable({
+      head: [headers],
+      body: rows,
+      startY: 20,
+      theme: 'grid',
+      styles: { fontSize: 8, cellPadding: 2 },
+      headStyles: { fillColor: [6, 78, 59] },
+      columnStyles: {
+        4: { cellWidth: 'auto' }
+      }
+    });
+
+    doc.save(`meal-report-${new Date().toISOString().split('T')[0]}.pdf`);
+  };
+
   return (
     <div className="max-w-4xl mx-auto py-8 px-4">
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-10 pb-8 border-b border-stone-100">
@@ -3250,9 +3117,9 @@ const ReportingView = ({ bookings }) => {
           <h2 className="text-4xl font-light text-stone-900 tracking-tight">Reporting & Logistics</h2>
           <p className="text-stone-500 mt-2">Aggregated daily meal counts and rosters for kitchen planning.</p>
         </div>
-        <button onClick={() => alert('Exporting meal report...')} className="flex items-center gap-2 bg-emerald-900 text-white px-6 py-3 rounded-2xl hover:bg-emerald-950 transition-all font-bold shadow-md hover:shadow-lg active:scale-95 text-sm">
+        <button onClick={downloadMealReportPDF} className="flex items-center gap-2 bg-emerald-900 text-white px-6 py-3 rounded-2xl hover:bg-emerald-950 transition-all font-bold shadow-md hover:shadow-lg active:scale-95 text-sm">
           <LucideIcon name="download" className="w-4 h-4" />
-          Export Report
+          Export PDF Report
         </button>
       </div>
 
@@ -3486,88 +3353,85 @@ const Navigation = ({ currentUser, view, setView, setCurrentUser, downloadCSV, o
   );
 
   return (
-    <div className="bg-emerald-900 border-b border-emerald-800 shadow-lg sticky top-0 z-50">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex justify-between items-center h-24">
-          <div className="flex items-center gap-4 cursor-pointer" onClick={() => setView('calendar')}>
-            <div className="w-24 h-24 flex items-center justify-center bg-white/10 rounded-full p-3 border border-white/20 shadow-lg">
-              <img
-                src="logo.png"
-                alt="Tuscarora Club Logo"
-                className="w-full h-full object-contain"
-              />
+    <nav className="bg-emerald-900 border-b border-emerald-800 sticky top-0 z-50 shadow-lg">
+      <div className="max-w-[1400px] mx-auto px-4 lg:px-8">
+        <div className="flex items-center justify-between h-20">
+          <div className="flex items-center gap-10">
+            <div className="flex items-center gap-4 cursor-pointer group" onClick={() => setView('calendar')}>
+              <div className="w-10 h-10 bg-white rounded-xl p-1.5 shadow-sm group-hover:scale-105 transition-transform duration-300">
+                <img src="logo.png" alt="Logo" className="w-full h-full object-contain" />
+              </div>
+              <div className="hidden lg:block">
+                <span className="text-white text-lg font-light tracking-tight" style={{ fontFamily: 'Georgia, serif' }}>Tuscarora</span>
+                <p className="text-[8px] text-emerald-400 font-black uppercase tracking-[0.2em] mt-0.5">Reservation Hub</p>
+              </div>
             </div>
-            <div className="flex flex-col">
-              <h1 className="text-2xl font-light text-amber-400 tracking-tight leading-none" style={{ fontFamily: 'Georgia, serif' }}>
-                The Tuscarora Club
-              </h1>
-              <span className="text-white/80 text-[10px] uppercase font-bold tracking-[0.2em] mt-1">
-                Reservations Portal
-              </span>
+
+            <div className="h-8 w-px bg-emerald-800"></div>
+
+            <div className="flex items-center gap-1">
+              <NavButton id="calendar" label="Make Reservation" icon="calendar" active={view === 'calendar'} />
+              <NavButton id="reserve-pay" label="Reserve and pay" icon="credit-card" active={view === 'reserve-pay'} />
+              <NavButton id="my-reservations" label="My Reservations" icon="user" active={view === 'my-reservations'} />
+              <NavButton id="messages" label="Inbox" icon="mail" active={view === 'messages'} />
+              {currentUser === 'admin' ? (
+                <NavButton id="dashboard" label="Dashboard" icon="layout" active={view === 'dashboard'} />
+              ) : (
+                <NavButton id="reporting" label="Reports" icon="bar-chart" active={view === 'reporting'} />
+              )}
             </div>
           </div>
 
-          <div className="flex items-center gap-2">
-            <NavButton id="calendar" label="Make Reservation" icon="calendar" active={view === 'calendar'} />
-            <NavButton id="my-reservations" label="My Reservations" icon="user" active={view === 'my-reservations'} />
-            <NavButton id="messages" label="Inbox" icon="mail" active={view === 'messages'} />
-            {currentUser === 'admin' ? (
-              <NavButton id="dashboard" label="Dashboard" icon="layout" active={view === 'dashboard'} />
-            ) : (
-              <NavButton id="reporting" label="Reports" icon="bar-chart" active={view === 'reporting'} />
+          <div className="flex items-center gap-6 relative">
+            {currentUser === 'admin' && (
+              <button
+                onClick={downloadCSV}
+                className="flex items-center gap-2 text-emerald-300 hover:text-white transition-colors text-xs font-bold uppercase tracking-widest"
+              >
+                <LucideIcon name="download" className="w-4 h-4" />
+                Export CSV
+              </button>
             )}
 
-            <div className="border-l border-emerald-800 ml-4 pl-6 flex items-center gap-6 relative">
-              {currentUser === 'admin' && (
-                <button
-                  onClick={downloadCSV}
-                  className="flex items-center gap-2 text-emerald-100 hover:text-white transition-colors bg-white/5 hover:bg-white/10 px-3 py-2 rounded-lg"
-                  title="Export Data"
-                >
-                  <LucideIcon name="download" className="w-4 h-4 text-emerald-400" />
-                  <span className="text-sm font-medium">Export</span>
-                </button>
-              )}
-
-              <div
-                className="flex items-center gap-3 cursor-pointer group"
-                onClick={() => setShowDropdown(!showDropdown)}
-              >
-                <div className="text-right hidden sm:block">
-                  <p className="text-xs font-bold text-white leading-none group-hover:text-amber-200 transition-colors">{currentUser}</p>
-                  <p className="text-[9px] text-emerald-400 mt-1 uppercase tracking-tighter">Member</p>
-                </div>
-                <div className="w-10 h-10 bg-emerald-800 rounded-xl flex items-center justify-center text-emerald-100 font-bold border border-emerald-700/50 group-hover:border-amber-500/30 transition-all shadow-sm">
-                  {currentUser[0].toUpperCase()}
-                </div>
-                <LucideIcon name="chevron-down" className={`w-3 h-3 text-emerald-400 transition-transform duration-300 ${showDropdown ? 'rotate-180' : ''}`} />
+            <button
+              className="flex items-center gap-3 group"
+              onClick={() => setShowDropdown(!showDropdown)}
+            >
+              <div className="text-right hidden sm:block">
+                <p className="text-xs font-bold text-white leading-none group-hover:text-amber-200 transition-colors">{currentUser}</p>
+                <p className="text-[9px] text-emerald-400 mt-1 uppercase tracking-tighter">Member</p>
               </div>
+              <div className="w-10 h-10 bg-emerald-800 rounded-xl flex items-center justify-center text-emerald-100 font-bold border border-emerald-700/50 group-hover:border-amber-500/30 transition-all shadow-sm">
+                {currentUser[0].toUpperCase()}
+              </div>
+              <LucideIcon name="chevron-down" className={`w-3 h-3 text-emerald-400 transition-transform ${showDropdown ? 'rotate-180' : ''}`} />
+            </button>
 
-              {showDropdown && (
-                <div className="absolute right-0 top-[calc(100%+12px)] w-56 bg-white rounded-2xl shadow-2xl border border-stone-200 py-2 z-[60] animate-in fade-in slide-in-from-top-2 duration-200">
-                  <div className="px-5 py-3 border-b border-stone-100">
-                    <p className="text-[10px] text-stone-400 font-bold uppercase tracking-widest leading-tight">Authenticating</p>
-                    <p className="text-sm font-semibold text-stone-900 truncate">{currentUser}</p>
-                  </div>
-                  <div className="p-1">
-                    <button
-                      onClick={() => {
-                        setShowDropdown(false);
-                        onLogoutClick();
-                      }}
-                      className="w-full text-left px-4 py-3 text-sm text-stone-600 hover:bg-red-50 hover:text-red-700 rounded-xl flex items-center gap-3 transition-all group"
-                    >
-                      <LucideIcon name="log-out" className="w-4 h-4 transition-colors" />
-                      <span className="font-medium">Sign Out</span>
-                    </button>
-                  </div>
+            {showDropdown && (
+              <div className="absolute top-16 right-0 w-56 bg-white rounded-2xl shadow-2xl border border-stone-100 py-3 z-[100] animate-in fade-in slide-in-from-top-2 duration-200">
+                <div className="px-5 py-2 border-b border-stone-100 mb-2">
+                  <p className="text-[10px] font-black uppercase tracking-widest text-stone-400">Settings</p>
                 </div>
-              )}
-            </div>
+                <button
+                  onClick={() => { setShowDropdown(false); onSettingsClick(); }}
+                  className="w-full flex items-center gap-3 px-5 py-3 text-sm text-stone-600 hover:bg-emerald-50 hover:text-emerald-700 transition-colors"
+                >
+                  <LucideIcon name="lock" className="w-4 h-4" />
+                  Update Password
+                </button>
+                <button
+                  onClick={() => { setShowDropdown(false); onLogoutClick(); }}
+                  className="w-full flex items-center gap-3 px-5 py-3 text-sm text-red-600 hover:bg-red-50 transition-colors"
+                >
+                  <LucideIcon name="log-out" className="w-4 h-4" />
+                  Sign Out
+                </button>
+              </div>
+            )}
           </div>
         </div>
       </div>
-    </div>
+    </nav>
   );
 };
 
@@ -3575,6 +3439,8 @@ const Navigation = ({ currentUser, view, setView, setCurrentUser, downloadCSV, o
 function ClubReservationSystem() {
   const [currentUser, setCurrentUser] = useState(null);
   const [view, setView] = useState('login');
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [paymentBooking, setPaymentBooking] = useState(null);
 
   // Trigger Lucide to replace <i> tags with SVGs - only on initial mount
   useEffect(() => {
@@ -3588,7 +3454,7 @@ function ClubReservationSystem() {
 
   // Load bookings from backend
   useEffect(() => {
-    fetch('http://localhost:3001/api/bookings')
+    fetch('/api/bookings')
       .then(res => res.json())
       .then(data => {
         if (!data.error) {
@@ -3607,7 +3473,7 @@ function ClubReservationSystem() {
   const [memberList, setMemberList] = useState([]);
 
   useEffect(() => {
-    fetch('http://localhost:3001/api/members')
+    fetch('/api/members')
       .then(res => res.json())
       .then(data => {
         if (!data.error) setMemberList(data);
@@ -3625,26 +3491,12 @@ function ClubReservationSystem() {
   const [bookingMode, setBookingMode] = useState('calendar'); // 'calendar', 'selection', 'details'
   const [multiRoomBookings, setMultiRoomBookings] = useState([]); // Array of room booking details
 
-  // Booking flow state
-  const [bookingStep, setBookingStep] = useState(1);
-  const [newBooking, setNewBooking] = useState({
-    building: '',
-    roomId: '',
-    startDate: '',
-    endDate: '',
-    guests: 1,
-    dailyMeals: {}, // Will be populated with dates as keys
-    memberArrival: '',
-    guestArrival: '',
-    isGuestRoom: false,
-    partyArrivalTime: '', // Single arrival time for entire party
-    partyName: '' // Name for the entire booking party
-  });
-  const [bookingWarnings, setBookingWarnings] = useState([]);
+  // Global UI state
   const [loginUsername, setLoginUsername] = useState('');
+  const [loginPassword, setLoginPassword] = useState('');
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
-  const [showExportModal, setShowExportModal] = useState(false);
-  const [exportData, setExportData] = useState('');
+  const [showSettings, setShowSettings] = useState(false);
+
   const [editingBooking, setEditingBooking] = useState(null);
 
   // Helper functions
@@ -3682,6 +3534,36 @@ function ClubReservationSystem() {
     return null;
   };
 
+  const handlePaymentSuccess = (bookingId, paymentAmount, paymentReference) => {
+    const booking = bookings.find(b => b.id === bookingId);
+    if (!booking) return;
+
+    const updated = {
+      ...booking,
+      paymentStatus: 'PAID',
+      paymentAmount: paymentAmount,
+      paymentReference: paymentReference,
+      paymentMethod: 'CARD'
+    };
+
+    fetch(`/api/bookings/${bookingId}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(updated)
+    })
+      .then(res => res.json())
+      .then(data => {
+        if (!data.error) {
+          setBookings(bookings.map(b => b.id === bookingId ? updated : b));
+          setShowPaymentModal(false);
+          setPaymentBooking(null);
+        } else {
+          alert("Error updating payment: " + data.error);
+        }
+      })
+      .catch(err => console.error("Payment update failed:", err));
+  };
+
   const countSimultaneousRooms = (startDate, endDate) => {
     const userBookings = bookings.filter(b => b.member === currentUser);
     let maxOverlap = 0;
@@ -3699,11 +3581,34 @@ function ClubReservationSystem() {
   };
 
   const handleLogin = () => {
-    const validUsers = ['admin', 'Chris', 'Markley', 'David', 'Rob', 'Kerry'];
-    if (validUsers.includes(loginUsername)) {
-      setCurrentUser(loginUsername);
-      setView('calendar');
+    if (!loginUsername || !loginPassword) {
+      alert("Please enter both username and password");
+      return;
     }
+
+    fetch('/api/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username: loginUsername, password: loginPassword })
+    })
+      .then(res => res.json())
+      .then(data => {
+        if (data.success) {
+          setCurrentUser(data.user);
+          setView('calendar');
+          setLoginPassword(''); // Clear password on success
+        } else {
+          alert(data.error || "Invalid login credentials");
+        }
+      })
+      .catch(err => {
+        console.error("Login error:", err);
+        alert("Server connection failed. Please ensure the backend is running.");
+      });
+  };
+
+  const handlePasswordReset = () => {
+    alert("Password reset requested. Please contact the administrator (admin) to reset your credentials manually.");
   };
 
   const navigateCalendar = (direction) => {
@@ -3716,123 +3621,7 @@ function ClubReservationSystem() {
     setCurrentDate(newDate);
   };
 
-  const startBooking = (date, roomId = null) => {
-    setSelectedDate(date);
-    const formatDate = (d) => d.toISOString().split('T')[0];
-    setNewBooking({
-      ...newBooking,
-      startDate: formatDate(date),
-      endDate: formatDate(new Date(date.getTime() + 86400000)),
-      roomId: roomId || ''
-    });
-    setView('booking');
-    setBookingStep(roomId ? 2 : 1);
-  };
-
-  const validateAndProceed = () => {
-    const warnings = [];
-    if (newBooking.building === 'Lazy Lodge') {
-      const year = new Date(newBooking.startDate).getFullYear();
-      if (hasRentedLazyLodge(currentUser, newBooking.startDate)) {
-        warnings.push('You have already rented Lazy Lodge during this 6-month period. This will be a PROVISIONAL BOOKING and can be bumped by members who haven\'t used it yet.');
-      }
-    }
-
-    const roomCount = countSimultaneousRooms(newBooking.startDate, newBooking.endDate);
-    if (roomCount >= maxRoomThreshold) {
-      warnings.push(`You are booking ${roomCount} or more rooms simultaneously. Please confer with the House Committee Chairman.`);
-    }
-
-    if (newBooking.isGuestRoom && !newBooking.stayingInCottage) {
-      const hostStays = bookings.filter(b =>
-        b.member === currentUser &&
-        (b.isGuest === 'MEMBER' || b.isGuest === false) &&
-        !(new Date(b.endDate) <= new Date(newBooking.startDate) || new Date(b.startDate) >= new Date(newBooking.endDate))
-      );
-      if (hostStays.length === 0) {
-        warnings.push("Guest Restriction: Members must have their own room booking during the guest stay period. Please book your own room first, or check 'Member staying in cottage' if you are staying in your private cottage.");
-      }
-    }
-
-    setBookingWarnings(warnings);
-    if (bookingStep < 3) {
-      setBookingStep(bookingStep + 1);
-    } else {
-      confirmBooking();
-    }
-  };
-
-  const confirmBooking = (memberName = null) => {
-    const isProvisional = newBooking.building === 'Lazy Lodge' &&
-      hasRentedLazyLodge(currentUser, newBooking.startDate);
-
-    const room = getRoomById(newBooking.roomId);
-    const effectiveMember = (currentUser === 'admin' && memberName) ? memberName : currentUser;
-    const foundMember = memberList.find(m => m.full_name === effectiveMember);
-    const booking = {
-      id: `b${bookings.length + 1}`,
-      member: effectiveMember,
-      member_id: foundMember ? foundMember.id : null,
-      adminBooked: currentUser === 'admin',
-      building: newBooking.building,
-      roomId: newBooking.roomId,
-      roomName: room.name,
-      startDate: newBooking.startDate,
-      endDate: newBooking.endDate,
-      guests: newBooking.guests,
-      dailyMeals: newBooking.dailyMeals,
-      memberArrival: newBooking.memberArrival,
-      guestArrival: newBooking.guestArrival,
-      isGuest: newBooking.isGuestRoom ? 'GUEST' : 'MEMBER',
-      isGuestRoom: newBooking.isGuestRoom ? 'GUEST' : 'MEMBER',
-      stayingInCottage: newBooking.stayingInCottage || false,
-      provisional: isProvisional
-    };
-
-    fetch('http://localhost:3001/api/bookings', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(booking)
-    })
-      .then(() => {
-        setBookings([...bookings, booking]);
-        setView('my-reservations');
-        setBookingStep(1);
-        setNewBooking({
-          building: '',
-          roomId: '',
-          startDate: '',
-          endDate: '',
-          guests: 1,
-          dailyMeals: {},
-          memberArrival: '',
-          guestArrival: '',
-          isGuestRoom: false
-        });
-        setBookingWarnings([]);
-      })
-      .catch(err => {
-        console.error("Error saving booking:", err);
-        // Fallback to local state if server fails
-        setBookings([...bookings, booking]);
-        setView('my-reservations');
-        setBookingStep(1);
-        setNewBooking({
-          building: '',
-          roomId: '',
-          startDate: '',
-          endDate: '',
-          guests: 1,
-          dailyMeals: {},
-          memberArrival: '',
-          guestArrival: '',
-          isGuestRoom: false
-        });
-        setBookingWarnings([]);
-      });
-  };
-
-  const confirmMultiRoomBooking = (roomBookings, partyArrivalTime, stayingInCottage, bookingMember = currentUser) => {
+  const confirmMultiRoomBooking = (roomBookings, partyArrivalTime, stayingInCottage, bookingMember = currentUser, paymentDetails = {}) => {
 
     const newBookings = [];
     const bookingsToRemove = [];
@@ -3882,7 +3671,11 @@ function ClubReservationSystem() {
         isGuestRoom: roomBooking.isGuest === 'MEMBER' || roomBooking.isGuest === false ? 'MEMBER' : 'GUEST',
         memberStayRoom: stayingInCottage ? 'Cottage' : null,
         stayingInCottage: stayingInCottage || false,
-        provisional: isProvisional
+        provisional: isProvisional,
+        paymentAmount: paymentDetails.paymentAmount || 0,
+        paymentStatus: paymentDetails.paymentStatus || 'PENDING',
+        paymentMethod: paymentDetails.paymentMethod || null,
+        paymentReference: paymentDetails.paymentReference || null
       };
 
       newBookings.push(booking);
@@ -3891,7 +3684,7 @@ function ClubReservationSystem() {
 
     // Refactored to save to SQLite backend
     Promise.all(newBookings.map(booking =>
-      fetch('http://localhost:3001/api/bookings', {
+      fetch('/api/bookings', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(booking)
@@ -3901,7 +3694,7 @@ function ClubReservationSystem() {
         // Remove provisional bookings that were bumped
         if (bookingsToRemove.length > 0) {
           Promise.all(bookingsToRemove.map(id =>
-            fetch(`http://localhost:3001/api/bookings/${id}`, { method: 'DELETE' })
+            fetch(`/api/bookings/${id}`, { method: 'DELETE' })
           )).catch(err => console.error("Error deleting bumped bookings:", err));
         }
 
@@ -3920,7 +3713,7 @@ function ClubReservationSystem() {
           };
           newMessages.push(message);
 
-          fetch('http://localhost:3001/api/messages', {
+          fetch('/api/messages', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -3951,7 +3744,7 @@ function ClubReservationSystem() {
   const approveBooking = (booking) => {
     if (!confirm(`Accept provisional Lazy Lodge booking for ${booking.member}?`)) return;
     const updated = { ...booking, provisional: false };
-    fetch(`http://localhost:3001/api/bookings/${booking.id}`, {
+    fetch(`/api/bookings/${booking.id}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(updated)
@@ -3964,7 +3757,7 @@ function ClubReservationSystem() {
   };
 
   const cancelBooking = (bookingId) => {
-    fetch(`http://localhost:3001/api/bookings/${bookingId}`, {
+    fetch(`/api/bookings/${bookingId}`, {
       method: 'DELETE',
     })
       .then(() => {
@@ -3983,7 +3776,7 @@ function ClubReservationSystem() {
   };
 
   const saveBookingEdits = (updatedBooking) => {
-    fetch(`http://localhost:3001/api/bookings/${updatedBooking.id}`, {
+    fetch(`/api/bookings/${updatedBooking.id}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(updatedBooking)
@@ -4000,60 +3793,95 @@ function ClubReservationSystem() {
       });
   };
 
-  const downloadBookingsCSV = () => {
+  const downloadBookingsPDF = () => {
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF('l', 'mm', 'a4');
+
     const headers = [
-      'ID', 'Member', 'Building', 'Room', 'Start Date', 'End Date',
-      'Nights', 'Guests', 'Guest Room', 'Cottage Stay', 'Provisional',
-      'Breakfasts', 'Lunches', 'Bar Suppers',
-      'Packed Breakfasts', 'Packed Lunches', 'Packed Suppers'
+      'Date', 'Day', 'Member', 'Building', 'Room',
+      'Occupant Name', 'Occupant Type',
+      'Brk', 'Lun', 'Sup', 'P-Brk', 'P-Lun', 'P-Sup'
     ];
 
-    const rows = bookings.map(b => {
+    const getLocalISO = (date) => {
+      const offset = date.getTimezoneOffset();
+      const adjusted = new Date(date.getTime() - (offset * 60 * 1000));
+      return adjusted.toISOString().split('T')[0];
+    };
+
+    const rows = [];
+    bookings.forEach(b => {
       const start = new Date(b.startDate + 'T00:00:00');
       const end = new Date(b.endDate + 'T00:00:00');
-      const nights = Math.ceil(Math.abs(end - start) / (1000 * 60 * 60 * 24));
 
-      // Calculate meal counts from dailyMeals
-      let brk = 0, lun = 0, sup = 0, pBrk = 0, pLun = 0, pSup = 0;
-      if (b.dailyMeals) {
-        Object.values(b.dailyMeals).forEach(m => {
-          if (m.breakfast) brk++;
-          if (m.lunch) lun++;
-          if (m.barSupper) sup++;
-          if (m.packedBreakfast) pBrk++;
-          if (m.packedLunch) pLun++;
-          if (m.packedBarSupper) pSup++;
-        });
+      const guestsCount = b.guests || 1;
+      const isMemberRoom = b.isGuest === 'GUEST' ? false : (b.isGuest === 'MEMBER' || b.isGuest === false);
+      const isCottageStay = b.stayingInCottage;
+
+      const occupants = [];
+      if (isMemberRoom || isCottageStay) {
+        occupants.push({ name: b.member, type: 'Member' });
+        for (let i = 1; i < guestsCount; i++) {
+          occupants.push({ name: `Guest of ${b.member}`, type: 'Guest' });
+        }
+      } else {
+        const label = b.guestName || `Guest of ${b.member}`;
+        for (let i = 0; i < guestsCount; i++) {
+          occupants.push({ name: label, type: 'Guest' });
+        }
       }
 
-      return [
-        b.id,
-        b.member,
-        b.building,
-        b.roomName,
-        b.startDate,
-        b.endDate,
-        nights,
-        b.guests,
-        b.isGuestRoom,
-        b.stayingInCottage ? 'Yes' : 'No',
-        b.provisional ? 'Yes' : 'No',
-        brk * b.guests,
-        lun * b.guests,
-        sup * b.guests,
-        pBrk * b.guests,
-        pLun * b.guests,
-        pSup * b.guests
-      ];
+      let current = new Date(start);
+      while (current < end) {
+        const dStr = getLocalISO(current);
+        const dayName = current.toLocaleDateString('en-US', { weekday: 'short' });
+        const meals = b.dailyMeals?.[dStr] || {};
+
+        occupants.forEach(occ => {
+          rows.push([
+            dStr,
+            dayName,
+            b.member,
+            b.building,
+            b.roomName,
+            occ.name,
+            occ.type,
+            meals.breakfast ? 1 : 0,
+            meals.lunch ? 1 : 0,
+            meals.barSupper ? 1 : 0,
+            meals.packedBreakfast ? 1 : 0,
+            meals.packedLunch ? 1 : 0,
+            meals.packedBarSupper ? 1 : 0
+          ]);
+        });
+        current.setDate(current.getDate() + 1);
+      }
     });
 
-    const csvContent = [
-      headers.join(','),
-      ...rows.map(row => row.join(','))
-    ].join('\n');
+    rows.sort((a, b) => {
+      if (a[0] !== b[0]) return a[0].localeCompare(b[0]);
+      if (a[4] !== b[4]) return a[4].localeCompare(b[4]);
+      return String(a[5]).localeCompare(String(b[5]));
+    });
 
-    setExportData(csvContent);
-    setShowExportModal(true);
+    doc.text('Bookings Export', 14, 15);
+    doc.autoTable({
+      head: [headers],
+      body: rows,
+      startY: 20,
+      theme: 'striped',
+      styles: { fontSize: 7, cellPadding: 1 },
+      headStyles: { fillColor: [6, 78, 59] },
+      columnStyles: {
+        0: { cellWidth: 20 },
+        1: { cellWidth: 10 },
+        7: { cellWidth: 7 },
+        8: { cellWidth: 7 },
+        9: { cellWidth: 7 }
+      }
+    });
+
+    doc.save(`bookings-${new Date().toISOString().split('T')[0]}.pdf`);
   };
 
   // Main render
@@ -4061,6 +3889,8 @@ function ClubReservationSystem() {
     return <LoginView
       username={loginUsername}
       setUsername={setLoginUsername}
+      password={loginPassword}
+      setPassword={setLoginPassword}
       handleLogin={handleLogin}
     />;
   }
@@ -4072,11 +3902,12 @@ function ClubReservationSystem() {
         view={view}
         setView={(v) => { setEditingBooking(null); setView(v); }}
         setCurrentUser={setCurrentUser}
-        downloadCSV={downloadBookingsCSV}
+        downloadPDF={downloadBookingsPDF}
         onLogoutClick={() => setShowLogoutConfirm(true)}
+        onSettingsClick={() => setShowSettings(true)}
       />
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div className="max-w-[1400px] mx-auto px-4 lg:px-8 py-10">
         {editingBooking ? (
           <EditBookingDetails
             booking={editingBooking}
@@ -4089,85 +3920,83 @@ function ClubReservationSystem() {
             currentUser={currentUser}
           />
         ) : (<>
-          {view === 'calendar' && bookingMode !== 'details' && <CalendarView
+          {(view === 'calendar' || view === 'reserve-pay') && bookingMode !== 'details' && <CalendarView
             currentDate={currentDate}
             calendarView={calendarView}
             setCalendarView={setCalendarView}
-            navigateCalendar={navigateCalendar}
             setCurrentDate={setCurrentDate}
-            startBooking={startBooking}
-            inventory={inventory}
-            isRoomAvailable={isRoomAvailable}
             bookings={bookings}
+            inventory={inventory}
+            selectedDate={selectedDate}
+            setSelectedDate={setSelectedDate}
             selectedCells={selectedCells}
             setSelectedCells={setSelectedCells}
             setBookingMode={setBookingMode}
+            onEditBooking={setEditingBooking}
             currentUser={currentUser}
             hasRentedLazyLodge={hasRentedLazyLodge}
-            onEditBooking={handleEditBooking}
           />}
-          {view === 'calendar' && bookingMode === 'details' && <MultiRoomBookingDetails
-            selectedCells={selectedCells}
-            setSelectedCells={setSelectedCells}
-            setBookingMode={setBookingMode}
-            getRoomById={getRoomById}
-            confirmMultiRoomBooking={confirmMultiRoomBooking}
-            mealTimesConfig={mealTimes}
-            currentUser={currentUser}
-            memberList={memberList}
-          />}
-          {view === 'booking' && <BookingFlow
-            bookingStep={bookingStep}
-            setBookingStep={setBookingStep}
-            newBooking={newBooking}
-            setNewBooking={setNewBooking}
-            bookingWarnings={bookingWarnings}
-            setBookingWarnings={setBookingWarnings}
-            confirmBooking={confirmBooking}
-            setView={setView}
-            isRoomAvailable={isRoomAvailable}
-            getRoomById={getRoomById}
-            inventory={inventory}
-            validateAndProceed={validateAndProceed}
-            getAllRooms={getAllRooms}
-            mealTimesConfig={mealTimes}
-            bookings={bookings}
-            memberList={memberList}
-          />}
-          {view === 'my-reservations' && <MyReservationsView
-            bookings={bookings}
-            currentUser={currentUser}
-            getRoomById={getRoomById}
-            cancelBooking={cancelBooking}
-            approveBooking={approveBooking}
-            setView={setView}
-            onEditBooking={handleEditBooking}
-          />}
-          {view === 'dashboard' && currentUser === 'admin' && (
-            <DashboardView
-              bookings={bookings}
-              inventory={inventory}
-              maxRoomThreshold={maxRoomThreshold}
-              setMaxRoomThreshold={setMaxRoomThreshold}
-              mealTimes={mealTimes}
-              setMealTimes={setMealTimes}
+
+          {(view === 'calendar' || view === 'reserve-pay') && bookingMode === 'details' && (
+            <MultiRoomBookingDetails
+              selectedCells={selectedCells}
+              setSelectedCells={setSelectedCells}
+              setBookingMode={setBookingMode}
+              getRoomById={getRoomById}
+              confirmMultiRoomBooking={confirmMultiRoomBooking}
+              mealTimesConfig={mealTimes}
+              currentUser={currentUser}
+              isPayFlow={view === 'reserve-pay'}
             />
           )}
+
+
+
+          {view === 'my-reservations' && (
+            <MyReservationsView
+              bookings={bookings}
+              currentUser={currentUser}
+              getRoomById={getRoomById}
+              cancelBooking={cancelBooking}
+              setView={setView}
+              onEditBooking={setEditingBooking}
+              approveBooking={approveBooking}
+              setPaymentBooking={setPaymentBooking}
+              setShowPaymentModal={setShowPaymentModal}
+            />
+          )}
+
+          {view === 'dashboard' && currentUser === 'admin' && (
+            <AdminDashboard bookings={bookings} members={memberList} />
+          )}
+
           {view === 'messages' && <MessagesView
             messages={messages}
             currentUser={currentUser}
-            validUsers={['admin', 'Chris', 'Markley', 'David', 'Rob', 'Kerry'].filter(u => u !== currentUser)}
+            validUsers={['admin', 'ChrisP', 'VS1', 'VS2', 'VS3', 'VS4', 'VS5'].filter(u => u !== currentUser)}
             sendMessage={(recipient, subject, body) => {
               const newMessage = {
                 id: `m${Date.now()}`,
                 sender: currentUser,
                 recipient,
                 subject,
-                body,
+                text: body,
                 timestamp: new Date().toISOString(),
                 read: false
               };
               setMessages([newMessage, ...messages]);
+
+              fetch('/api/messages', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  from_user: currentUser,
+                  to_user: recipient,
+                  subject,
+                  text: body,
+                  timestamp: newMessage.timestamp
+                })
+              }).catch(err => console.error("Error sending message:", err));
             }}
           />}
           {view === 'reporting' && currentUser !== 'admin' && <ReportingView
@@ -4181,17 +4010,27 @@ function ClubReservationSystem() {
         message="Are you sure you want to sign out?"
         onConfirm={() => {
           setCurrentUser(null);
-          setView('login');
           setShowLogoutConfirm(false);
+          setLoginUsername('');
+          setLoginPassword('');
+          setView('login');
         }}
         onCancel={() => setShowLogoutConfirm(false)}
       />
 
-      <ExportModal
-        isOpen={showExportModal}
-        onClose={() => setShowExportModal(false)}
-        data={exportData}
-        filename={`tuscarora_bookings_${new Date().toISOString().split('T')[0]}.csv`}
+      <SettingsModal
+        isOpen={showSettings}
+        onClose={() => setShowSettings(false)}
+        currentUser={currentUser}
+      />
+
+
+      <PaymentModal 
+        isOpen={showPaymentModal} 
+        onClose={() => setShowPaymentModal(false)} 
+        booking={paymentBooking}
+        currentUser={currentUser}
+        onPaymentSuccess={handlePaymentSuccess}
       />
     </div>
   );
