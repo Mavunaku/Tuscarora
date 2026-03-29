@@ -67,6 +67,28 @@
       return adjusted.toISOString().split('T')[0];
     };
 
+    const MEMBER_ORDER = [
+      'atwatere', 'benelloa', 'bessa', 'dibonaventurac', 'boyerm', 
+      'brennanr', 'browna', 'brownm', 'brownr', 'christd', 
+      'ciambruschinis', 'cogginsd', 'coliej', 'corbinp', 'corbinpe', 
+      'cudaf', 'cunninghamj', 'daviesa', 'devilbissr', 'ewingd', 
+      'fergusonj', 'finnegand', 'freemana', 'hardyr', 'hessro', 
+      'hillr', 'huttof', 'jewettf', 'jewettj', 'jewetts', 
+      'kelloggp', 'kosloskyk', 'leisenringe', 'lewisr', 'lucianof', 
+      'luncefordk', 'mahoneyd', 'nicholsonb', 'oharem', 'otwayj', 
+      'otwaym', 'otwaymo', 'parkera', 'paulsenc', 'reesee', 
+      'sawyerp', 'shingletonb', 'wunderw', 'yurdaye', 'lewc', 
+      'fergusonc', 'hessd', 'kellerm', 'bernsj', 'admin'
+    ];
+
+    const sortMembersOrder = (a, b) => {
+      let idxA = MEMBER_ORDER.indexOf(a.login);
+      let idxB = MEMBER_ORDER.indexOf(b.login);
+      if (idxA === -1) idxA = 999;
+      if (idxB === -1) idxB = 999;
+      return idxA - idxB;
+    };
+
     // Icon Shim for Vanilla Lucide
     const LucideIcon = ({ name, className = "" }) => {
       const iconRef = React.useRef(null);
@@ -255,7 +277,7 @@
                     required
                   >
                     <option value="" disabled>Select your username...</option>
-                    {(memberList || []).map(member => (
+                    {(memberList || []).sort(sortMembersOrder).map(member => (
                       <option key={member.login} value={member.login}>
                         {member.login} {member.full_name ? `(${member.full_name})` : ''}
                       </option>
@@ -292,8 +314,71 @@
       );
     };
 
+    const ProfileField = ({ label, value, isEditing, onChange }) => (
+      <div className="space-y-1">
+        <label className="text-[9px] font-black uppercase tracking-widest text-stone-400 block ml-1">{label}</label>
+        {isEditing ? (
+          <input
+            type="text"
+            value={value || ''}
+            onChange={e => onChange(e.target.value)}
+            className="w-full px-4 py-2 bg-white border border-stone-200 rounded-xl text-xs font-bold text-stone-800 outline-none focus:ring-2 focus:ring-emerald-500/10 focus:border-emerald-500 transition-all"
+          />
+        ) : (
+          <div className="w-full px-4 py-2 bg-stone-50/50 border border-transparent rounded-xl text-xs font-bold text-stone-700">
+            {value || '—'}
+          </div>
+        )}
+      </div>
+    );
+
     // Login View
     const LoginView = ({ username, setUsername, password, setPassword, handleLogin, memberList, setView }) => {
+      const [showPassword, setShowPassword] = React.useState(false);
+      const [profileData, setProfileData] = React.useState(null);
+      const [isProfileConfirmed, setIsProfileConfirmed] = React.useState(false);
+      const [isEditingProfile, setIsEditingProfile] = React.useState(false);
+      const [loadingProfile, setLoadingProfile] = React.useState(false);
+
+      React.useEffect(() => {
+        if (username) {
+          setLoadingProfile(true);
+          setProfileData(null);
+          setIsProfileConfirmed(false);
+          
+          const fallback = memberList.find(m => m.login === username);
+          if (fallback) {
+            setProfileData({
+              fullName: fallback.full_name || '',
+              email: fallback.email || '',
+              phone: fallback.phone_number || '',
+              address: '',
+              occupation: '',
+              username: fallback.login
+            });
+          }
+
+          fetch(`/api/sheet-profile/${username}`)
+            .then(res => res.json())
+            .then(data => {
+              if (data && !data.error) setProfileData(data);
+            })
+            .catch(() => { })
+            .finally(() => setLoadingProfile(false));
+        }
+      }, [username, memberList]);
+
+      const handleProfileConfirm = () => {
+        if (isEditingProfile) {
+          fetch('/api/sheet-profile-update', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(profileData)
+          });
+        }
+        setIsProfileConfirmed(true);
+        setIsEditingProfile(false);
+      };
       return (
         <div className="min-h-screen bg-stone-50 flex flex-col items-center justify-center p-6 relative overflow-hidden">
           {/* Background Accents */}
@@ -317,43 +402,96 @@
                 <div className="relative">
                   <select
                     value={username}
-                    onChange={(e) => setUsername(e.target.value)}
+                    onChange={(e) => {
+                      setUsername(e.target.value);
+                      setIsProfileConfirmed(false);
+                    }}
                     className="w-full h-16 pl-14 pr-10 bg-stone-50 border-2 border-stone-100 rounded-2xl focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-500 transition-all font-bold text-stone-800 outline-none appearance-none"
                     autoFocus
                   >
-                    <option value="" disabled>Select your username...</option>
-                    {(memberList || []).map(member => (
-                      <option key={member.login} value={member.login}>
-                        {member.login} {member.full_name ? `(${member.full_name})` : ''}
-                      </option>
-                    ))}
+                    <option value="" disabled>Select your name...</option>
+                    {(memberList || [])
+                      .sort(sortMembersOrder)
+                      .map(member => (
+                        <option key={member.login} value={member.login}>
+                          {member.full_name || member.login} ({member.login})
+                        </option>
+                      ))}
                   </select>
                   <LucideIcon name="user" className="absolute left-5 top-1/2 -translate-y-1/2 w-6 h-6 text-stone-300 pointer-events-none" />
                   <LucideIcon name="chevron-down" className="absolute right-5 top-1/2 -translate-y-1/2 w-5 h-5 text-stone-300 pointer-events-none" />
                 </div>
               </div>
 
-              <div className="space-y-2">
-                <label className="text-[10px] font-black uppercase tracking-widest text-stone-400 ml-1">Password</label>
-                <div className="relative">
-                  <input
-                    type="password"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    className="w-full h-16 pl-14 pr-6 bg-stone-50 border-2 border-stone-100 rounded-2xl focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-500 transition-all font-bold text-stone-800 outline-none"
-                    placeholder="••••••••"
-                  />
-                  <LucideIcon name="lock" className="absolute left-5 top-1/2 -translate-y-1/2 w-6 h-6 text-stone-300" />
+              {loadingProfile && (
+                <div className="flex items-center justify-center py-4">
+                  <div className="w-6 h-6 border-2 border-emerald-900/10 border-t-emerald-900 rounded-full animate-spin"></div>
                 </div>
-              </div>
+              )}
 
-              <button
-                type="submit"
-                className="w-full bg-emerald-900 text-white h-16 rounded-2xl hover:bg-emerald-950 transition-all font-black uppercase tracking-widest text-sm shadow-xl shadow-emerald-900/10 active:scale-95 flex items-center justify-center gap-3 mt-4"
-              >
-                Access Portal
-                <LucideIcon name="chevron-right" className="w-5 h-5" />
-              </button>
+              {username && profileData && !isProfileConfirmed && (
+                <div className="bg-stone-50 rounded-2xl p-6 border border-stone-100 space-y-4 animate-in fade-in slide-in-from-top-2">
+                  <div className="flex justify-between items-center mb-2">
+                    <h3 className="text-[10px] font-black uppercase tracking-widest text-emerald-800">Verify Your Information</h3>
+                    <button
+                      type="button"
+                      onClick={() => setIsEditingProfile(!isEditingProfile)}
+                      className="text-[9px] font-black text-amber-600 uppercase tracking-widest hover:text-amber-700 underline"
+                    >
+                      {isEditingProfile ? 'Cancel Edit' : 'Edit Info'}
+                    </button>
+                  </div>
+
+                  <div className="space-y-4">
+                    <ProfileField label="Full Name" value={profileData.fullName} isEditing={isEditingProfile} onChange={v => setProfileData({ ...profileData, fullName: v })} />
+                    <ProfileField label="Email Address" value={profileData.email} isEditing={isEditingProfile} onChange={v => setProfileData({ ...profileData, email: v })} />
+                    <ProfileField label="Phone Number" value={profileData.phone} isEditing={isEditingProfile} onChange={v => setProfileData({ ...profileData, phone: v })} />
+                    <ProfileField label="Address" value={profileData.address} isEditing={isEditingProfile} onChange={v => setProfileData({ ...profileData, address: v })} />
+                    <ProfileField label="Occupation" value={profileData.occupation} isEditing={isEditingProfile} onChange={v => setProfileData({ ...profileData, occupation: v })} />
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={handleProfileConfirm}
+                    className="w-full mt-4 bg-emerald-700 text-white h-12 rounded-xl hover:bg-emerald-800 transition-all font-black uppercase tracking-widest text-[10px] shadow-lg shadow-emerald-900/10 active:scale-95 flex items-center justify-center gap-2"
+                  >
+                    Confirm & Continue
+                    <LucideIcon name="check-circle" className="w-4 h-4" />
+                  </button>
+                </div>
+              )}
+
+              {isProfileConfirmed && (
+                <div className="space-y-2 animate-in fade-in zoom-in-95">
+                  <label className="text-[10px] font-black uppercase tracking-widest text-stone-400 ml-1">Password</label>
+                  <div className="relative">
+                    <input
+                      type={showPassword ? "text" : "password"}
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      className="w-full h-16 pl-14 pr-14 bg-stone-50 border-2 border-stone-100 rounded-2xl focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-500 transition-all font-bold text-stone-800 outline-none"
+                      placeholder="••••••••"
+                      autoFocus
+                    />
+                    <LucideIcon name="lock" className="absolute left-5 top-1/2 -translate-y-1/2 w-6 h-6 text-stone-300" />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="absolute right-5 top-1/2 -translate-y-1/2 text-stone-300 hover:text-emerald-700 transition-colors focus:outline-none"
+                    >
+                      <LucideIcon name={showPassword ? "eye-off" : "eye"} className="w-5 h-5" />
+                    </button>
+                  </div>
+
+                  <button
+                    type="submit"
+                    className="w-full bg-emerald-900 text-white h-16 rounded-2xl hover:bg-emerald-950 transition-all font-black uppercase tracking-widest text-sm shadow-xl shadow-emerald-900/10 active:scale-95 flex items-center justify-center gap-3 mt-4"
+                  >
+                    Access Portal
+                    <LucideIcon name="chevron-right" className="w-5 h-5" />
+                  </button>
+                </div>
+              )}
             </form>
 
             <div className="mt-8 text-center flex justify-center items-center">
@@ -1053,9 +1191,17 @@
       confirmMultiRoomBooking,
       mealTimesConfig,
       currentUser,
-      memberList
+      memberList,
+      isPayFlow = false
     }) => {
-      const [step, setStep] = React.useState(1); // 1: Occupancy, 2: Meals, 3: Review
+      const [step, setStep] = React.useState(1); // 1: Occupancy, 2: Meals, 3: Review, 4: Payment
+      const [selectedPaymentMethod, setSelectedPaymentMethod] = React.useState('CREDIT_CARD');
+      const [paymentData, setPaymentData] = React.useState({
+        cardholder: '', // Set in useEffect
+        cardNumber: '',
+        expiry: '',
+        cvv: ''
+      });
       const [adminBookingMember, setAdminBookingMember] = React.useState('');
 
       const selectedMemberObj = currentUser === 'admin'
@@ -1063,6 +1209,12 @@
         : memberList.find(m => m.login === currentUser);
 
       const effectiveMember = selectedMemberObj ? selectedMemberObj.login : currentUser;
+
+      React.useEffect(() => {
+        if (!paymentData.cardholder && effectiveMember) {
+          setPaymentData(prev => ({ ...prev, cardholder: effectiveMember }));
+        }
+      }, [effectiveMember]);
 
       // Group selected cells by room into continuous date ranges
       const groupSelectionsByRoom = () => {
@@ -1214,6 +1366,16 @@
         return initializeDefaultMeals(allDates);
       });
 
+      const bookingTotal = React.useMemo(() => {
+        let total = 0;
+        roomBookings.forEach(rb => {
+          const room = getRoomById(rb.roomId);
+          if (room) {
+            total += (room.price || 0) * rb.dates.length;
+          }
+        });
+        return total;
+      }, [roomBookings, getRoomById]);
 
       const updateRoomBooking = (index, field, value) => {
         const updated = [...roomBookings];
@@ -1365,7 +1527,29 @@
           }
         }
 
-        confirmMultiRoomBooking(finalizedRoomBookings, partyArrivalTime, stayingInCottage, effectiveMember);
+
+        if (isPayFlow && step === 3) {
+          setStep(4);
+          return;
+        }
+        if (isPayFlow && step === 4 && selectedPaymentMethod === 'CREDIT_CARD') {
+          if (!paymentData.cardNumber || !paymentData.expiry || !paymentData.cvv) {
+            alert("Please complete all credit card fields.");
+            return;
+          }
+        }
+
+        const paymentDetails = isPayFlow ? {
+          paymentAmount: bookingTotal,
+          paymentStatus: (selectedPaymentMethod === 'CLUB_ACCOUNT' || selectedPaymentMethod === 'BANK_TRANSFER') ? 'PENDING' : 'PAID',
+          paymentMethod: selectedPaymentMethod,
+          paymentReference: `REF-${Date.now()}`
+        } : {
+          paymentAmount: 0,
+          paymentStatus: 'PENDING'
+        };
+
+        confirmMultiRoomBooking(finalizedRoomBookings, partyArrivalTime, stayingInCottage, effectiveMember, paymentDetails);
       };
 
 
@@ -1391,6 +1575,12 @@
             <StepIcon num={2} label="Meals" active={step === 2} completed={step > 2} onClick={() => setStep(2)} />
             <div className="w-12 h-px bg-stone-200"></div>
             <StepIcon num={3} label="Review" active={step === 3} completed={step > 3} onClick={() => setStep(3)} />
+            {isPayFlow && (
+              <>
+                <div className="w-12 h-px bg-stone-200"></div>
+                <StepIcon num={4} label="Payment" active={step === 4} completed={step > 4} onClick={() => step >= 4 && setStep(4)} />
+              </>
+            )}
           </div>
         </div>
       );
@@ -1480,8 +1670,8 @@
                         className="w-full h-12 px-4 bg-emerald-50/50 border border-emerald-200 rounded-xl focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all font-medium text-sm text-emerald-900 placeholder:text-emerald-300"
                       >
                         <option value="">Select a member...</option>
-                        {memberList.map(m => (
-                          <option key={m.id} value={m.full_name}>{m.full_name}</option>
+                        {memberList.sort(sortMembersOrder).map(m => (
+                          <option key={m.login || m.id} value={m.full_name}>{m.full_name}</option>
                         ))}
                       </select>
                     </div>
@@ -1905,16 +2095,97 @@
                     onClick={handleConfirm}
                     className="px-16 py-5 bg-emerald-600 text-white rounded-2xl hover:bg-emerald-700 transition-all font-black text-xl shadow-2xl shadow-emerald-900/20 active:scale-95 flex items-center gap-3"
                   >
-                    Finalize Booking
-                    <LucideIcon name="check-circle" className="w-6 h-6" />
+                    {isPayFlow ? 'Continue to Payment' : 'Finalize Booking'}
+                    <LucideIcon name={isPayFlow ? "credit-card" : "check-circle"} className="w-6 h-6" />
                   </button>
                 </div>
               </div>
-            )
-          }
-        </div >
-      );
-    };
+            )}
+
+            {isPayFlow && step === 4 && (
+              <div className="space-y-8 animate-in fade-in zoom-in-95 duration-500 max-w-4xl mx-auto pb-24 text-stone-900">
+                <div className="bg-white rounded-[2.5rem] border border-stone-200 overflow-hidden shadow-2xl shadow-emerald-900/5">
+                  <div className="grid grid-cols-1 lg:grid-cols-2">
+                    <div className="bg-emerald-900 p-10 text-white relative overflow-hidden">
+                      <div className="absolute top-0 right-0 w-64 h-64 bg-white/5 rounded-full -translate-y-32 translate-x-32 blur-3xl"></div>
+                      <div className="relative z-10 space-y-8">
+                        <div>
+                          <span className="text-[10px] font-black uppercase tracking-[0.3em] text-emerald-300/80 mb-2 block">Reservations Ledger</span>
+                          <h3 className="text-4xl font-light tracking-tight leading-tight">Secure Checkout</h3>
+                        </div>
+                        <div className="bg-white/10 backdrop-blur-md rounded-2xl p-6 border border-white/10 space-y-4">
+                          <div className="flex justify-between items-center pb-4 border-b border-white/10">
+                            <span className="text-emerald-100/60 text-xs font-bold uppercase tracking-widest">Base Rate Total</span>
+                            <span className="text-2xl font-light">${bookingTotal.toFixed(2)}</span>
+                          </div>
+                          <div className="pt-4 flex justify-between items-center text-amber-300">
+                            <span className="text-xs font-black uppercase tracking-[0.2em]">Payable Now</span>
+                            <span className="text-3xl font-black">${bookingTotal.toFixed(2)}</span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="p-10 space-y-8 bg-white">
+                      <label className="text-[10px] font-black uppercase tracking-[0.2em] text-stone-400 block">Payment Method</label>
+                      <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                        <PaymentMethodButton id="CREDIT_CARD" icon="credit-card" label="Card" active={selectedPaymentMethod === 'CREDIT_CARD'} onClick={setSelectedPaymentMethod} />
+                        <PaymentMethodButton id="CLUB_ACCOUNT" icon="user-circle" label="Club Acc." active={selectedPaymentMethod === 'CLUB_ACCOUNT'} onClick={setSelectedPaymentMethod} />
+                        <PaymentMethodButton id="PAYPAL" icon="wallet" label="PayPal" active={selectedPaymentMethod === 'PAYPAL'} onClick={setSelectedPaymentMethod} />
+                        <PaymentMethodButton id="APPLE_PAY" icon="smartphone" label="Apple" active={selectedPaymentMethod === 'APPLE_PAY'} onClick={setSelectedPaymentMethod} />
+                        <PaymentMethodButton id="BANK_TRANSFER" icon="landmark" label="Transfer" active={selectedPaymentMethod === 'BANK_TRANSFER'} onClick={setSelectedPaymentMethod} />
+                      </div>
+                      {selectedPaymentMethod === 'CREDIT_CARD' && (
+                        <div className="space-y-4 animate-in fade-in">
+                          <input type="text" placeholder="Cardholder Name" value={paymentData.cardholder} onChange={e => setPaymentData({ ...paymentData, cardholder: e.target.value })} className="w-full px-4 py-3 bg-stone-50 border border-stone-200 rounded-xl text-sm outline-none focus:border-emerald-500 transition-all font-bold" />
+                          <input type="text" placeholder="Card Number" value={paymentData.cardNumber} onChange={e => setPaymentData({ ...paymentData, cardNumber: e.target.value })} className="w-full px-4 py-3 bg-stone-50 border border-stone-200 rounded-xl text-sm outline-none focus:border-emerald-500 transition-all font-bold" />
+                          <div className="grid grid-cols-2 gap-4">
+                            <input type="text" placeholder="MM/YY" value={paymentData.expiry} onChange={e => setPaymentData({ ...paymentData, expiry: e.target.value })} className="w-full px-4 py-3 bg-stone-50 border border-stone-200 rounded-xl text-sm outline-none focus:border-emerald-500 transition-all font-bold" />
+                            <input type="password" placeholder="CVV" value={paymentData.cvv} onChange={e => setPaymentData({ ...paymentData, cvv: e.target.value })} className="w-full px-4 py-3 bg-stone-50 border border-stone-200 rounded-xl text-sm outline-none focus:border-emerald-500 transition-all font-bold" />
+                          </div>
+                        </div>
+                      )}
+                      {selectedPaymentMethod === 'CLUB_ACCOUNT' && (
+                        <div className="p-4 bg-emerald-50 text-emerald-900 rounded-xl border border-emerald-100 text-[11px] leading-relaxed">
+                          Total amount will be added to your monthly club charges for <strong>{effectiveMember}</strong>.
+                        </div>
+                      )}
+                      {selectedPaymentMethod === 'BANK_TRANSFER' && (
+                        <div className="p-4 bg-stone-50 text-stone-600 rounded-xl border border-stone-200 text-[11px] leading-relaxed">
+                          Reference No: <span className="text-emerald-700 font-bold">TUSC-{Date.now().toString().slice(-6)}</span><br />
+                          Bank: Chase Private Client
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                  <div className="flex justify-between items-center p-8 border-t border-stone-100">
+                    <button onClick={() => setStep(3)} className="flex items-center gap-2 text-stone-500 font-bold text-sm">
+                      <LucideIcon name="arrow-left" className="w-4 h-4" />
+                      Back to Review
+                    </button>
+                    <button onClick={handleConfirm} className="px-12 py-4 bg-emerald-900 text-white rounded-2xl font-black text-lg hover:bg-emerald-950 transition-all shadow-xl shadow-emerald-900/10 active:scale-95">
+                      {selectedPaymentMethod === 'CLUB_ACCOUNT' ? 'Confirm Charge' : 'Pay & Confirm'}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        );
+      };
+
+const PaymentMethodButton = ({ id, icon, label, active, onClick }) => (
+  <button
+    onClick={() => onClick(id)}
+    className={`p-3 rounded-2xl border-2 transition-all flex flex-col items-center gap-2 ${active
+      ? 'border-emerald-600 bg-emerald-50 text-emerald-900 shadow-sm'
+      : 'border-stone-100 bg-white hover:border-emerald-200 text-stone-400 font-medium'}`}
+  >
+    <div className={`p-2 rounded-xl transition-all ${active ? 'bg-emerald-600 text-white' : 'bg-stone-50 text-stone-400'}`}>
+      <LucideIcon name={icon} className="w-4 h-4" />
+    </div>
+    <span className="text-[9px] font-black uppercase tracking-tight">{label}</span>
+  </button>
+);
 
     const MealCheckbox = ({ id, label, time, checked, disabled, onChange, packed, onPackedChange }) => (
       <div className={`p-2 rounded-xl transition-all flex flex-col gap-1.5 ${disabled ? 'opacity-40 grayscale' : checked ? 'bg-emerald-50/50' : 'hover:bg-stone-50'}`}>
@@ -2856,7 +3127,7 @@
       const fetchMembers = () => {
         fetch('/api/members')
           .then(r => r.json())
-          .then(data => { if (!data.error) setMembers(data.filter(m => m.login !== 'admin')); });
+          .then(data => { if (!data.error) setMembers(data.filter(m => m.login !== 'admin').sort(sortMembersOrder)); });
       };
 
       React.useEffect(() => {
@@ -3906,7 +4177,7 @@
 
 
 
-      const confirmMultiRoomBooking = (roomBookings, partyArrivalTime, stayingInCottage, bookingMember = currentUser) => {
+      const confirmMultiRoomBooking = (roomBookings, partyArrivalTime, stayingInCottage, bookingMember = currentUser, paymentDetails = {}) => {
 
         const newBookings = [];
         const bookingsToRemove = [];
@@ -3955,7 +4226,8 @@
             isGuestRoom: roomBooking.isGuest === 'MEMBER' || roomBooking.isGuest === false ? 'MEMBER' : 'GUEST',
             memberStayRoom: stayingInCottage ? 'Cottage' : null,
             stayingInCottage: stayingInCottage || false,
-            provisional: isProvisional
+            provisional: isProvisional,
+            ...paymentDetails
           };
 
           newBookings.push(booking);
@@ -4170,6 +4442,8 @@
       const ForcedPasswordChangeView = ({ currentUser, onComplete }) => {
         const [newPass, setNewPass] = useState('');
         const [confirmPass, setConfirmPass] = useState('');
+        const [showPass1, setShowPass1] = useState(false);
+        const [showPass2, setShowPass2] = useState(false);
         const [error, setError] = useState('');
         const [loading, setLoading] = useState(false);
 
@@ -4216,25 +4490,43 @@
               <form onSubmit={handleUpdate} className="space-y-6">
                 <div>
                   <label className="text-[10px] font-black uppercase tracking-widest text-stone-400 block mb-2 px-1">New Password</label>
-                  <input
-                    type="password"
-                    value={newPass}
-                    onChange={e => setNewPass(e.target.value)}
-                    className="w-full h-14 px-6 bg-stone-50 border-2 border-stone-100 rounded-2xl focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-500 transition-all font-bold text-stone-800 outline-none"
-                    placeholder="••••••••"
-                    required
-                  />
+                  <div className="relative">
+                    <input
+                      type={showPass1 ? "text" : "password"}
+                      value={newPass}
+                      onChange={e => setNewPass(e.target.value)}
+                      className="w-full h-14 px-6 pr-12 bg-stone-50 border-2 border-stone-100 rounded-2xl focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-500 transition-all font-bold text-stone-800 outline-none"
+                      placeholder="••••••••"
+                      required
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPass1(!showPass1)}
+                      className="absolute right-4 top-1/2 -translate-y-1/2 text-stone-300 hover:text-emerald-700 transition-colors focus:outline-none"
+                    >
+                      <LucideIcon name={showPass1 ? "eye-off" : "eye"} className="w-5 h-5" />
+                    </button>
+                  </div>
                 </div>
                 <div>
                   <label className="text-[10px] font-black uppercase tracking-widest text-stone-400 block mb-2 px-1">Confirm Password</label>
-                  <input
-                    type="password"
-                    value={confirmPass}
-                    onChange={e => setConfirmPass(e.target.value)}
-                    className="w-full h-14 px-6 bg-stone-50 border-2 border-stone-100 rounded-2xl focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-500 transition-all font-bold text-stone-800 outline-none"
-                    placeholder="••••••••"
-                    required
-                  />
+                  <div className="relative">
+                    <input
+                      type={showPass2 ? "text" : "password"}
+                      value={confirmPass}
+                      onChange={e => setConfirmPass(e.target.value)}
+                      className="w-full h-14 px-6 pr-12 bg-stone-50 border-2 border-stone-100 rounded-2xl focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-500 transition-all font-bold text-stone-800 outline-none"
+                      placeholder="••••••••"
+                      required
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPass2(!showPass2)}
+                      className="absolute right-4 top-1/2 -translate-y-1/2 text-stone-300 hover:text-emerald-700 transition-colors focus:outline-none"
+                    >
+                      <LucideIcon name={showPass2 ? "eye-off" : "eye"} className="w-5 h-5" />
+                    </button>
+                  </div>
                 </div>
 
                 {error && <div className="p-4 bg-red-50 text-red-600 rounded-2xl text-xs font-bold text-center border border-red-100">{error}</div>}
@@ -4335,6 +4627,7 @@
                 mealTimesConfig={mealTimes}
                 currentUser={currentUser}
                 memberList={memberList}
+                isPayFlow={true}
               />}
 
 
@@ -4375,7 +4668,10 @@
                 <MessagesView
                   messages={messages}
                   currentUser={currentUser}
-                  validUsers={(memberList || []).map(m => m.login).filter(u => u !== currentUser)}
+                  validUsers={(memberList || [])
+                    .sort(sortMembersOrder)
+                    .map(m => m.login)
+                    .filter(u => u !== currentUser)}
                   sendMessage={(recipient, subject, body) => {
                     const m = { from: currentUser, to: recipient, subject: subject, text: body };
                     fetch('/api/messages', {

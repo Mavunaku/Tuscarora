@@ -6,6 +6,7 @@ const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
 const nodemailer = require('nodemailer');
+const https = require('https');
 
 // Email transporter — configure with your SMTP settings or use Gmail app password
 const transporter = nodemailer.createTransport({
@@ -179,7 +180,105 @@ function seedData() {
     });
 }
 
+// Helper to fetch spreadsheet data
+const SHEET_URL = 'https://docs.google.com/spreadsheets/d/1ZWBkBixjJb9Cx0yhzfb1RyOt5N26MnfluqRMknhNDHo/export?format=csv&gid=0';
+// INSTRUCTIONS: Set up a Google Apps Script as a Web App (Anyone with access) and paste the URL below to enable bidirectional sync.
+const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwVyUL4qYemA1eTY1KiFiOKOphwp3CFTo5sRnY8oWEAVumPCnwYd5FcCWmjEU9km-rVZA/exec'; 
+
+async function fetchURL(url, depth = 0) {
+    if (depth > 3) throw new Error('Too many redirects');
+    return new Promise((resolve, reject) => {
+        https.get(url, (res) => {
+            if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
+                fetchURL(res.headers.location, depth + 1).then(resolve).catch(reject);
+                return;
+            }
+            let data = '';
+            res.on('data', chunk => data += chunk);
+            res.on('end', () => resolve(data));
+        }).on('error', reject);
+    });
+}
+
+async function getSpreadsheetInfo(u) {
+    try {
+        const response = await fetchURL(SHEET_URL);
+        const lines = response.split(/\r?\n/).filter(l => l.trim() !== '');
+        const records = lines.slice(1);
+        
+        const debug = [];
+        debug.push(`Searching for: [${u}]`);
+
+        for (const line of records) {
+            const cleanCols = [];
+            let start = 0;
+            let inQuotes = false;
+            for (let i = 0; i < line.length; i++) {
+                if (line[i] === '"') inQuotes = !inQuotes;
+                if (line[i] === ',' && !inQuotes) {
+                    cleanCols.push(line.substring(start, i).replace(/^"|"$/g, '').trim());
+                    start = i + 1;
+                }
+            }
+            cleanCols.push(line.substring(start).replace(/^"|"$/g, '').trim());
+            
+            const cellU = cleanCols[1] ? cleanCols[1].trim() : '';
+            if (cellU.toLowerCase() === u.toLowerCase()) {
+                debug.push(`MATCH FOUND: [${cellU}]`);
+                require('fs').writeFileSync('debug_match.log', debug.join('\n'));
+                return {
+                    fullName: cleanCols[0] || '',
+                    username: cleanCols[1] || '',
+                    email: cleanCols[3] || '',
+                    phone: cleanCols[4] || '',
+                    address: cleanCols[5] || '',
+                    occupation: cleanCols[6] || '',
+                    notes: cleanCols[7] || '',
+                };
+            }
+        }
+        debug.push('No match found');
+        require('fs').writeFileSync('debug_match.log', debug.join('\n'));
+    } catch (e) {
+        console.error('Error fetching sheet info:', e.message);
+    }
+    return null;
+}
+
 // API Endpoints
+app.get('/api/sheet-profile/:username', async (req, res) => {
+    const info = await getSpreadsheetInfo(req.params.username);
+    if (info) res.json(info);
+    else res.status(404).json({ error: 'User not found in spreadsheet' });
+});
+
+app.post('/api/sheet-profile-update', async (req, res) => {
+    const info = req.body;
+    
+    // 1. Update local database first
+    db.run("UPDATE members SET full_name = ?, email = ?, phone_number = ? WHERE login = ?",
+        [info.fullName, info.email, info.phone, info.username],
+        (err) => {
+            if (err) return res.status(500).json({ error: err.message });
+            
+            // 2. Forward update to Google Spreadsheet (bidirectional sync)
+            if (GOOGLE_SCRIPT_URL) {
+                fetch(GOOGLE_SCRIPT_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(info)
+                }).then(sheetRes => sheetRes.json())
+                  .then(data => {
+                      if (data.success) console.log('Successfully synced with Google Spreadsheet');
+                      else console.error('Spreadsheet sync error:', data.error);
+                  })
+                  .catch(e => console.error('Failed to call Google Apps Script:', e.message));
+            }
+
+            res.json({ success: true, message: 'Profile updated locally. Sync initiated.' });
+        }
+    );
+});
 app.get('/api/members', (req, res) => {
     db.all("SELECT id, full_name, login, phone_number, email, password_changed FROM members", [], (err, rows) => {
         if (err) return res.status(500).json({ error: err.message });
