@@ -9,6 +9,25 @@ const path = require('path');
 const crypto = require('crypto');
 const nodemailer = require('nodemailer');
 const https = require('https');
+const { exec } = require('child_process');
+
+let syncTimeout = null;
+const syncToGitHub = () => {
+    if (process.env.NODE_ENV === 'production' || process.env.RENDER) {
+        if (syncTimeout) clearTimeout(syncTimeout);
+        syncTimeout = setTimeout(() => {
+            console.log('Production detected: Syncing changes to GitHub...');
+            // Pull first to avoid conflicts if possible, though Render is usually the only one writing
+            exec('git add . && git commit -m "Auto-sync vault changes" && git push mavunaku master', (error, stdout, stderr) => {
+                if (error) {
+                    console.error(`Git Sync Error: ${error.message}`);
+                    return;
+                }
+                console.log('Git Sync Success');
+            });
+        }, 5000); // Wait 5 seconds after last change
+    }
+};
 
 // Email transporter — configure with your SMTP settings or use Gmail app password
 const transporter = nodemailer.createTransport({
@@ -74,6 +93,7 @@ app.post('/api/sheet-profile-update', async (req, res) => {
     member.address = info.address || member.address;
     member.occupation = info.occupation || member.occupation;
     odb.saveMember(member);
+    syncToGitHub();
 
     // 2. Push Update to Google Spreadsheet
     // WE MUST PASTE THE DEPLOYED WEB APP URL HERE:
@@ -114,6 +134,7 @@ app.post('/api/profile/update', async (req, res) => {
     member.phone_number = info.phone;
     
     odb.saveMember(member);
+    syncToGitHub();
     res.json({ success: true, message: 'Profile updated in Obsidian.' });
 });
 app.get('/api/members', (req, res) => {
@@ -150,6 +171,7 @@ app.post('/api/bookings', (req, res) => {
     b.DateCreated = new Date().toISOString().split('T')[0];
 
     odb.saveBooking(b);
+    syncToGitHub();
 
     // Send booking confirmation email
     const member = odb.getMemberByLogin(b.member);
@@ -202,11 +224,13 @@ app.put('/api/bookings/:id', (req, res) => {
     const b = req.body;
     b.id = req.params.id;
     odb.saveBooking(b);
+    syncToGitHub();
     res.json({ message: 'Booking updated successfully' });
 });
 
 app.delete('/api/bookings/:id', (req, res) => {
     odb.deleteBooking(req.params.id);
+    syncToGitHub();
     res.json({ message: 'Booking deleted successfully' });
 });
 
@@ -236,6 +260,7 @@ app.post('/api/messages', (req, res) => {
         read: 0
     };
     odb.saveMessage(newMsg);
+    syncToGitHub();
     res.json({ id: newMsg.id, message: 'Message sent' });
 });
 
@@ -244,12 +269,14 @@ app.put('/api/messages/:id/read', (req, res) => {
     if (msg) {
         msg.read = 1;
         odb.saveMessage(msg);
+        syncToGitHub();
     }
     res.json({ message: 'Message marked as read' });
 });
 
 app.delete('/api/messages/:id', (req, res) => {
     odb.deleteMessage(req.params.id);
+    syncToGitHub();
     res.json({ message: 'Message deleted successfully' });
 });
 
@@ -297,6 +324,7 @@ app.post('/api/self/update-password', (req, res) => {
     member.password = newPassword;
     member.password_changed = 1;
     odb.saveMember(member);
+    syncToGitHub();
     res.json({ success: true, message: 'Password updated successfully' });
 });
 
@@ -309,6 +337,7 @@ app.post('/api/change-password', (req, res) => {
     member.password = newPassword;
     member.password_changed = 1;
     odb.saveMember(member);
+    syncToGitHub();
     res.json({ success: true, message: 'Password updated successfully' });
 });
 
@@ -335,6 +364,7 @@ app.post('/api/admin/members/update', isAdmin, (req, res) => {
     member.login = newLogin;
     member.role = newRole;
     odb.saveMember(member);
+    syncToGitHub();
     res.json({ success: true, message: 'Member updated successfully' });
 });
 
@@ -349,6 +379,7 @@ app.post('/api/admin/members/reset-to-default', isAdmin, (req, res) => {
         member.password = defaultPassword;
         member.password_changed = 0;
         odb.saveMember(member);
+    syncToGitHub();
     }
     res.json({ success: true, message: 'Password reset to default successfully' });
 });
@@ -480,6 +511,7 @@ app.put('/api/members/:login/email', (req, res) => {
     if (member) {
         member.email = email;
         odb.saveMember(member);
+    syncToGitHub();
     }
     res.json({ success: true });
 });
@@ -751,6 +783,7 @@ async function syncMembersFromSheet() {
         }
 
         odb.saveMember(member);
+    syncToGitHub();
     });
 
     console.log(`Sync complete. ${spreadsheetUsernames.size} members updated.`);
