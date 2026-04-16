@@ -49,18 +49,12 @@ const db = odb; // Alias for minimal code changes elsewhere
 app.use(cors());
 app.use(bodyParser.json());
 
-// Log every request to troubleshooting 404s
-app.use((req, res, next) => {
-    console.log(`[${new Date().toISOString()}] ${req.method} ${req.url}`);
-    next();
-});
-
 // Serve static files (index.html, etc.) from the project directory
 app.use(express.static(__dirname));
 
 // Explicitly serve index.html for the root path
 app.get('/', (req, res) => {
-    res.send('Tuscarora Server is ONLINE and running! If you see this, the connection is working.');
+    res.sendFile(path.join(__dirname, 'index.html'));
 });
 
 const toStatus = (val) => {
