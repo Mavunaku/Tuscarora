@@ -49,6 +49,12 @@ const db = odb; // Alias for minimal code changes elsewhere
 app.use(cors());
 app.use(bodyParser.json());
 
+// Log every request to troubleshooting 404s
+app.use((req, res, next) => {
+    console.log(`[${new Date().toISOString()}] ${req.method} ${req.url}`);
+    next();
+});
+
 // Serve static files (index.html, etc.) from the project directory
 app.use(express.static(__dirname));
 
