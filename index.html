@@ -52,6 +52,19 @@
         border: 1px solid #e5e7eb !important
       }
     }
+
+    @keyframes toast-in {
+      from { transform: translateY(100%) scale(0.9); opacity: 0; }
+      to { transform: translateY(0) scale(1); opacity: 1; }
+    }
+    
+    @keyframes toast-out {
+      from { transform: translateY(0) scale(1); opacity: 1; }
+      to { transform: translateY(-20px) scale(0.95); opacity: 0; }
+    }
+    
+    .animate-toast-in { animation: toast-in 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+    .animate-toast-out { animation: toast-out 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
   </style>
 </head>
 
@@ -113,6 +126,53 @@
       }, [name, className]);
 
       return <i ref={iconRef} data-lucide={name} className={className} style={{ display: 'inline-block' }}></i>;
+    };
+
+    const Toast = ({ message, type, onClose }) => {
+      const icons = {
+        success: 'check-circle',
+        error: 'alert-circle',
+        warning: 'alert-triangle',
+        info: 'info'
+      };
+      
+      const colors = {
+        success: 'bg-emerald-50 text-emerald-800 border-emerald-200',
+        error: 'bg-red-50 text-red-800 border-red-200',
+        warning: 'bg-amber-50 text-amber-800 border-amber-200',
+        info: 'bg-blue-50 text-blue-800 border-blue-200'
+      };
+
+      const iconColors = {
+        success: 'text-emerald-500',
+        error: 'text-red-500',
+        warning: 'text-amber-500',
+        info: 'text-blue-500'
+      };
+
+      return (
+        <div className={`${colors[type]} border shadow-xl rounded-2xl p-4 flex items-center gap-4 min-w-[320px] max-w-md animate-toast-in pointer-events-auto`}>
+          <div className={`${iconColors[type]} shrink-0`}>
+            <LucideIcon name={icons[type]} className="w-6 h-6" />
+          </div>
+          <div className="flex-1">
+             <p className="text-sm font-bold leading-snug">{message}</p>
+          </div>
+          <button onClick={onClose} className="p-1 hover:bg-black/5 rounded-lg transition-colors text-stone-400 hover:text-stone-900">
+            <LucideIcon name="x" className="w-4 h-4" />
+          </button>
+        </div>
+      );
+    };
+
+    const ToastContainer = ({ toasts, removeToast }) => {
+      return (
+        <div className="fixed bottom-8 left-1/2 -translate-x-1/2 z-[200] flex flex-col gap-3 pointer-events-none">
+          {toasts.map(toast => (
+            <Toast key={toast.id} {...toast} onClose={() => removeToast(toast.id)} />
+          ))}
+        </div>
+      );
     };
 
     const CalendarIcon = (props) => <LucideIcon name="calendar" {...props} />;
@@ -387,7 +447,7 @@
           <div className="w-full max-w-md bg-white rounded-[3rem] shadow-2xl p-12 border border-stone-100 relative z-10 animate-in fade-in zoom-in-95 duration-500">
             <div className="text-center mb-12">
               <div className="w-32 h-32 mx-auto mb-8 p-6 bg-stone-50 rounded-full shadow-inner border border-stone-100 flex items-center justify-center">
-                <img src="logo.png" alt="Tuscarora Club" className="w-full h-full object-contain filter drop-shadow-md" />
+                <img src="logo.png" alt="Tuscarora Club" className="w-full h-full object-contain filter drop-shadow-md scale-[2]" />
               </div>
               <h1 className="text-4xl font-light text-stone-900 tracking-tight leading-tight" style={{ fontFamily: 'Georgia, serif' }}>
                 The Tuscarora Club
@@ -509,6 +569,111 @@
       );
     };
 
+    const MyInfoView = ({ currentUser, memberList, showToast }) => {
+      const [profileData, setProfileData] = React.useState(null);
+      const [isEditingProfile, setIsEditingProfile] = React.useState(false);
+      const [loadingProfile, setLoadingProfile] = React.useState(true);
+
+      React.useEffect(() => {
+        if (currentUser && memberList && memberList.length > 0) {
+          setLoadingProfile(true);
+          const fallback = memberList.find(m => m.login === currentUser);
+          if (fallback) {
+            setProfileData({
+              fullName: fallback.full_name || '',
+              email: fallback.email || '',
+              phone: fallback.phone_number || '',
+              address: '',
+              occupation: '',
+              username: fallback.login
+            });
+          }
+
+          fetch(`/api/sheet-profile/${currentUser}`)
+            .then(res => res.json())
+            .then(data => {
+              if (data && !data.error) setProfileData(data);
+            })
+            .catch(() => { })
+            .finally(() => setLoadingProfile(false));
+        } else {
+           setLoadingProfile(false);
+        }
+      }, [currentUser, memberList]);
+
+      const handleSave = () => {
+        fetch('/api/sheet-profile-update', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(profileData)
+        }).then(() => {
+          setIsEditingProfile(false);
+          showToast('Information updated successfully!', 'success');
+        });
+      };
+
+      return (
+        <div className="bg-white rounded-[2rem] border border-stone-200 p-8 shadow-sm">
+          <div className="mb-6 flex justify-between items-center">
+             <h2 className="text-2xl font-light text-emerald-900 tracking-tight">Your Information</h2>
+             <button
+               type="button"
+               onClick={() => {
+                 if (isEditingProfile) handleSave();
+                 else setIsEditingProfile(true);
+               }}
+               className="px-4 py-2 bg-emerald-100 text-emerald-800 rounded-xl text-xs font-bold uppercase tracking-widest hover:bg-emerald-200 transition-colors"
+             >
+               {isEditingProfile ? 'Save Changes' : 'Edit Info'}
+             </button>
+          </div>
+          
+          
+          {loadingProfile ? (
+            <p className="text-stone-500">Loading...</p>
+          ) : profileData ? (
+             <div className="space-y-4 max-w-md">
+                <ProfileField label="Full Name" value={profileData.fullName} isEditing={isEditingProfile} onChange={v => setProfileData({ ...profileData, fullName: v })} />
+                <ProfileField label="Email Address" value={profileData.email} isEditing={isEditingProfile} onChange={v => setProfileData({ ...profileData, email: v })} />
+                <ProfileField label="Phone Number" value={profileData.phone} isEditing={isEditingProfile} onChange={v => setProfileData({ ...profileData, phone: v })} />
+                <ProfileField label="Address" value={profileData.address} isEditing={isEditingProfile} onChange={v => setProfileData({ ...profileData, address: v })} />
+                <ProfileField label="Occupation" value={profileData.occupation} isEditing={isEditingProfile} onChange={v => setProfileData({ ...profileData, occupation: v })} />
+             </div>
+          ) : (
+            <p className="text-stone-500">No profile data available.</p>
+          )}
+        </div>
+      );
+    };
+
+    const MembersInfoView = ({ memberList, showToast }) => {
+      const [selectedMember, setSelectedMember] = React.useState('');
+      return (
+        <div className="space-y-6">
+          <div className="bg-white rounded-[2rem] border border-stone-200 p-8 shadow-sm">
+            <h2 className="text-2xl font-light text-emerald-900 tracking-tight mb-6">Members Information</h2>
+            <div className="max-w-md mb-8 space-y-2">
+               <label className="text-[10px] font-black uppercase tracking-widest text-stone-400 block ml-1">Select Member</label>
+               <div className="relative">
+                 <select
+                   value={selectedMember}
+                   onChange={(e) => setSelectedMember(e.target.value)}
+                   className="w-full h-16 pl-4 pr-10 bg-stone-50 border-2 border-stone-100 rounded-2xl focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-500 transition-all font-bold text-stone-800 outline-none appearance-none"
+                 >
+                   <option value="">Choose a member...</option>
+                   {(memberList || []).sort(sortMembersOrder).map(m => (
+                     <option key={m.login} value={m.login}>{m.full_name || m.login} ({m.login})</option>
+                   ))}
+                 </select>
+                 <LucideIcon name="chevron-down" className="absolute right-5 top-1/2 -translate-y-1/2 w-5 h-5 text-stone-400 pointer-events-none" />
+               </div>
+            </div>
+            {selectedMember && <MyInfoView currentUser={selectedMember} memberList={memberList} showToast={showToast} />}
+          </div>
+        </div>
+      );
+    };
+
     // Calendar View
     const CalendarView = ({
       currentDate,
@@ -524,7 +689,8 @@
       setBookingMode,
       currentUser,
       hasRentedLazyLodge,
-      onEditBooking
+      onEditBooking,
+      showToast
     }) => {
       const getDaysInMonth = (date) => {
         const year = date.getFullYear();
@@ -966,7 +1132,7 @@
                                 }
 
                                 if (hasConflict) {
-                                  alert("Cannot extend Master Range: Primary room overlaps with an existing booking.");
+                                  showToast("Cannot extend Master Range: Primary room overlaps with an existing booking.", "error");
                                 } else {
                                   // Gather the new full list of Primary Dates
                                   const updatedPrimaryDates = [...roomSelections, ...newCells].map(c => c.date);
@@ -986,7 +1152,7 @@
                                   });
 
                                   if (guestConflictFound) {
-                                    alert("Cannot extend Master Range: One of your selected Guest Rooms is already booked on these new dates.");
+                                    showToast("Cannot extend Master Range: One of your selected Guest Rooms is already booked on these new dates.", "error");
                                   } else {
                                     setSelectedCells([...roomSelections, ...newCells, ...syncedGuestCells]);
                                   }
@@ -1014,7 +1180,7 @@
                             });
 
                             if (hasConflict) {
-                              alert("Cannot add room: This room is unfortunately booked during your Master Range dates.");
+                              showToast("Cannot add room: This room is unfortunately booked during your Master Range dates.", "error");
                             } else {
                               setSelectedCells([...selectedCells, ...newGuestCells]);
                             }
@@ -1188,7 +1354,8 @@
       mealTimesConfig,
       currentUser,
       memberList,
-      isPayFlow = false
+      isPayFlow = false,
+      showToast
     }) => {
     const [step, setStep] = React.useState(1); // 1: Occupancy, 2: Meals, 3: Review, 4: Payment
     const [agreedToTerms, setAgreedToTerms] = React.useState(false);
@@ -1455,7 +1622,7 @@
 
         if (hasGuests) {
           if (!hasMembers && !stayingInCottage) {
-            alert("Guests are only allowed when a member is also staying at the property. Please assign at least one room to a member.");
+            showToast("Guests are only allowed when a member is also staying at the property. Please assign at least one room to a member.", "warning");
             return;
           }
 
@@ -1489,7 +1656,7 @@
           if (invalidGuestRooms.length > 0) {
             // If admin is booking, we allow booking for a member overriding standard dates based on verbal approval
             if (currentUser !== 'admin') {
-              alert("Guest(s) are only allowed at the property during the same time as the member stays there. Please adjust the guest dates to fall within your stay.");
+              showToast("Guest(s) are only allowed at the property during the same time as the member stays there. Please adjust the guest dates to fall within your stay.", "warning");
               return;
             }
           }
@@ -1532,20 +1699,20 @@
         }
         if (isPayFlow && step === 4 && selectedPaymentMethod === 'CREDIT_CARD') {
           if (!paymentData.cardNumber || !paymentData.expiry || !paymentData.cvv) {
-            alert("Please complete all credit card fields.");
+            showToast("Please complete all credit card fields.", "warning");
             return;
           }
         }
 
         if (currentUser === 'admin' && (!adminBookingMember || effectiveMember === 'admin')) {
-          alert('Please select a member you are booking for (Step 1) before confirming.');
+          showToast('Please select a member you are booking for (Step 1) before confirming.', "info");
           setStep(1);
           return;
         }
 
         const isFinalizing = !isPayFlow || step === 4;
         if (isFinalizing && !agreedToTerms) {
-          alert("You must agree to the Club's Cancellation & Payment Terms to finalize your booking.");
+          showToast("You must agree to the Club's Cancellation & Payment Terms to finalize your booking.", "warning");
           return;
         }
 
@@ -3130,7 +3297,7 @@
 
 
     // Dashboard View (Admin Only)
-    const DashboardView = ({ bookings, inventory, maxRoomThreshold, setMaxRoomThreshold, mealTimes, setMealTimes }) => {
+    const DashboardView = ({ bookings, inventory, maxRoomThreshold, setMaxRoomThreshold, mealTimes, setMealTimes, showToast }) => {
       const [activeTab, setActiveTab] = React.useState('reports');
       const [isSyncing, setIsSyncing] = React.useState(false);
 
@@ -3143,12 +3310,12 @@
           .then(r => r.json())
           .then(data => {
             if (data.success) {
-              alert(data.message);
+              showToast(data.message, "success");
             } else {
-              alert(data.error || 'Sync failed');
+              showToast(data.error || 'Sync failed', "error");
             }
           })
-          .catch(() => alert('Network error during sync'))
+          .catch(() => showToast('Network error during sync', "error"))
           .finally(() => setIsSyncing(false));
       };
 
@@ -3188,6 +3355,13 @@
                 <LucideIcon name="users" className="w-4 h-4" />
                 <span>Members</span>
               </button>
+              <button
+                onClick={() => setActiveTab('database')}
+                className={`px-6 py-2 rounded-xl text-sm font-bold transition-all flex items-center gap-2 ${activeTab === 'database' ? 'bg-white text-emerald-700 shadow-sm' : 'text-stone-500 hover:text-stone-700'}`}
+              >
+                <LucideIcon name="database" className="w-4 h-4" />
+                <span>Database</span>
+              </button>
             </div>
           </div>
 
@@ -3195,7 +3369,33 @@
             {activeTab === 'reports' ? (
               <ReportingView bookings={bookings} />
             ) : activeTab === 'members' ? (
-              <MembersAdminView />
+              <MembersAdminView showToast={showToast} />
+            ) : activeTab === 'database' ? (
+              <div className="bg-white rounded-3xl p-8 shadow-sm border border-stone-100 max-w-4xl mx-auto space-y-6">
+                <h3 className="text-2xl font-light text-emerald-900 tracking-tight flex items-center gap-3">
+                    <LucideIcon name="database" className="w-6 h-6 text-emerald-600" />
+                    Obsidian Vault Database Architecture
+                </h3>
+                <div className="space-y-4 text-stone-600 text-sm leading-relaxed">
+                   <p>This system strictly utilizes an <strong>Obsidian Vault</strong> structure directly as its primary data source. Instead of a traditional SQL or MongoDB database, the backend interacts directly with <code>.md</code> (Markdown) files stored in the <code>Tuscarora_Obsidian_Vault</code> directory.</p>
+                   
+                   <div className="bg-stone-50 p-4 rounded-2xl border border-stone-100">
+                      <h4 className="font-bold text-stone-900 mb-2">How Data is Structured</h4>
+                      <p>Each record (Member, Booking, Message) corresponds to a unique <code>.md</code> file. The pure data attributes (like names, IDs, dates, passwords) are parsed directly from the <strong>YAML Frontmatter</strong> bounded by <code>---</code> dashes at the top of every file.</p>
+                   </div>
+
+                   <div className="bg-stone-50 p-4 rounded-2xl border border-stone-100">
+                      <h4 className="font-bold text-stone-900 mb-2">Directory Logic</h4>
+                      <ul className="list-disc pl-5 space-y-2">
+                        <li><strong>Bookings</strong>: Reservations saved chronologically.</li>
+                        <li><strong>Members</strong>: Member profiles and verification logic.</li>
+                        <li><strong>Messages</strong>: System inbox and outbox traffic.</li>
+                      </ul>
+                   </div>
+
+                   <p>When changes are made in the portal, the server's <code>obsidian-db.js</code> service instantly updates the corresponding <code>.md</code> file, which keeps the system entirely file-based, highly portable, and deeply interconnected.</p>
+                </div>
+              </div>
             ) : (
               <AdminInventoryView
                 inventory={inventory}
@@ -3212,7 +3412,7 @@
 
 
     // Admin Members Management View
-    const MembersAdminView = () => {
+    const MembersAdminView = ({ showToast }) => {
       const [members, setMembers] = React.useState([]);
       const [editingEmail, setEditingEmail] = React.useState({});
       const [sendingReset, setSendingReset] = React.useState({});
@@ -3269,7 +3469,7 @@
             fetchMembers();
             setEditingMember(null);
           } else {
-            alert(data.error || 'Update failed');
+            showToast(data.error || 'Update failed', "error");
           }
         }).finally(() => setIsUpdating(false));
       };
@@ -3290,7 +3490,7 @@
             setResetFeedback(prev => ({ ...prev, [login]: { type: 'success', msg: 'Password reset to default!' } }));
             setTimeout(() => setResetFeedback(prev => { const n = { ...prev }; delete n[login]; return n; }), 3000);
           } else {
-            alert(data.error || 'Reset failed');
+            showToast(data.error || 'Reset failed', "error");
           }
         });
       };
@@ -3714,7 +3914,7 @@
 
 
     // Messages View
-    const MessagesView = ({ messages, currentUser, validUsers, sendMessage, markAsRead, deleteMessage }) => {
+    const MessagesView = ({ messages, currentUser, validUsers, sendMessage, markAsRead, deleteMessage, showToast }) => {
       const [isComposing, setIsComposing] = useState(false);
       const [newRecipient, setNewRecipient] = useState('');
       const [newSubject, setNewSubject] = useState('');
@@ -3728,7 +3928,7 @@
 
       const handleSend = () => {
         if (!newRecipient || !newSubject || !newBody) {
-          alert("Please fill out all fields before sending.");
+          showToast("Please fill out all fields before sending.", "warning");
           return;
         }
         sendMessage(newRecipient, newSubject, newBody);
@@ -3989,10 +4189,8 @@
                   icon="mail"
                   active={view === 'messages'}
                 />
-                {currentUserRole === 'ADMIN' ? (
+                {currentUserRole === 'ADMIN' && (
                   <NavButton id="dashboard" label="Dashboard" icon="layout" active={view === 'dashboard'} />
-                ) : (
-                  <NavButton id="reporting" label="Reports" icon="bar-chart" active={view === 'reporting'} />
                 )}
 
                 <div className="border-l border-emerald-800 ml-4 pl-6 flex items-center gap-6 relative">
@@ -4031,6 +4229,28 @@
                         <button
                           onClick={() => {
                             setShowDropdown(false);
+                            setView('my-info');
+                          }}
+                          className="w-full text-left px-4 py-3 text-sm text-stone-600 hover:bg-emerald-50 hover:text-emerald-700 rounded-xl flex items-center gap-3 transition-all group"
+                        >
+                          <LucideIcon name="user" className="w-4 h-4 transition-colors" />
+                          <span className="font-medium">Your Info</span>
+                        </button>
+                        {currentUserRole === 'ADMIN' && (
+                          <button
+                            onClick={() => {
+                              setShowDropdown(false);
+                              setView('members-info');
+                            }}
+                            className="w-full text-left px-4 py-3 text-sm text-stone-600 hover:bg-emerald-50 hover:text-emerald-700 rounded-xl flex items-center gap-3 transition-all group"
+                          >
+                            <LucideIcon name="users" className="w-4 h-4 transition-colors" />
+                            <span className="font-medium">Members Info</span>
+                          </button>
+                        )}
+                        <button
+                          onClick={() => {
+                            setShowDropdown(false);
                             onResetPassword();
                           }}
                           className="w-full text-left px-4 py-3 text-sm text-stone-600 hover:bg-amber-50 hover:text-amber-700 rounded-xl flex items-center gap-3 transition-all group"
@@ -4063,6 +4283,17 @@
     function ClubReservationSystem() {
       const [currentUser, setCurrentUser] = useState(null);
       const [view, setView] = useState('login');
+      const [toasts, setToasts] = useState([]);
+
+      const showToast = (message, type = 'info') => {
+        const id = Date.now();
+        setToasts(prev => [...prev, { id, message, type }]);
+        setTimeout(() => removeToast(id), 5000);
+      };
+
+      const removeToast = (id) => {
+        setToasts(prev => prev.filter(t => t.id !== id));
+      };
 
       // Trigger Lucide to replace <i> tags with SVGs - only on initial mount
       useEffect(() => {
@@ -4231,7 +4462,7 @@
         }
 
         if (!u || !p) {
-          alert('Please enter username and password');
+          showToast('Please enter username and password', "warning");
           return;
         }
 
@@ -4254,12 +4485,12 @@
                 setView('calendar');
               }
             } else {
-              alert(data.error || "Invalid login credentials");
+              showToast(data.error || "Invalid login credentials", "error");
             }
           })
           .catch(err => {
             console.error("Login error:", err);
-            alert("Connection error. Is the server running?");
+            showToast("Connection error. Is the server running?", "error");
           });
       };
 
@@ -4389,11 +4620,11 @@
             setBookingMode('calendar');
             setSelectedCells([]);
             setView('my-reservations');
-            alert("Reservations saved successfully.");
+            showToast("Reservations saved successfully.", "success");
           })
           .catch(err => {
             console.error("Error saving multi-room booking:", err);
-            alert(`One or more bookings failed: ${err.message}. Some reservations might not have been saved.`);
+            showToast(`One or more bookings failed: ${err.message}`, "error");
           });
       };
 
@@ -4674,6 +4905,7 @@
           return <ForgotPasswordView
             setView={setView}
             memberList={memberList}
+            showToast={showToast}
           />;
         }
 
@@ -4685,6 +4917,7 @@
           handleLogin={handleLogin}
           memberList={memberList}
           setView={setView}
+          showToast={showToast}
         />;
       }
 
@@ -4723,8 +4956,11 @@
                   setEditingBooking(null);
                 }}
                 currentUser={currentUser}
+                showToast={showToast}
               />
             ) : (<>
+              {view === 'my-info' && <MyInfoView currentUser={currentUser} memberList={memberList} showToast={showToast} />}
+              {view === 'members-info' && currentUserRole === 'ADMIN' && <MembersInfoView memberList={memberList} showToast={showToast} />}
               {view === 'calendar' && bookingMode !== 'details' && <CalendarView
                 currentDate={currentDate}
                 calendarView={calendarView}
@@ -4740,6 +4976,7 @@
                 currentUser={currentUser}
                 hasRentedLazyLodge={hasRentedLazyLodge}
                 onEditBooking={handleEditBooking}
+                showToast={showToast}
               />}
               {view === 'calendar' && bookingMode === 'details' && <MultiRoomBookingDetails
                 selectedCells={selectedCells}
@@ -4751,6 +4988,7 @@
                 currentUser={currentUser}
                 memberList={memberList}
                 isPayFlow={true}
+                showToast={showToast}
               />}
 
 
@@ -4762,6 +5000,7 @@
                 approveBooking={approveBooking}
                 setView={setView}
                 onEditBooking={handleEditBooking}
+                showToast={showToast}
               />}
               {view === 'dashboard' && currentUserRole === 'ADMIN' && (
                 <DashboardView
@@ -4773,6 +5012,7 @@
                   setMealTimes={setMealTimes}
                   currentUser={currentUser}
                   memberList={memberList}
+                  showToast={showToast}
                   onUpdateMembers={() => {
                     fetch('/api/members')
                       .then(res => res.json())
@@ -4795,6 +5035,7 @@
                     .sort(sortMembersOrder)
                     .map(m => m.login)
                     .filter(u => u !== currentUser)}
+                  showToast={showToast}
                   sendMessage={(recipient, subject, body) => {
                     const m = { from: currentUser, to: recipient, subject: subject, text: body };
                     fetch('/api/messages', {
@@ -4814,8 +5055,12 @@
                           read: false
                         };
                         setMessages([newMessage, ...messages]);
+                        showToast("Message sent successfully", "success");
                       })
-                      .catch(e => console.error(e));
+                      .catch(e => {
+                        console.error(e);
+                        showToast("Failed to send message", "error");
+                      });
                   }}
                   markAsRead={(id) => {
                     fetch(`/api/messages/${id}/read`, { method: 'PUT' })
@@ -4824,7 +5069,10 @@
                   }}
                   deleteMessage={(id) => {
                     fetch(`/api/messages/${id}`, { method: 'DELETE' })
-                      .then(() => setMessages(messages.filter(m => m.id !== id)))
+                      .then(() => {
+                        setMessages(messages.filter(m => m.id !== id));
+                        showToast("Message deleted", "info");
+                      })
                       .catch(e => console.error(e));
                   }}
                 />
@@ -4920,6 +5168,7 @@
               </div>
             </div>
           )}
+          <ToastContainer toasts={toasts} removeToast={removeToast} />
         </div>
       );
     }
