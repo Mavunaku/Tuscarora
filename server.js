@@ -1,5 +1,7 @@
 const express = require('express');
-const sqlite3 = require('sqlite3').verbose();
+require('dotenv').config();
+const ObsidianDB = require('./obsidian-db');
+const chokidar = require('chokidar');
 const cors = require('cors');
 const bodyParser = require('body-parser');
 const fs = require('fs');
@@ -12,8 +14,8 @@ const https = require('https');
 const transporter = nodemailer.createTransport({
     service: 'gmail',
     auth: {
-        user: 'mavunaku@gmail.com',
-        pass: 'drxzrqewiccaabla'
+        user: process.env.EMAIL_USER,
+        pass: process.env.EMAIL_PASS
     }
 });
 
@@ -21,9 +23,9 @@ const app = express();
 const PORT = process.env.PORT || 3001;
 const BASE_URL = process.env.BASE_URL || `http://localhost:${PORT}`;
 
-// Use persistent disk path on Render, or local path for development
-const DB_DIR = process.env.RENDER_DISK_PATH || __dirname;
-const DB_PATH = path.join(DB_DIR, 'reservations.db');
+// Initialize Obsidian Storage
+const odb = new ObsidianDB(path.join(__dirname, 'Tuscarora_Obsidian_Vault'));
+const db = odb; // Alias for minimal code changes elsewhere
 
 app.use(cors());
 app.use(bodyParser.json());
@@ -39,408 +41,216 @@ const toStatus = (val) => {
     return val || "MEMBER";
 };
 
-// Initialize Database
-const db = new sqlite3.Database(DB_PATH, (err) => {
-    if (err) {
-        console.error('Error opening database:', err.message);
-    } else {
-        console.log('Connected to SQLite database.');
-        // Performance & Robustness: Enable WAL mode and Busy Timeout
-        db.run("PRAGMA journal_mode = WAL;");
-        db.run("PRAGMA busy_timeout = 5000;");
-        createTables();
-    }
+// Initialize Database (No-op for Obsidian, but keeping structure)
+console.log('Using Obsidian Vault storage.');
+
+// Profile Update
+// Profile: Get info for verification
+app.get('/api/sheet-profile/:username', (req, res) => {
+    const username = req.params.username;
+    const member = odb.getMemberByLogin(username);
+    if (!member) return res.status(404).json({ error: 'Member not found' });
+    
+    res.json({
+        fullName: member.full_name || '',
+        email: member.email || '',
+        phone: member.phone_number || '',
+        address: member.address || '',
+        occupation: member.occupation || '',
+        username: member.login
+    });
 });
 
-function createTables() {
-    db.serialize(() => {
-        // Bookings Table
-        db.run(`CREATE TABLE IF NOT EXISTS bookings (
-      id TEXT PRIMARY KEY,
-      member TEXT,
-      building TEXT,
-      roomId TEXT,
-      roomName TEXT,
-      startDate TEXT,
-      endDate TEXT,
-      guests INTEGER,
-      dailyMeals TEXT,
-      memberArrival TEXT,
-      guestArrival TEXT,
-      isGuestRoom TEXT,
-      memberStayRoom TEXT,
-      provisional BOOLEAN,
-      isGuest TEXT,
-      guestName TEXT,
-      adminBooked BOOLEAN,
-      paymentAmount REAL,
-      paymentStatus TEXT,
-      paymentMethod TEXT,
-      paymentReference TEXT,
-      TimeCreated DATETIME DEFAULT CURRENT_TIMESTAMP,
-      DateCreated DATE,
-      member_id INTEGER
-    )`, (err) => {
-            if (err) console.error('Error creating bookings table:', err.message);
-            else seedData();
-        });
-
-        // Messages Table
-        db.run(`CREATE TABLE IF NOT EXISTS messages(
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            from_user TEXT,
-            to_user TEXT,
-            subject TEXT,
-            text TEXT,
-            timestamp TEXT,
-            read BOOLEAN
-        )`);
-        // Members Table
-        db.run(`CREATE TABLE IF NOT EXISTS members (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            full_name TEXT,
-            login TEXT UNIQUE,
-            password TEXT,
-            phone_number TEXT,
-            role TEXT DEFAULT 'USER',
-            password_changed INTEGER DEFAULT 0
-        )`, (err) => {
-            if (!err) {
-                db.get("SELECT COUNT(*) as count FROM members", (err, row) => {
-                    if (row && row.count === 0) {
-                        const seedMembers = [
-                            ['admin', 'admin', 'password', ''],
-                            ['Chris', 'Chris', 'password', ''],
-                            ['Markley', 'Markley', 'password', ''],
-                            ['David', 'David', 'password', ''],
-                            ['Rob', 'Rob', 'password', ''],
-                            ['Kerry', 'Kerry', 'password', '']
-                        ];
-                        const stmt = db.prepare("INSERT INTO members (full_name, login, password, phone_number) VALUES (?, ?, ?, ?)");
-                        seedMembers.forEach(m => stmt.run(m));
-                        stmt.finalize();
-                    }
-                });
-            }
-        });
-        // Ensure email/reset columns exist (safe migration)
-        db.run("ALTER TABLE members ADD COLUMN email TEXT", () => { });
-        db.run("ALTER TABLE members ADD COLUMN reset_token TEXT", () => { });
-        db.run("ALTER TABLE members ADD COLUMN reset_token_expiry TEXT", () => { });
-        db.run("ALTER TABLE members ADD COLUMN password_changed INTEGER DEFAULT 0", () => { });
-        db.run("ALTER TABLE bookings ADD COLUMN paymentAmount REAL", () => { });
-        db.run("ALTER TABLE bookings ADD COLUMN paymentStatus TEXT", () => { });
-        db.run("ALTER TABLE bookings ADD COLUMN paymentMethod TEXT", () => { });
-        db.run("ALTER TABLE bookings ADD COLUMN paymentReference TEXT", () => { });
-    });
-}
-
-function seedData() {
-    db.get("SELECT COUNT(*) as count FROM bookings", (err, row) => {
-        if (row.count === 0) {
-            console.log('Seeding initial data...');
-            const seedFilePath = path.join(__dirname, 'bookings_seed.json');
-            if (fs.existsSync(seedFilePath)) {
-                const seedData = JSON.parse(fs.readFileSync(seedFilePath, 'utf8'));
-                const stmt = db.prepare(`INSERT INTO bookings(
-                id, member, building, roomId, roomName, startDate, endDate, guests, dailyMeals, memberArrival, guestArrival, isGuestRoom, memberStayRoom, provisional, isGuest, guestName, adminBooked, TimeCreated, DateCreated, member_id
-            ) VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`);
-
-                const nowTime = new Date().toTimeString().split(' ')[0];
-                const nowDate = new Date().toISOString().split('T')[0];
-
-                seedData.forEach(b => {
-                    stmt.run(
-                        b.id,
-                        b.member,
-                        b.building,
-                        b.roomId,
-                        b.roomName,
-                        b.startDate,
-                        b.endDate,
-                        b.guests,
-                        JSON.stringify(b.dailyMeals || b.meals || {}),
-                        b.memberArrival || '14:00',
-                        b.guestArrival || '14:00',
-                        toStatus(b.isGuestRoom),
-                        b.memberStayRoom || null,
-                        b.provisional ? 1 : 0,
-                        toStatus(b.isGuest),
-                        b.guestName || null,
-                        b.adminBooked ? 1 : 0,
-                        nowTime,
-                        nowDate,
-                        null
-                    );
-                });
-                stmt.finalize();
-                console.log('Seeding complete.');
-            }
-        }
-    });
-}
-
-// Helper to fetch spreadsheet data
-const SHEET_URL = 'https://docs.google.com/spreadsheets/d/1ZWBkBixjJb9Cx0yhzfb1RyOt5N26MnfluqRMknhNDHo/export?format=csv&gid=0';
-// INSTRUCTIONS: Set up a Google Apps Script as a Web App (Anyone with access) and paste the URL below to enable bidirectional sync.
-const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwVyUL4qYemA1eTY1KiFiOKOphwp3CFTo5sRnY8oWEAVumPCnwYd5FcCWmjEU9km-rVZA/exec'; 
-
-async function fetchURL(url, depth = 0) {
-    if (depth > 3) throw new Error('Too many redirects');
-    return new Promise((resolve, reject) => {
-        https.get(url, (res) => {
-            if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
-                fetchURL(res.headers.location, depth + 1).then(resolve).catch(reject);
-                return;
-            }
-            let data = '';
-            res.on('data', chunk => data += chunk);
-            res.on('end', () => resolve(data));
-        }).on('error', reject);
-    });
-}
-
-async function getSpreadsheetInfo(u) {
-    try {
-        const response = await fetchURL(SHEET_URL);
-        const lines = response.split(/\r?\n/).filter(l => l.trim() !== '');
-        const records = lines.slice(1);
-        
-        const debug = [];
-        debug.push(`Searching for: [${u}]`);
-
-        for (const line of records) {
-            const cleanCols = [];
-            let start = 0;
-            let inQuotes = false;
-            for (let i = 0; i < line.length; i++) {
-                if (line[i] === '"') inQuotes = !inQuotes;
-                if (line[i] === ',' && !inQuotes) {
-                    cleanCols.push(line.substring(start, i).replace(/^"|"$/g, '').trim());
-                    start = i + 1;
-                }
-            }
-            cleanCols.push(line.substring(start).replace(/^"|"$/g, '').trim());
-            
-            const cellU = cleanCols[1] ? cleanCols[1].trim() : '';
-            if (cellU.toLowerCase() === u.toLowerCase()) {
-                debug.push(`MATCH FOUND: [${cellU}]`);
-                require('fs').writeFileSync('debug_match.log', debug.join('\n'));
-                return {
-                    fullName: cleanCols[0] || '',
-                    username: cleanCols[1] || '',
-                    email: cleanCols[3] || '',
-                    phone: cleanCols[4] || '',
-                    address: cleanCols[5] || '',
-                    occupation: cleanCols[6] || '',
-                    notes: cleanCols[7] || '',
-                };
-            }
-        }
-        debug.push('No match found');
-        require('fs').writeFileSync('debug_match.log', debug.join('\n'));
-    } catch (e) {
-        console.error('Error fetching sheet info:', e.message);
-    }
-    return null;
-}
-
-// API Endpoints
-app.get('/api/sheet-profile/:username', async (req, res) => {
-    const info = await getSpreadsheetInfo(req.params.username);
-    if (info) res.json(info);
-    else res.status(404).json({ error: 'User not found in spreadsheet' });
-});
-
+// Profile Update (Sheet Aliases)
 app.post('/api/sheet-profile-update', async (req, res) => {
     const info = req.body;
+    const member = odb.getMemberByLogin(info.username || info.login);
+    if (!member) return res.status(404).json({ error: 'Member not found' });
     
-    // 1. Update local database first
-    db.run("UPDATE members SET full_name = ?, email = ?, phone_number = ? WHERE login = ?",
-        [info.fullName, info.email, info.phone, info.username],
-        (err) => {
-            if (err) return res.status(500).json({ error: err.message });
-            
-            // 2. Forward update to Google Spreadsheet (bidirectional sync)
-            if (GOOGLE_SCRIPT_URL) {
-                fetch(GOOGLE_SCRIPT_URL, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(info)
-                }).then(sheetRes => sheetRes.json())
-                  .then(data => {
-                      if (data.success) console.log('Successfully synced with Google Spreadsheet');
-                      else console.error('Spreadsheet sync error:', data.error);
-                  })
-                  .catch(e => console.error('Failed to call Google Apps Script:', e.message));
-            }
+    // 1. Update Local Obsidian Vault
+    member.full_name = info.fullName || member.full_name;
+    member.email = info.email || member.email;
+    member.phone_number = info.phone || member.phone_number;
+    member.address = info.address || member.address;
+    member.occupation = info.occupation || member.occupation;
+    odb.saveMember(member);
 
-            res.json({ success: true, message: 'Profile updated locally. Sync initiated.' });
+    // 2. Push Update to Google Spreadsheet
+    // WE MUST PASTE THE DEPLOYED WEB APP URL HERE:
+    const GOOGLE_APP_SCRIPT_URL = process.env.GOOGLE_APPS_SCRIPT_URL;
+    
+    if (GOOGLE_APP_SCRIPT_URL !== "WAITING_FOR_USER_TO_PROVIDE_URL") {
+        try {
+            // Using standard dynamic import for node-fetch if global fetch is not available in node v16
+            // (Assuming modern node where fetch is global, we will just use global fetch)
+            await fetch(GOOGLE_APP_SCRIPT_URL, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    username: info.username || info.login,
+                    fullName: info.fullName,
+                    email: info.email,
+                    phone: info.phone,
+                    address: info.address,
+                    occupation: info.occupation
+                })
+            });
+        } catch (err) {
+            console.error("Google Sheet Sync Error:", err);
+            // We non-fatally ignore sheet errors to ensure the local DB save still succeeds for the user
         }
-    );
+    }
+
+    res.json({ success: true, message: 'Profile updated in Obsidian and synced to Google.' });
+});
+
+app.post('/api/profile/update', async (req, res) => {
+    const info = req.body;
+    const member = odb.getMemberByLogin(info.username);
+    if (!member) return res.status(404).json({ error: 'Member not found' });
+    
+    member.full_name = info.fullName;
+    member.email = info.email;
+    member.phone_number = info.phone;
+    
+    odb.saveMember(member);
+    res.json({ success: true, message: 'Profile updated in Obsidian.' });
 });
 app.get('/api/members', (req, res) => {
-    db.all("SELECT id, full_name, login, phone_number, email, password_changed FROM members", [], (err, rows) => {
-        if (err) return res.status(500).json({ error: err.message });
-        res.json(rows);
+    const rows = odb.getAllMembers();
+
+    // Sort by priority field if present, otherwise by name
+    const sorted = rows.sort((a, b) => {
+        const pA = a.priority !== undefined ? Number(a.priority) : 999;
+        const pB = b.priority !== undefined ? Number(b.priority) : 999;
+        if (pA !== pB) return pA - pB;
+        return (a.full_name || '').localeCompare(b.full_name || '');
     });
+
+    res.json(sorted.map(r => ({
+        id: r.id,
+        full_name: r.full_name,
+        login: r.login,
+        phone_number: r.phone_number,
+        email: r.email,
+        password_changed: r.password_changed
+    })));
 });
 
 app.get('/api/bookings', (req, res) => {
-    db.all("SELECT * FROM bookings", [], (err, rows) => {
-        if (err) return res.status(500).json({ error: err.message });
-        // Parse JSON strings back to objects
-        const formatted = rows.map(r => ({
-            ...r,
-            dailyMeals: JSON.parse(r.dailyMeals || '{}'),
-            isGuestRoom: toStatus(r.isGuestRoom),
-            provisional: !!r.provisional,
-            isGuest: toStatus(r.isGuest),
-            adminBooked: !!r.adminBooked
-        }));
-        res.json(formatted);
-    });
+    const rows = odb.getAllBookings();
+    res.json(rows);
 });
 
 app.post('/api/bookings', (req, res) => {
     const b = req.body;
-    // Generate a unique ID on the server if not provided by the client
     const id = b.id || `b_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-    const sql = `INSERT INTO bookings (
-    id, member, building, roomId, roomName, startDate, endDate, guests, dailyMeals, memberArrival, guestArrival, isGuestRoom, memberStayRoom, provisional, isGuest, guestName, adminBooked, 
-    paymentAmount, paymentStatus, paymentMethod, paymentReference,
-    TimeCreated, DateCreated, member_id
-  ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
+    b.id = id;
+    b.TimeCreated = new Date().toTimeString().split(' ')[0];
+    b.DateCreated = new Date().toISOString().split('T')[0];
 
-    const nowTime = new Date().toTimeString().split(' ')[0]; // Gets format like '08:00:00'
-    const nowDate = new Date().toISOString().split('T')[0]; // Gets format like '2026-02-28'
+    odb.saveBooking(b);
 
-    db.run(sql, [
-        id, b.member, b.building, b.roomId, b.roomName, b.startDate, b.endDate, b.guests,
-        JSON.stringify(b.dailyMeals || {}), b.memberArrival, b.guestArrival,
-        toStatus(b.isGuestRoom), b.memberStayRoom || null, b.provisional ? 1 : 0, toStatus(b.isGuest), b.guestName || null, b.adminBooked ? 1 : 0,
-        b.paymentAmount || 0, b.paymentStatus || 'PENDING', b.paymentMethod || null, b.paymentReference || null,
-        nowTime, nowDate, b.member_id || null
-    ], function (err) {
-        if (err) return res.status(500).json({ error: err.message });
-
-        // Send booking confirmation email
-        db.get("SELECT email, full_name FROM members WHERE login = ?", [b.member], (memErr, member) => {
-            if (!memErr && member && member.email) {
-                const mailOptions = {
-                    from: '"Tuscarora Club" <tuscaroraclub.noreply@gmail.com>',
-                    to: member.email,
-                    subject: 'Booking Confirmation — The Tuscarora Club',
-                    html: `
-                        <div style="font-family: Georgia, serif; max-width: 600px; margin: 0 auto; padding: 40px 20px; background: #f5f5f0;">
-                            <div style="background: #1a3a2a; padding: 30px; border-radius: 12px; text-align: center; margin-bottom: 30px;">
-                                <h1 style="color: #d4a843; font-size: 22px; margin: 0; font-weight: normal;">The Tuscarora Club</h1>
-                                <p style="color: #86b894; margin: 8px 0 0; font-size: 11px; letter-spacing: 2px; text-transform: uppercase;">Reservation Confirmation</p>
-                            </div>
-                            <div style="background: white; padding: 30px; border-radius: 12px; border: 1px solid #e0e0d8;">
-                                <p style="color: #444; font-size: 16px;">Hello <strong>${member.full_name || b.member}</strong>,</p>
-                                <p style="color: #666; line-height: 1.6;">Your reservation at the Tuscarora Club has been successfully recorded.</p>
-                                
-                                <div style="margin: 25px 0; padding: 20px; background: #f9f9f7; border-radius: 8px; border-left: 4px solid #1a3a2a;">
-                                    <p style="margin: 0; color: #1a3a2a; font-weight: bold; font-size: 18px;">${b.roomName}</p>
-                                    <p style="margin: 5px 0 0; color: #666; font-size: 14px;">${b.building}</p>
-                                    <div style="margin-top: 15px; grid-template-columns: 1fr 1fr; display: grid; gap: 10px;">
-                                        <div>
-                                            <p style="margin: 0; font-size: 10px; text-transform: uppercase; color: #999; letter-spacing: 1px;">Arriving</p>
-                                            <p style="margin: 2px 0 0; font-size: 14px; color: #444;">${b.startDate}</p>
-                                        </div>
-                                        <div>
-                                            <p style="margin: 0; font-size: 10px; text-transform: uppercase; color: #999; letter-spacing: 1px;">Departing</p>
-                                            <p style="margin: 2px 0 0; font-size: 14px; color: #444;">${b.endDate}</p>
-                                        </div>
-                                    </div>
+    // Send booking confirmation email
+    const member = odb.getMemberByLogin(b.member);
+    if (member && member.email) {
+        const adminNote = b.adminBooked ? 'A reservation has been made on your behalf by the administrator. ' : '';
+        const mailOptions = {
+            from: '"Tuscarora Club" <tuscaroraclub.noreply@gmail.com>',
+            to: member.email,
+            subject: `[NEW RESERVATION CONFIRMED] — Tuscarora Club`,
+            html: `
+                <div style="font-family: Georgia, serif; max-width: 600px; margin: 0 auto; padding: 40px 20px; background: #f5f5f0;">
+                    <div style="background: #1a3a2a; padding: 30px; border-radius: 12px; text-align: center; margin-bottom: 30px;">
+                        <h1 style="color: #d4a843; font-size: 22px; margin: 0; font-weight: normal;">The Tuscarora Club</h1>
+                        <p style="color: #86b894; margin: 8px 0 0; font-size: 11px; letter-spacing: 2px; text-transform: uppercase;">New Reservation Confirmed</p>
+                    </div>
+                    <div style="background: white; padding: 30px; border-radius: 12px; border: 1px solid #e0e0d8;">
+                        <p style="color: #444; font-size: 16px;">Hello <strong>${member.full_name || member.login}</strong>,</p>
+                        <p style="color: #666; line-height: 1.6;">${adminNote}This email is to confirm that your new reservation has been successfully booked in the system. The details are below:</p>
+                        
+                        <div style="margin: 25px 0; padding: 20px; background: #f9f9f7; border-radius: 8px; border-left: 4px solid #1a3a2a;">
+                            <p style="margin: 0; color: #1a3a2a; font-weight: bold; font-size: 18px;">${b.roomName}</p>
+                            <p style="margin: 5px 0 0; color: #666; font-size: 14px;">${b.building}</p>
+                            <div style="margin-top: 15px; grid-template-columns: 1fr 1fr; display: grid; gap: 10px;">
+                                <div>
+                                    <p style="margin: 0; font-size: 10px; text-transform: uppercase; color: #999; letter-spacing: 1px;">Arriving</p>
+                                    <p style="margin: 2px 0 0; font-size: 14px; color: #444;">${b.startDate}</p>
                                 </div>
-
-                                <p style="color: #999; font-size: 13px;">You can view or modify your reservation through the member portal at any time.</p>
+                                <div>
+                                    <p style="margin: 0; font-size: 10px; text-transform: uppercase; color: #999; letter-spacing: 1px;">Departing</p>
+                                    <p style="margin: 2px 0 0; font-size: 14px; color: #444;">${b.endDate}</p>
+                                </div>
                             </div>
                         </div>
-                    `
-                };
 
-                transporter.sendMail(mailOptions, (emailErr) => {
-                    if (emailErr) console.error('Booking email error:', emailErr);
-                });
-            }
+                        <p style="color: #999; font-size: 13px;">You can view or modify your reservation through the member portal at any time.</p>
+                    </div>
+                </div>
+            `
+        };
+
+        transporter.sendMail(mailOptions, (emailErr) => {
+            if (emailErr) console.error('Booking email error:', emailErr);
         });
+    }
 
-        res.json({ id, message: 'Booking created successfully' });
-    });
+    res.json({ id, message: 'Booking created successfully' });
 });
 
 app.put('/api/bookings/:id', (req, res) => {
     const b = req.body;
-    const sql = `UPDATE bookings SET 
-    member = ?, building = ?, roomId = ?, roomName = ?, startDate = ?, endDate = ?,
-            guests = ?, dailyMeals = ?, memberArrival = ?, guestArrival = ?,
-            isGuestRoom = ?, memberStayRoom = ?, provisional = ?, isGuest = ?, guestName = ?, adminBooked = ?,
-            paymentAmount = ?, paymentStatus = ?, paymentMethod = ?, paymentReference = ?,
-            member_id = ?
-                WHERE id = ? `;
-
-    db.run(sql, [
-        b.member, b.building, b.roomId, b.roomName, b.startDate, b.endDate, b.guests,
-        JSON.stringify(b.dailyMeals || {}), b.memberArrival, b.guestArrival,
-        toStatus(b.isGuestRoom), b.memberStayRoom || null, b.provisional ? 1 : 0, toStatus(b.isGuest), b.guestName || null, b.adminBooked ? 1 : 0,
-        b.paymentAmount, b.paymentStatus, b.paymentMethod, b.paymentReference,
-        b.member_id || null,
-        req.params.id
-    ], function (err) {
-        if (err) return res.status(500).json({ error: err.message });
-        res.json({ message: 'Booking updated successfully' });
-    });
+    b.id = req.params.id;
+    odb.saveBooking(b);
+    res.json({ message: 'Booking updated successfully' });
 });
 
 app.delete('/api/bookings/:id', (req, res) => {
-    db.run("DELETE FROM bookings WHERE id = ?", req.params.id, function (err) {
-        if (err) return res.status(500).json({ error: err.message });
-        res.json({ message: 'Booking deleted successfully' });
-    });
+    odb.deleteBooking(req.params.id);
+    res.json({ message: 'Booking deleted successfully' });
 });
 
 // Messages
 app.get('/api/messages', (req, res) => {
-    db.all("SELECT * FROM messages ORDER BY timestamp DESC", [], (err, rows) => {
-        if (err) return res.status(500).json({ error: err.message });
-        res.json(rows.map(m => ({
-            id: m.id,
-            sender: m.from_user,
-            recipient: m.to_user,
-            subject: m.subject || "Message",
-            body: m.text,
-            timestamp: m.timestamp,
-            read: !!m.read
-        })));
-    });
+    const rows = odb.getAllMessages();
+    res.json(rows.map(m => ({
+        id: m.id,
+        sender: m.from_user,
+        recipient: m.to_user,
+        subject: m.subject || "Message",
+        body: m.text,
+        timestamp: m.timestamp,
+        read: !!m.read
+    })));
 });
 
 app.post('/api/messages', (req, res) => {
     const m = req.body;
-    db.run(`INSERT INTO messages(from_user, to_user, subject, text, timestamp, read) VALUES(?, ?, ?, ?, ?, ?)`,
-        [m.from, m.to, m.subject || "Message", m.text, new Date().toISOString(), 0],
-        function (err) {
-            if (err) return res.status(500).json({ error: err.message });
-            res.json({ id: this.lastID, message: 'Message sent' });
-        }
-    );
+    const newMsg = {
+        id: Date.now(),
+        from_user: m.from,
+        to_user: m.to,
+        subject: m.subject || "Message",
+        text: m.text,
+        timestamp: new Date().toISOString(),
+        read: 0
+    };
+    odb.saveMessage(newMsg);
+    res.json({ id: newMsg.id, message: 'Message sent' });
 });
 
 app.put('/api/messages/:id/read', (req, res) => {
-    db.run("UPDATE messages SET read = 1 WHERE id = ?", req.params.id, function (err) {
-        if (err) return res.status(500).json({ error: err.message });
-        res.json({ message: 'Message marked as read' });
-    });
+    const msg = odb.getMessageById(req.params.id);
+    if (msg) {
+        msg.read = 1;
+        odb.saveMessage(msg);
+    }
+    res.json({ message: 'Message marked as read' });
 });
 
 app.delete('/api/messages/:id', (req, res) => {
-    db.run("DELETE FROM messages WHERE id = ?", req.params.id, function (err) {
-        if (err) return res.status(500).json({ error: err.message });
-        res.json({ message: 'Message deleted successfully' });
-    });
+    odb.deleteMessage(req.params.id);
+    res.json({ message: 'Message deleted successfully' });
 });
 
 // Authentication Endpoint
@@ -449,28 +259,30 @@ app.post('/api/login', (req, res) => {
     if (username) username = username.trim();
     if (password) password = password.trim();
 
-    // Check members table
-    db.get("SELECT * FROM members WHERE login = ?", [username], (err, row) => {
-        if (err) return res.status(500).json({ error: "Database error" });
+    // Reject missing or empty credentials immediately
+    if (!username || !password) {
+        return res.status(401).json({ error: "Invalid username or password" });
+    }
 
-        if (!row) {
-            return res.status(401).json({ error: "Invalid username or password" });
-        }
+    const row = odb.getMemberByLogin(username);
+    if (!row) {
+        return res.status(401).json({ error: "Invalid username or password" });
+    }
 
-        if (row.password === password) {
-            // Include full name and role/mustChange info
-            const mustChange = (row.password_changed === 0 || row.password_changed === null);
-            res.json({
-                success: true,
-                username: row.login,
-                fullName: row.full_name,
-                role: row.role || 'USER',
-                mustChange: mustChange
-            });
-        } else {
-            res.status(401).json({ error: "Invalid username or password" });
-        }
-    });
+    if (row.password === password) {
+        const isAdmin = (row.role || '').toUpperCase() === 'ADMIN';
+        // Admins never get forced password change; regular users do if password is still 'generic1'
+        const mustChange = !isAdmin && (row.password === 'generic1' || !row.password_changed);
+        res.json({
+            success: true,
+            username: row.login,
+            fullName: row.full_name,
+            role: row.role || 'USER',
+            mustChange: mustChange
+        });
+    } else {
+        res.status(401).json({ error: "Invalid username or password" });
+    }
 });
 
 // Self-service: Update own password
@@ -479,10 +291,25 @@ app.post('/api/self/update-password', (req, res) => {
     if (newPassword) newPassword = newPassword.trim();
     if (!username || !newPassword) return res.status(400).json({ error: 'Missing required fields' });
 
-    db.run("UPDATE members SET password = ?, password_changed = 1 WHERE login = ?", [newPassword, username], function (err) {
-        if (err) return res.status(500).json({ error: 'Failed to update password: ' + err.message });
-        res.json({ success: true, message: 'Password updated successfully' });
-    });
+    const member = odb.getMemberByLogin(username);
+    if (!member) return res.status(404).json({ error: 'User not found' });
+
+    member.password = newPassword;
+    member.password_changed = 1;
+    odb.saveMember(member);
+    res.json({ success: true, message: 'Password updated successfully' });
+});
+
+app.post('/api/change-password', (req, res) => {
+    let { login, oldPassword, newPassword } = req.body;
+    const member = odb.getMemberByLogin(login);
+    if (!member || member.password !== oldPassword) {
+        return res.status(401).json({ error: 'Invalid current password' });
+    }
+    member.password = newPassword;
+    member.password_changed = 1;
+    odb.saveMember(member);
+    res.json({ success: true, message: 'Password updated successfully' });
 });
 
 // Middleware to check admin role
@@ -490,12 +317,11 @@ const isAdmin = (req, res, next) => {
     const adminUser = req.headers['x-admin-user'];
     if (!adminUser) return res.status(401).json({ error: 'Unauthorized' });
 
-    db.get("SELECT role FROM members WHERE login = ?", [adminUser], (err, row) => {
-        if (err || !row || row.role !== 'ADMIN') {
-            return res.status(403).json({ error: 'Forbidden: Admin access required' });
-        }
-        next();
-    });
+    const row = odb.getMemberByLogin(adminUser);
+    if (!row || row.role !== 'ADMIN') {
+        return res.status(403).json({ error: 'Forbidden: Admin access required' });
+    }
+    next();
 };
 
 // Admin: Update member details (username/role)
@@ -503,10 +329,13 @@ app.post('/api/admin/members/update', isAdmin, (req, res) => {
     const { targetUsername, newLogin, newRole } = req.body;
     if (!targetUsername || !newLogin || !newRole) return res.status(400).json({ error: 'Missing required fields' });
 
-    db.run("UPDATE members SET login = ?, role = ? WHERE login = ?", [newLogin, newRole, targetUsername], function (err) {
-        if (err) return res.status(500).json({ error: 'Failed to update member: ' + err.message });
-        res.json({ success: true, message: 'Member updated successfully' });
-    });
+    const member = odb.getMemberByLogin(targetUsername);
+    if (!member) return res.status(404).json({ error: 'Member not found' });
+
+    member.login = newLogin;
+    member.role = newRole;
+    odb.saveMember(member);
+    res.json({ success: true, message: 'Member updated successfully' });
 });
 
 // Admin: Reset member password to default (spreadsheet value)
@@ -514,42 +343,41 @@ app.post('/api/admin/members/reset-to-default', isAdmin, (req, res) => {
     const { targetUsername } = req.body;
     if (!targetUsername) return res.status(400).json({ error: 'Missing targetUsername' });
 
-    // For simplicity, we reset to 'Tuscarora2026' or just a hardcoded default that matched their spreadsheet pattern
-    // In a real scenario, we might have stored the original password or mapped it.
     const defaultPassword = 'password123';
-
-    db.run("UPDATE members SET password = ?, password_changed = 0 WHERE login = ?", [defaultPassword, targetUsername], function (err) {
-        if (err) return res.status(500).json({ error: 'Failed to reset password: ' + err.message });
-        res.json({ success: true, message: 'Password reset to default successfully' });
-    });
+    const member = odb.getMemberByLogin(targetUsername);
+    if (member) {
+        member.password = defaultPassword;
+        member.password_changed = 0;
+        odb.saveMember(member);
+    }
+    res.json({ success: true, message: 'Password reset to default successfully' });
 });
 
 // Password Reset Endpoints
 app.post('/api/request-reset', (req, res) => {
     const { username } = req.body;
-    db.get("SELECT * FROM members WHERE login = ?", [username], (err, row) => {
-        if (err) return res.status(500).json({ error: 'Database error' });
-        if (!row) return res.status(404).json({ error: 'User not found' });
-        if (!row.email) return res.status(400).json({ error: 'No email on file for this account. Contact administrator.' });
+    const row = odb.getMemberByLogin(username);
+    if (!row) return res.status(404).json({ error: 'User not found' });
+    if (!row.email) return res.status(400).json({ error: 'No email on file for this account. Contact administrator.' });
 
-        const token = crypto.randomBytes(32).toString('hex');
-        const expiry = new Date(Date.now() + 60 * 60 * 1000).toISOString(); // 1 hour
+    const token = crypto.randomBytes(32).toString('hex');
+    const expiry = new Date(Date.now() + 60 * 60 * 1000).toISOString(); // 1 hour
 
-        db.run("UPDATE members SET reset_token = ?, reset_token_expiry = ? WHERE login = ?",
-            [token, expiry, username], (err) => {
-                if (err) return res.status(500).json({ error: 'Failed to generate reset token' });
+    row.reset_token = token;
+    row.reset_token_expiry = expiry;
+    odb.saveMember(row);
 
-                const resetLink = `${BASE_URL}/reset-password.html?token=${token}&user=${encodeURIComponent(username)}`;
+    const resetLink = `${BASE_URL}/reset-password.html?token=${token}&user=${encodeURIComponent(username)}`;
 
-                const mailOptions = {
-                    from: '"Tuscarora Club" <tuscaroraclub.noreply@gmail.com>',
-                    to: row.email,
-                    subject: 'Tuscarora Club — Password Reset Request',
-                    html: `
+    const mailOptions = {
+        from: '"Tuscarora Club" <tuscaroraclub.noreply@gmail.com>',
+        to: row.email,
+        subject: '[PASSWORD RESET] — Tuscarora Club',
+        html: `
                         <div style="font-family: Georgia, serif; max-width: 600px; margin: 0 auto; padding: 40px 20px; background: #f5f5f0;">
                             <div style="background: #1a3a2a; padding: 30px; border-radius: 12px; text-align: center; margin-bottom: 30px;">
                                 <h1 style="color: #d4a843; font-size: 22px; margin: 0; font-weight: normal;">The Tuscarora Club</h1>
-                                <p style="color: #86b894; margin: 8px 0 0; font-size: 12px; letter-spacing: 2px; text-transform: uppercase;">Password Reset</p>
+                                <p style="color: #86b894; margin: 8px 0 0; font-size: 12px; letter-spacing: 2px; text-transform: uppercase;">Password Reset Request</p>
                             </div>
                             <div style="background: white; padding: 30px; border-radius: 12px; border: 1px solid #e0e0d8;">
                                 <p style="color: #444; font-size: 16px;">Hello <strong>${row.full_name || username}</strong>,</p>
@@ -561,16 +389,14 @@ app.post('/api/request-reset', (req, res) => {
                             </div>
                         </div>
                     `
-                };
+    };
 
-                transporter.sendMail(mailOptions, (emailErr) => {
-                    if (emailErr) {
-                        console.error('Email error:', emailErr);
-                        return res.status(500).json({ error: 'Failed to send email. Check server email configuration.' });
-                    }
-                    res.json({ success: true, message: `Reset link sent to ${row.email}` });
-                });
-            });
+    transporter.sendMail(mailOptions, (emailErr) => {
+        if (emailErr) {
+            console.error('Email error:', emailErr);
+            return res.status(500).json({ error: 'Failed to send email. Check server email configuration.' });
+        }
+        res.json({ success: true, message: `Reset link sent to ${row.email}` });
     });
 });
 
@@ -579,45 +405,42 @@ app.post('/api/reset-password', (req, res) => {
     if (newPassword) newPassword = newPassword.trim();
     if (!token || !username || !newPassword) return res.status(400).json({ error: 'Missing required fields' });
 
-    db.get("SELECT * FROM members WHERE login = ? AND reset_token = ?", [username, token], (err, row) => {
-        if (err) return res.status(500).json({ error: 'Database error' });
-        if (!row) return res.status(400).json({ error: 'Invalid or expired reset token' });
+    const row = odb.getMemberByLogin(username);
+    if (!row || row.reset_token !== token) return res.status(400).json({ error: 'Invalid or expired reset token' });
 
-        const now = new Date();
-        const expiry = new Date(row.reset_token_expiry);
-        if (now > expiry) return res.status(400).json({ error: 'Reset token has expired. Please request a new one.' });
+    const now = new Date();
+    const expiry = new Date(row.reset_token_expiry);
+    if (now > expiry) return res.status(400).json({ error: 'Reset token has expired. Please request a new one.' });
 
-        // Mark password_changed = 1 so the sheet shows this user has set their own password
-        db.run("UPDATE members SET password = ?, reset_token = NULL, reset_token_expiry = NULL, password_changed = 1 WHERE login = ?",
-            [newPassword, username], (err) => {
-                if (err) return res.status(500).json({ error: 'Failed to update password' });
-                res.json({ success: true, message: 'Password updated successfully' });
-            });
-    });
+    row.password = newPassword;
+    row.reset_token = null;
+    row.reset_token_expiry = null;
+    row.password_changed = 1;
+    odb.saveMember(row);
+    res.json({ success: true, message: 'Password updated successfully' });
 });
 
 // Admin: send reset link on behalf of a user
 app.post('/api/admin-send-reset', (req, res) => {
     const { targetUsername } = req.body;
-    db.get("SELECT * FROM members WHERE login = ?", [targetUsername], (err, row) => {
-        if (err) return res.status(500).json({ error: 'Database error' });
-        if (!row) return res.status(404).json({ error: 'User not found' });
-        if (!row.email) return res.status(400).json({ error: 'No email on file for this user. Add their email first.' });
+    const row = odb.getMemberByLogin(targetUsername);
+    if (!row) return res.status(404).json({ error: 'User not found' });
+    if (!row.email) return res.status(400).json({ error: 'No email on file for this user. Add their email first.' });
 
-        const token = crypto.randomBytes(32).toString('hex');
-        const expiry = new Date(Date.now() + 60 * 60 * 1000).toISOString();
+    const token = crypto.randomBytes(32).toString('hex');
+    const expiry = new Date(Date.now() + 60 * 60 * 1000).toISOString();
 
-        db.run("UPDATE members SET reset_token = ?, reset_token_expiry = ? WHERE login = ?",
-            [token, expiry, targetUsername], (err) => {
-                if (err) return res.status(500).json({ error: 'Failed to generate reset token' });
+    row.reset_token = token;
+    row.reset_token_expiry = expiry;
+    odb.saveMember(row);
 
-                const resetLink = `${BASE_URL}/reset-password.html?token=${token}&user=${encodeURIComponent(targetUsername)}`;
+    const resetLink = `${BASE_URL}/reset-password.html?token=${token}&user=${encodeURIComponent(targetUsername)}`;
 
-                const mailOptions = {
-                    from: '"Tuscarora Club" <tuscaroraclub.noreply@gmail.com>',
-                    to: row.email,
-                    subject: 'Tuscarora Club — Your Login Has Been Set Up',
-                    html: `
+    const mailOptions = {
+        from: '"Tuscarora Club" <tuscaroraclub.noreply@gmail.com>',
+        to: row.email,
+        subject: '[NEW ACCOUNT SETUP] — Tuscarora Club',
+        html: `
                         <div style="font-family: Georgia, serif; max-width: 600px; margin: 0 auto; padding: 40px 20px; background: #f5f5f0;">
                             <div style="background: #1a3a2a; padding: 30px; border-radius: 12px; text-align: center; margin-bottom: 30px;">
                                 <h1 style="color: #d4a843; font-size: 22px; margin: 0; font-weight: normal;">The Tuscarora Club</h1>
@@ -634,33 +457,302 @@ app.post('/api/admin-send-reset', (req, res) => {
                             </div>
                         </div>
                     `
-                };
+    };
 
-                transporter.sendMail(mailOptions, (emailErr) => {
-                    if (emailErr) {
-                        console.error('Email error:', emailErr);
-                        // Even if email fails, return the link so admin can copy it manually
-                        return res.json({
-                            success: true,
-                            message: `Email failed, but link generated.`,
-                            link: resetLink
-                        });
-                    }
-                    res.json({ success: true, message: `Reset link sent to ${row.email}`, link: resetLink });
-                });
+    transporter.sendMail(mailOptions, (emailErr) => {
+        if (emailErr) {
+            console.error('Email error:', emailErr);
+            // Even if email fails, return the link so admin can copy it manually
+            return res.json({
+                success: true,
+                message: `Email failed, but link generated.`,
+                link: resetLink
             });
+        }
+        res.json({ success: true, message: `Reset link sent to ${row.email}`, link: resetLink });
     });
 });
 
 // Admin: update a member's email
 app.put('/api/members/:login/email', (req, res) => {
     const { email } = req.body;
-    db.run("UPDATE members SET email = ? WHERE login = ?", [email, req.params.login], function (err) {
-        if (err) return res.status(500).json({ error: err.message });
-        res.json({ success: true });
-    });
+    const member = odb.getMemberByLogin(req.params.login);
+    if (member) {
+        member.email = email;
+        odb.saveMember(member);
+    }
+    res.json({ success: true });
 });
 
 app.listen(PORT, () => {
     console.log(`Server running on http://localhost:${PORT}`);
+    startVaultWatcher();
 });
+
+// Vault Watcher for Email Notifications
+function startVaultWatcher() {
+    const watcher = chokidar.watch(path.join(__dirname, 'Tuscarora_Obsidian_Vault', 'Bookings'), {
+        persistent: true,
+        ignoreInitial: true,
+        awaitWriteFinish: {
+            stabilityThreshold: 2000,
+            pollInterval: 100
+        }
+    });
+
+    console.log('Watching vault for changes...');
+
+    // Pre-populate cache so we can detect deletions
+    const bookingsDir = path.join(__dirname, 'Tuscarora_Obsidian_Vault', 'Bookings');
+    if (fs.existsSync(bookingsDir)) {
+        fs.readdirSync(bookingsDir).forEach(f => {
+            if (f.endsWith('.md')) {
+                const booking = odb._parseFile(path.join(bookingsDir, f));
+                if (booking) lastKnownState.set(f, JSON.stringify(booking));
+            }
+        });
+    }
+
+    watcher.on('all', (event, filePath) => {
+        if (!filePath.endsWith('.md')) return;
+        const fileName = path.basename(filePath);
+
+        if (event === 'unlink') {
+            const last = lastKnownState.get(fileName);
+            if (last) {
+                const booking = JSON.parse(last);
+                console.log(`Vault deletion detected: ${booking.id}`);
+                processBookingChange(booking, 'unlink', fileName);
+            }
+            return;
+        }
+
+        console.log(`Vault change detected: ${event} ${fileName}`);
+
+        // Brief delay to ensure file is fully written
+        setTimeout(() => {
+            try {
+                const booking = odb._parseFile(filePath);
+                if (booking && booking.id) {
+                    processBookingChange(booking, event, fileName);
+                }
+            } catch (e) {
+                console.error('Error processing vault change:', e.message);
+            }
+        }, 500);
+    });
+}
+
+const lastKnownState = new Map();
+
+function processBookingChange(booking, event, fileName) {
+    const stringified = JSON.stringify(booking);
+    const last = lastKnownState.get(fileName);
+
+    // Only notify if data actually changed
+    if (event !== 'unlink' && last === stringified) return;
+
+    if (event === 'unlink') {
+        lastKnownState.delete(fileName);
+    } else {
+        lastKnownState.set(fileName, stringified);
+    }
+
+    const member = odb.getMemberByLogin(booking.member);
+    if (!member || !member.email) return;
+
+    if (event === 'unlink') {
+        sendDeletionEmail(member, booking);
+        return;
+    }
+
+    console.log(`Sending notification for ${booking.id} (${event})`);
+
+    const isNew = !last;
+    const subject = isNew
+        ? '[NEW RESERVATION RECORDED] — Tuscarora Club'
+        : '[RESERVATION UPDATE] — Tuscarora Club';
+
+    const mailOptions = {
+        from: '"Tuscarora Club" <tuscaroraclub.noreply@gmail.com>',
+        to: member.email,
+        subject: subject,
+        html: `
+            <div style="font-family: Georgia, serif; max-width: 600px; margin: 0 auto; padding: 40px 20px; background: #f5f5f0;">
+                <div style="background: #1a3a2a; padding: 30px; border-radius: 12px; text-align: center; margin-bottom: 30px;">
+                    <h1 style="color: #d4a843; font-size: 22px; margin: 0; font-weight: normal;">The Tuscarora Club</h1>
+                    <p style="color: #86b894; margin: 8px 0 0; font-size: 11px; letter-spacing: 2px; text-transform: uppercase;">${isNew ? 'New Reservation Recorded' : 'Reservation Update'}</p>
+                </div>
+                <div style="background: white; padding: 30px; border-radius: 12px; border: 1px solid #e0e0d8;">
+                    <p style="color: #444; font-size: 16px;">Hello <strong>${member.full_name || member.login}</strong>,</p>
+                    <p style="color: #666; line-height: 1.6;">${booking.adminBooked ? 'The administrator has updated a reservation on your behalf' : (isNew ? 'A new reservation has been recorded' : 'Your reservation has been updated')} in the Tuscarora Club portal.</p>
+                    
+                    <div style="margin: 25px 0; padding: 20px; background: #f9f9f7; border-radius: 8px; border-left: 4px solid #1a3a2a;">
+                        <p style="margin: 0; color: #1a3a2a; font-weight: bold; font-size: 18px;">${booking.roomName}</p>
+                        <p style="margin: 5px 0 0; color: #666; font-size: 14px;">${booking.building}</p>
+                        <div style="margin-top: 15px; grid-template-columns: 1fr 1fr; display: grid; gap: 10px;">
+                            <div>
+                                <p style="margin: 0; font-size: 10px; text-transform: uppercase; color: #999; letter-spacing: 1px;">Arriving</p>
+                                <p style="margin: 2px 0 0; font-size: 14px; color: #444;">${booking.startDate}</p>
+                            </div>
+                            <div>
+                                <p style="margin: 0; font-size: 10px; text-transform: uppercase; color: #999; letter-spacing: 1px;">Departing</p>
+                                <p style="margin: 2px 0 0; font-size: 14px; color: #444;">${booking.endDate}</p>
+                            </div>
+                        </div>
+                        <p style="margin: 15px 0 0; color: #666; font-size: 13px;">Guests: <strong>${booking.guests}</strong></p>
+                    </div>
+
+                    <p style="color: #999; font-size: 13px;">If you did not make this change, please contact the administrator.</p>
+                </div>
+            </div>
+        `
+    };
+
+    transporter.sendMail(mailOptions, (err) => {
+        if (err) console.error('Watcher email error:', err);
+        else console.log(`Notification sent to ${member.email}`);
+    });
+}
+
+function sendDeletionEmail(member, booking) {
+    // Collect all admin emails
+    const admins = odb.getAllMembers().filter(m => m.role === 'ADMIN' && m.email);
+    const adminEmails = admins.map(a => a.email);
+
+    // Always include the transporter user if no admins found
+    if (adminEmails.length === 0) adminEmails.push('mavunaku@gmail.com');
+
+    const recipients = [member.email, ...adminEmails].filter((v, i, a) => a.indexOf(v) === i); // Unique emails
+
+    const mailOptions = {
+        from: '"Tuscarora Club" <tuscaroraclub.noreply@gmail.com>',
+        to: recipients.join(', '),
+        subject: '[RESERVATION CANCELLED] — Tuscarora Club',
+        html: `
+            <div style="font-family: Georgia, serif; max-width: 600px; margin: 0 auto; padding: 40px 20px; background: #f5f5f0;">
+                <div style="background: #e74c3c; padding: 30px; border-radius: 12px; text-align: center; margin-bottom: 30px;">
+                    <h1 style="color: white; font-size: 22px; margin: 0; font-weight: normal;">The Tuscarora Club</h1>
+                    <p style="color: #ffd4d4; margin: 8px 0 0; font-size: 11px; letter-spacing: 2px; text-transform: uppercase;">Reservation Cancelled</p>
+                </div>
+                <div style="background: white; padding: 30px; border-radius: 12px; border: 1px solid #e0e0d8;">
+                    <p style="color: #444; font-size: 16px;">Hello <strong>${member.full_name || member.login}</strong>,</p>
+                    <p style="color: #666; line-height: 1.6;">Your reservation at the Tuscarora Club has been formally cancelled.</p>
+                    
+                    <div style="margin: 25px 0; padding: 20px; background: #fff5f5; border-radius: 8px; border-left: 4px solid #e74c3c;">
+                        <p style="margin: 0; color: #c0392b; font-weight: bold; font-size: 18px;">${booking.roomName}</p>
+                        <p style="margin: 5px 0 0; color: #666; font-size: 14px;">${booking.building}</p>
+                        <p style="margin: 10px 0 0; color: #666; font-size: 13px;">Dates: ${booking.startDate} to ${booking.endDate}</p>
+                    </div>
+
+                    <p style="color: #999; font-size: 13px;">This notification was sent to both the member and the club administration.</p>
+                </div>
+            </div>
+        `
+    };
+
+    transporter.sendMail(mailOptions, (err) => {
+        if (err) console.error('Deletion email error:', err);
+        else console.log(`Cancellation notice sent to ${recipients.join(', ')}`);
+    });
+}
+
+// --- Spreadsheet Sync Logic ---
+const SHEET_URL = 'https://docs.google.com/spreadsheets/d/1ZWBkBixjJb9Cx0yhzfb1RyOt5N26MnfluqRMknhNDHo/export?format=csv&gid=0';
+
+async function fetchSheetData(url, depth = 0) {
+    if (depth > 5) throw new Error('Too many redirects');
+    return new Promise((resolve, reject) => {
+        https.get(url, (res) => {
+            if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
+                const redir = new URL(res.headers.location, url).toString();
+                fetchSheetData(redir, depth + 1).then(resolve).catch(reject);
+                return;
+            }
+            let data = Buffer.alloc(0);
+            res.on('data', chunk => data = Buffer.concat([data, chunk]));
+            res.on('end', () => resolve(data.toString('utf8')));
+        }).on('error', reject);
+    });
+}
+
+function parseCSVLine(line) {
+    const result = [];
+    let cell = '';
+    let inQuotes = false;
+    for (let i = 0; i < line.length; i++) {
+        const char = line[i];
+        if (char === '"') {
+            if (inQuotes && line[i + 1] === '"') {
+                cell += '"';
+                i++;
+            } else {
+                inQuotes = !inQuotes;
+            }
+        } else if (char === ',' && !inQuotes) {
+            result.push(cell.trim());
+            cell = '';
+        } else {
+            cell += char;
+        }
+    }
+    result.push(cell.trim());
+    return result;
+}
+
+async function syncMembersFromSheet() {
+    console.log("Syncing roster from Google Sheet to Obsidian...");
+    const response = await fetchSheetData(SHEET_URL);
+    const lines = response.split(/\r?\n/).filter(l => l.trim() !== '');
+    if (lines.length === 0) return;
+
+    const records = lines.slice(1);
+    const spreadsheetUsernames = new Set();
+    const vaultPath = path.join(__dirname, 'Tuscarora_Obsidian_Vault');
+
+    records.forEach((line, index) => {
+        const cols = parseCSVLine(line);
+        if (cols.length < 3) return;
+
+        const fullName = cols[0];
+        const username = cols[1];
+        const password = cols[2];
+        const email = cols[3] || '';
+
+        if (!username) return;
+        const login = username.toLowerCase();
+        spreadsheetUsernames.add(login);
+
+        let member = odb.getMemberByLogin(login);
+        if (!member) {
+            member = { login: login, password: password, password_changed: 0 };
+        } else if (member.password !== password) {
+            // Only update password from spreadsheet if:
+            // 1. The spreadsheet has a SPECIFIC new password (not the fallback 'generic1')
+            // 2. OR the user hasn't changed their password yet (!member.password_changed)
+            if (password !== 'generic1' || !member.password_changed) {
+                member.password = password;
+                member.password_changed = 0;
+            }
+        }
+
+        member.full_name = fullName;
+        member.email = email;
+        member.phone_number = cols[4] || '';
+        member.address = cols[5] || '';
+        member.occupation = cols[6] || '';
+        member.notes = cols[7] || '';
+        member.priority = index + 1;
+
+        if (['admin', 'test01-admin2'].includes(login)) {
+            member.role = 'ADMIN';
+        } else if (!member.role) {
+            member.role = 'USER';
+        }
+
+        odb.saveMember(member);
+    });
+
+    console.log(`Sync complete. ${spreadsheetUsernames.size} members updated.`);
+    io.emit('notify-members');
+}

@@ -19,3 +19,5 @@ node_modules/
 
 # Debug/output files
 *.txt
+
+.env

@@ -68,16 +68,16 @@
     };
 
     const MEMBER_ORDER = [
-      'atwatere', 'benelloa', 'bessa', 'dibonaventurac', 'boyerm', 
-      'brennanr', 'browna', 'brownm', 'brownr', 'christd', 
-      'ciambruschinis', 'cogginsd', 'coliej', 'corbinp', 'corbinpe', 
-      'cudaf', 'cunninghamj', 'daviesa', 'devilbissr', 'ewingd', 
-      'fergusonj', 'finnegand', 'freemana', 'hardyr', 'hessro', 
-      'hillr', 'huttof', 'jewettf', 'jewettj', 'jewetts', 
-      'kelloggp', 'kosloskyk', 'leisenringe', 'lewisr', 'lucianof', 
-      'luncefordk', 'mahoneyd', 'nicholsonb', 'oharem', 'otwayj', 
-      'otwaym', 'otwaymo', 'parkera', 'paulsenc', 'reesee', 
-      'sawyerp', 'shingletonb', 'wunderw', 'yurdaye', 'lewc', 
+      'atwatere', 'benelloa', 'bessa', 'dibonaventurac', 'boyerm',
+      'brennanr', 'browna', 'brownm', 'brownr', 'christd',
+      'ciambruschinis', 'cogginsd', 'coliej', 'corbinp', 'corbinpe',
+      'cudaf', 'cunninghamj', 'daviesa', 'devilbissr', 'ewingd',
+      'fergusonj', 'finnegand', 'freemana', 'hardyr', 'hessro',
+      'hillr', 'huttof', 'jewettf', 'jewettj', 'jewetts',
+      'kelloggp', 'kosloskyk', 'leisenringe', 'lewisr', 'lucianof',
+      'luncefordk', 'mahoneyd', 'nicholsonb', 'oharem', 'otwayj',
+      'otwaym', 'otwaymo', 'parkera', 'paulsenc', 'reesee',
+      'sawyerp', 'shingletonb', 'wunderw', 'yurdaye', 'lewc',
       'fergusonc', 'hessd', 'kellerm', 'bernsj', 'admin'
     ];
 
@@ -345,7 +345,7 @@
           setLoadingProfile(true);
           setProfileData(null);
           setIsProfileConfirmed(false);
-          
+
           const fallback = memberList.find(m => m.login === username);
           if (fallback) {
             setProfileData({
@@ -393,7 +393,7 @@
                 The Tuscarora Club
               </h1>
               <div className="w-20 h-0.5 bg-amber-400 mx-auto my-6"></div>
-              <p className="text-stone-500 font-bold uppercase tracking-[0.3em] text-[10px]">Reservation Portal</p>
+              <p className="text-stone-500 font-bold uppercase tracking-[0.3em] text-[10px]">Reservation Portal v2.1 - Enhanced</p>
             </div>
 
             <form onSubmit={(e) => { e.preventDefault(); handleLogin(); }} className="space-y-6">
@@ -464,23 +464,23 @@
               {isProfileConfirmed && (
                 <div className="space-y-2 animate-in fade-in zoom-in-95">
                   <label className="text-[10px] font-black uppercase tracking-widest text-stone-400 ml-1">Password</label>
-                  <div className="relative">
+                  <div className="relative group">
                     <input
                       type={showPassword ? "text" : "password"}
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
-                      className="w-full h-16 pl-14 pr-14 bg-stone-50 border-2 border-stone-100 rounded-2xl focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-500 transition-all font-bold text-stone-800 outline-none"
-                      placeholder="••••••••"
+                      className="w-full h-16 pl-12 pr-20 bg-stone-50 border-2 border-stone-200 rounded-2xl focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-500 transition-all font-bold text-stone-800 outline-none"
+                      placeholder="Enter Password"
                       autoFocus
                     />
-                    <LucideIcon name="lock" className="absolute left-5 top-1/2 -translate-y-1/2 w-6 h-6 text-stone-300" />
                     <button
                       type="button"
                       onClick={() => setShowPassword(!showPassword)}
-                      className="absolute right-5 top-1/2 -translate-y-1/2 text-stone-300 hover:text-emerald-700 transition-colors focus:outline-none"
+                      className="absolute right-3 top-1/2 -translate-y-1/2 z-30 px-3 py-1 bg-stone-200 hover:bg-emerald-600 hover:text-white rounded-xl text-[9px] font-black uppercase tracking-tighter transition-all shadow-sm"
                     >
-                      <LucideIcon name={showPassword ? "eye-off" : "eye"} className="w-5 h-5" />
+                      {showPassword ? 'Hide' : 'Show'}
                     </button>
+                    <div className="absolute left-14 -bottom-1 w-0 h-1 bg-emerald-500 transition-all group-focus-within:w-[calc(100%-7rem)] rounded-full opacity-50" />
                   </div>
 
                   <button
@@ -575,7 +575,7 @@
       const exportCalendarPDF = () => {
         const { jsPDF } = window.jspdf;
         const doc = new jsPDF('l', 'mm', 'a4');
-        
+
         const headers = [
           'Date', 'Day', 'Member', 'Room', 'Building',
           'Occupant', 'Arrival',
@@ -650,7 +650,7 @@
 
         const monthName = currentDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
         doc.text(`Calendar Export: ${monthName}`, 14, 15);
-        
+
         doc.autoTable({
           head: [headers],
           body: rows,
@@ -689,11 +689,7 @@
                   {currentDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
                 </h2>
               </div>
-              {calendarView === 'week' ? (
-                <p className="text-sm text-stone-500">
-                  Select available white cells to start your booking.
-                </p>
-              ) : (
+              {calendarView === 'month' && (
                 <p className="text-sm text-stone-500">
                   Click any day to view details and check availability.
                 </p>
@@ -1194,8 +1190,10 @@
       memberList,
       isPayFlow = false
     }) => {
-      const [step, setStep] = React.useState(1); // 1: Occupancy, 2: Meals, 3: Review, 4: Payment
-      const [selectedPaymentMethod, setSelectedPaymentMethod] = React.useState('CREDIT_CARD');
+    const [step, setStep] = React.useState(1); // 1: Occupancy, 2: Meals, 3: Review, 4: Payment
+    const [agreedToTerms, setAgreedToTerms] = React.useState(false);
+    const [showTerms, setShowTerms] = React.useState(false);
+    const [selectedPaymentMethod, setSelectedPaymentMethod] = React.useState('CREDIT_CARD');
       const [paymentData, setPaymentData] = React.useState({
         cardholder: '', // Set in useEffect
         cardNumber: '',
@@ -1537,6 +1535,18 @@
             alert("Please complete all credit card fields.");
             return;
           }
+        }
+
+        if (currentUser === 'admin' && (!adminBookingMember || effectiveMember === 'admin')) {
+          alert('Please select a member you are booking for (Step 1) before confirming.');
+          setStep(1);
+          return;
+        }
+
+        const isFinalizing = !isPayFlow || step === 4;
+        if (isFinalizing && !agreedToTerms) {
+          alert("You must agree to the Club's Cancellation & Payment Terms to finalize your booking.");
+          return;
         }
 
         const paymentDetails = isPayFlow ? {
@@ -2084,7 +2094,14 @@
                   </div>
                 </div>
 
-                <div className="flex justify-between pt-8 mb-12">
+                {!isPayFlow && (
+                  <div className="pt-8 mb-6 border-t border-stone-100 flex items-center gap-3">
+                    <input type="checkbox" id="termsReview" checked={agreedToTerms} onChange={e => setAgreedToTerms(e.target.checked)} className="w-5 h-5 rounded border-stone-300 text-emerald-600 focus:ring-emerald-500 cursor-pointer shadow-sm" />
+                    <label htmlFor="termsReview" className="text-sm font-bold text-stone-600 cursor-pointer select-none">I agree to the Club's <span onClick={() => setShowTerms(true)} className="text-emerald-700 underline focus:outline-none hover:text-emerald-800 cursor-pointer">Cancellation & Payment Terms</span>.</label>
+                  </div>
+                )}
+                
+                <div className={`flex justify-between ${isPayFlow ? 'pt-8' : ''} mb-12`}>
                   <button
                     onClick={() => setStep(2)}
                     className="px-8 py-4 bg-white border-2 border-stone-200 text-stone-600 rounded-2xl hover:bg-stone-50 transition-all font-bold"
@@ -2102,90 +2119,143 @@
               </div>
             )}
 
-            {isPayFlow && step === 4 && (
-              <div className="space-y-8 animate-in fade-in zoom-in-95 duration-500 max-w-4xl mx-auto pb-24 text-stone-900">
-                <div className="bg-white rounded-[2.5rem] border border-stone-200 overflow-hidden shadow-2xl shadow-emerald-900/5">
-                  <div className="grid grid-cols-1 lg:grid-cols-2">
-                    <div className="bg-emerald-900 p-10 text-white relative overflow-hidden">
-                      <div className="absolute top-0 right-0 w-64 h-64 bg-white/5 rounded-full -translate-y-32 translate-x-32 blur-3xl"></div>
-                      <div className="relative z-10 space-y-8">
-                        <div>
-                          <span className="text-[10px] font-black uppercase tracking-[0.3em] text-emerald-300/80 mb-2 block">Reservations Ledger</span>
-                          <h3 className="text-4xl font-light tracking-tight leading-tight">Secure Checkout</h3>
+          {isPayFlow && step === 4 && (
+            <div className="space-y-8 animate-in fade-in zoom-in-95 duration-500 max-w-4xl mx-auto pb-24 text-stone-900">
+              <div className="bg-white rounded-[2.5rem] border border-stone-200 overflow-hidden shadow-2xl shadow-emerald-900/5">
+                <div className="grid grid-cols-1 lg:grid-cols-2">
+                  <div className="bg-emerald-900 p-10 text-white relative overflow-hidden">
+                    <div className="absolute top-0 right-0 w-64 h-64 bg-white/5 rounded-full -translate-y-32 translate-x-32 blur-3xl"></div>
+                    <div className="relative z-10 space-y-8">
+                      <div>
+                        <span className="text-[10px] font-black uppercase tracking-[0.3em] text-emerald-300/80 mb-2 block">Reservations Ledger</span>
+                        <h3 className="text-4xl font-light tracking-tight leading-tight">Secure Checkout</h3>
+                      </div>
+                      <div className="bg-white/10 backdrop-blur-md rounded-2xl p-6 border border-white/10 space-y-4">
+                        <div className="flex justify-between items-center pb-4 border-b border-white/10">
+                          <span className="text-emerald-100/60 text-xs font-bold uppercase tracking-widest">Base Rate Total</span>
+                          <span className="text-2xl font-light">${bookingTotal.toFixed(2)}</span>
                         </div>
-                        <div className="bg-white/10 backdrop-blur-md rounded-2xl p-6 border border-white/10 space-y-4">
-                          <div className="flex justify-between items-center pb-4 border-b border-white/10">
-                            <span className="text-emerald-100/60 text-xs font-bold uppercase tracking-widest">Base Rate Total</span>
-                            <span className="text-2xl font-light">${bookingTotal.toFixed(2)}</span>
-                          </div>
-                          <div className="pt-4 flex justify-between items-center text-amber-300">
-                            <span className="text-xs font-black uppercase tracking-[0.2em]">Payable Now</span>
-                            <span className="text-3xl font-black">${bookingTotal.toFixed(2)}</span>
-                          </div>
+                        <div className="pt-4 flex justify-between items-center text-amber-300">
+                          <span className="text-xs font-black uppercase tracking-[0.2em]">Payable Now</span>
+                          <span className="text-3xl font-black">${bookingTotal.toFixed(2)}</span>
                         </div>
                       </div>
-                    </div>
-                    <div className="p-10 space-y-8 bg-white">
-                      <label className="text-[10px] font-black uppercase tracking-[0.2em] text-stone-400 block">Payment Method</label>
-                      <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                        <PaymentMethodButton id="CREDIT_CARD" icon="credit-card" label="Card" active={selectedPaymentMethod === 'CREDIT_CARD'} onClick={setSelectedPaymentMethod} />
-                        <PaymentMethodButton id="CLUB_ACCOUNT" icon="user-circle" label="Club Acc." active={selectedPaymentMethod === 'CLUB_ACCOUNT'} onClick={setSelectedPaymentMethod} />
-                        <PaymentMethodButton id="PAYPAL" icon="wallet" label="PayPal" active={selectedPaymentMethod === 'PAYPAL'} onClick={setSelectedPaymentMethod} />
-                        <PaymentMethodButton id="APPLE_PAY" icon="smartphone" label="Apple" active={selectedPaymentMethod === 'APPLE_PAY'} onClick={setSelectedPaymentMethod} />
-                        <PaymentMethodButton id="BANK_TRANSFER" icon="landmark" label="Transfer" active={selectedPaymentMethod === 'BANK_TRANSFER'} onClick={setSelectedPaymentMethod} />
-                      </div>
-                      {selectedPaymentMethod === 'CREDIT_CARD' && (
-                        <div className="space-y-4 animate-in fade-in">
-                          <input type="text" placeholder="Cardholder Name" value={paymentData.cardholder} onChange={e => setPaymentData({ ...paymentData, cardholder: e.target.value })} className="w-full px-4 py-3 bg-stone-50 border border-stone-200 rounded-xl text-sm outline-none focus:border-emerald-500 transition-all font-bold" />
-                          <input type="text" placeholder="Card Number" value={paymentData.cardNumber} onChange={e => setPaymentData({ ...paymentData, cardNumber: e.target.value })} className="w-full px-4 py-3 bg-stone-50 border border-stone-200 rounded-xl text-sm outline-none focus:border-emerald-500 transition-all font-bold" />
-                          <div className="grid grid-cols-2 gap-4">
-                            <input type="text" placeholder="MM/YY" value={paymentData.expiry} onChange={e => setPaymentData({ ...paymentData, expiry: e.target.value })} className="w-full px-4 py-3 bg-stone-50 border border-stone-200 rounded-xl text-sm outline-none focus:border-emerald-500 transition-all font-bold" />
-                            <input type="password" placeholder="CVV" value={paymentData.cvv} onChange={e => setPaymentData({ ...paymentData, cvv: e.target.value })} className="w-full px-4 py-3 bg-stone-50 border border-stone-200 rounded-xl text-sm outline-none focus:border-emerald-500 transition-all font-bold" />
-                          </div>
-                        </div>
-                      )}
-                      {selectedPaymentMethod === 'CLUB_ACCOUNT' && (
-                        <div className="p-4 bg-emerald-50 text-emerald-900 rounded-xl border border-emerald-100 text-[11px] leading-relaxed">
-                          Total amount will be added to your monthly club charges for <strong>{effectiveMember}</strong>.
-                        </div>
-                      )}
-                      {selectedPaymentMethod === 'BANK_TRANSFER' && (
-                        <div className="p-4 bg-stone-50 text-stone-600 rounded-xl border border-stone-200 text-[11px] leading-relaxed">
-                          Reference No: <span className="text-emerald-700 font-bold">TUSC-{Date.now().toString().slice(-6)}</span><br />
-                          Bank: Chase Private Client
-                        </div>
-                      )}
                     </div>
                   </div>
-                  <div className="flex justify-between items-center p-8 border-t border-stone-100">
-                    <button onClick={() => setStep(3)} className="flex items-center gap-2 text-stone-500 font-bold text-sm">
-                      <LucideIcon name="arrow-left" className="w-4 h-4" />
-                      Back to Review
-                    </button>
-                    <button onClick={handleConfirm} className="px-12 py-4 bg-emerald-900 text-white rounded-2xl font-black text-lg hover:bg-emerald-950 transition-all shadow-xl shadow-emerald-900/10 active:scale-95">
-                      {selectedPaymentMethod === 'CLUB_ACCOUNT' ? 'Confirm Charge' : 'Pay & Confirm'}
-                    </button>
+                  <div className="p-10 space-y-8 bg-white">
+                    <label className="text-[10px] font-black uppercase tracking-[0.2em] text-stone-400 block">Payment Method</label>
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                      <PaymentMethodButton id="CREDIT_CARD" icon="credit-card" label="Card" active={selectedPaymentMethod === 'CREDIT_CARD'} onClick={setSelectedPaymentMethod} />
+                      <PaymentMethodButton id="CLUB_ACCOUNT" icon="user-circle" label="Club Acc." active={selectedPaymentMethod === 'CLUB_ACCOUNT'} onClick={setSelectedPaymentMethod} />
+                      <PaymentMethodButton id="PAYPAL" icon="wallet" label="PayPal" active={selectedPaymentMethod === 'PAYPAL'} onClick={setSelectedPaymentMethod} />
+                      <PaymentMethodButton id="APPLE_PAY" icon="smartphone" label="Apple" active={selectedPaymentMethod === 'APPLE_PAY'} onClick={setSelectedPaymentMethod} />
+                      <PaymentMethodButton id="BANK_TRANSFER" icon="landmark" label="Transfer" active={selectedPaymentMethod === 'BANK_TRANSFER'} onClick={setSelectedPaymentMethod} />
+                    </div>
+                    {selectedPaymentMethod === 'CREDIT_CARD' && (
+                      <div className="space-y-4 animate-in fade-in">
+                        <input type="text" placeholder="Cardholder Name" value={paymentData.cardholder} onChange={e => setPaymentData({ ...paymentData, cardholder: e.target.value })} className="w-full px-4 py-3 bg-stone-50 border border-stone-200 rounded-xl text-sm outline-none focus:border-emerald-500 transition-all font-bold" />
+                        <input type="text" placeholder="Card Number" value={paymentData.cardNumber} onChange={e => setPaymentData({ ...paymentData, cardNumber: e.target.value })} className="w-full px-4 py-3 bg-stone-50 border border-stone-200 rounded-xl text-sm outline-none focus:border-emerald-500 transition-all font-bold" />
+                        <div className="grid grid-cols-2 gap-4">
+                          <input type="text" placeholder="MM/YY" value={paymentData.expiry} onChange={e => setPaymentData({ ...paymentData, expiry: e.target.value })} className="w-full px-4 py-3 bg-stone-50 border border-stone-200 rounded-xl text-sm outline-none focus:border-emerald-500 transition-all font-bold" />
+                          <input type="password" placeholder="CVV" value={paymentData.cvv} onChange={e => setPaymentData({ ...paymentData, cvv: e.target.value })} className="w-full px-4 py-3 bg-stone-50 border border-stone-200 rounded-xl text-sm outline-none focus:border-emerald-500 transition-all font-bold" />
+                        </div>
+                      </div>
+                    )}
+                    {selectedPaymentMethod === 'CLUB_ACCOUNT' && (
+                      <div className="p-4 bg-emerald-50 text-emerald-900 rounded-xl border border-emerald-100 text-[11px] leading-relaxed">
+                        Total amount will be added to your monthly club charges for <strong>{effectiveMember}</strong>.
+                      </div>
+                    )}
+                    {selectedPaymentMethod === 'BANK_TRANSFER' && (
+                      <div className="p-4 bg-stone-50 text-stone-600 rounded-xl border border-stone-200 text-[11px] leading-relaxed">
+                        Reference No: <span className="text-emerald-700 font-bold">TUSC-{Date.now().toString().slice(-6)}</span><br />
+                        Bank: Chase Private Client
+                      </div>
+                    )}
                   </div>
                 </div>
+                <div className="p-8 border-t border-stone-100 bg-stone-50/50">
+                  <div className="flex items-center gap-3 mb-6 justify-center">
+                    <input type="checkbox" id="termsPay" checked={agreedToTerms} onChange={e => setAgreedToTerms(e.target.checked)} className="w-5 h-5 rounded border-stone-300 text-emerald-600 focus:ring-emerald-500 cursor-pointer shadow-sm" />
+                    <label htmlFor="termsPay" className="text-sm font-bold text-stone-600 cursor-pointer select-none">I agree to the Club's <span onClick={() => setShowTerms(true)} className="text-emerald-700 underline focus:outline-none hover:text-emerald-800 cursor-pointer">Cancellation & Payment Terms</span>.</label>
+                  </div>
+                  <div className="flex justify-between items-center">
+                  <button onClick={() => setStep(3)} className="flex items-center gap-2 text-stone-500 font-bold text-sm">
+                    <LucideIcon name="arrow-left" className="w-4 h-4" />
+                    Back to Review
+                  </button>
+                  <button onClick={handleConfirm} className="px-12 py-4 bg-emerald-900 text-white rounded-2xl font-black text-lg hover:bg-emerald-950 transition-all shadow-xl shadow-emerald-900/10 active:scale-95">
+                    {selectedPaymentMethod === 'CLUB_ACCOUNT' ? 'Confirm Charge' : 'Pay & Confirm'}
+                  </button>
+                </div>
+                </div>
               </div>
-            )}
-          </div>
-        );
-      };
+            </div>
+          )}
 
-const PaymentMethodButton = ({ id, icon, label, active, onClick }) => (
-  <button
-    onClick={() => onClick(id)}
-    className={`p-3 rounded-2xl border-2 transition-all flex flex-col items-center gap-2 ${active
-      ? 'border-emerald-600 bg-emerald-50 text-emerald-900 shadow-sm'
-      : 'border-stone-100 bg-white hover:border-emerald-200 text-stone-400 font-medium'}`}
-  >
-    <div className={`p-2 rounded-xl transition-all ${active ? 'bg-emerald-600 text-white' : 'bg-stone-50 text-stone-400'}`}>
-      <LucideIcon name={icon} className="w-4 h-4" />
-    </div>
-    <span className="text-[9px] font-black uppercase tracking-tight">{label}</span>
-  </button>
-);
+          {showTerms && (
+            <div className="fixed inset-0 bg-stone-900/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4 animate-in fade-in">
+              <div className="bg-white rounded-3xl w-full max-w-2xl max-h-[85vh] flex flex-col shadow-2xl">
+                <div className="p-6 border-b border-stone-100 flex justify-between items-center bg-stone-50 rounded-t-3xl">
+                  <div>
+                    <h3 className="text-xl font-bold text-stone-900">Terms & Conditions</h3>
+                    <p className="text-xs text-stone-500 font-medium">Cancellation and Payment Policies</p>
+                  </div>
+                  <button onClick={() => setShowTerms(false)} className="w-8 h-8 flex items-center justify-center rounded-full bg-stone-200 hover:bg-stone-300 text-stone-600 transition-all cursor-pointer shadow-sm">
+                    <LucideIcon name="x" className="w-4 h-4" />
+                  </button>
+                </div>
+                <div className="p-6 overflow-y-auto text-sm text-stone-600 space-y-6 leading-relaxed">
+                  <section>
+                    <h4 className="font-bold text-stone-900 mb-2">1. Booking and Payments</h4>
+                    <p>All reservations are subject to availability and current club rules. If choosing to pay via Club Account, the total amount will be added to your upcoming monthly statement. By confirming this reservation, you authorize The Tuscarora Club to process the payment according to your selected payment method.</p>
+                  </section>
+                  <section>
+                    <h4 className="font-bold text-stone-900 mb-2">2. Cancellation Policy</h4>
+                    <ul className="list-disc pl-5 space-y-1">
+                      <li><strong>14+ Days Notice:</strong> Cancellations made 14 days or more before the arrival date will receive a full refund or account credit.</li>
+                      <li><strong>7-13 Days Notice:</strong> Cancellations made within 7 to 13 days of arrival are subject to a 50% cancellation fee.</li>
+                      <li><strong>Under 7 Days Notice:</strong> Cancellations made less than 7 days prior to arrival are non-refundable.</li>
+                    </ul>
+                  </section>
+                  <section>
+                    <h4 className="font-bold text-stone-900 mb-2">3. Modifications</h4>
+                    <p>Modifications to existing reservations (such as shortening the stay or reducing the number of rooms) are subject to the same timelines as the cancellation policy. Adding guests or extending the stay is subject to availability and will incur additional charges at the prevailing rate.</p>
+                  </section>
+                  <section>
+                    <h4 className="font-bold text-stone-900 mb-2">4. Meals & Dining</h4>
+                    <p>Meal selections are considered final 48 hours prior to arrival to allow for adequate kitchen preparation. Changes to dietary requirements must also be submitted at least 48 hours in advance.</p>
+                  </section>
+                  <section>
+                    <h4 className="font-bold text-stone-900 mb-2">5. General Liability</h4>
+                    <p>The Tuscarora Club is not liable for personal injury, loss, or damage to personal property that occurs during your stay, except as otherwise mandated by applicable law. All members and their guests are expected to adhere to the Club's published Code of Conduct.</p>
+                  </section>
+                </div>
+                <div className="p-6 border-t border-stone-100 flex justify-end bg-stone-50 rounded-b-3xl">
+                  <button onClick={() => { setAgreedToTerms(true); setShowTerms(false); }} className="px-6 py-3 bg-emerald-600 text-white font-bold rounded-xl hover:bg-emerald-700 transition-all cursor-pointer shadow-sm">
+                    I Agree & Continue
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      );
+    };
+
+    const PaymentMethodButton = ({ id, icon, label, active, onClick }) => (
+      <button
+        onClick={() => onClick(id)}
+        className={`p-3 rounded-2xl border-2 transition-all flex flex-col items-center gap-2 ${active
+          ? 'border-emerald-600 bg-emerald-50 text-emerald-900 shadow-sm'
+          : 'border-stone-100 bg-white hover:border-emerald-200 text-stone-400 font-medium'}`}
+      >
+        <div className={`p-2 rounded-xl transition-all ${active ? 'bg-emerald-600 text-white' : 'bg-stone-50 text-stone-400'}`}>
+          <LucideIcon name={icon} className="w-4 h-4" />
+        </div>
+        <span className="text-[9px] font-black uppercase tracking-tight">{label}</span>
+      </button>
+    );
 
     const MealCheckbox = ({ id, label, time, checked, disabled, onChange, packed, onPackedChange }) => (
       <div className={`p-2 rounded-xl transition-all flex flex-col gap-1.5 ${disabled ? 'opacity-40 grayscale' : checked ? 'bg-emerald-50/50' : 'hover:bg-stone-50'}`}>
@@ -3062,11 +3132,40 @@ const PaymentMethodButton = ({ id, icon, label, active, onClick }) => (
     // Dashboard View (Admin Only)
     const DashboardView = ({ bookings, inventory, maxRoomThreshold, setMaxRoomThreshold, mealTimes, setMealTimes }) => {
       const [activeTab, setActiveTab] = React.useState('reports');
+      const [isSyncing, setIsSyncing] = React.useState(false);
+
+      const handleManualSync = () => {
+        setIsSyncing(true);
+        fetch('/api/admin/sync-roster', {
+          method: 'POST',
+          headers: { 'x-admin-user': 'admin' }
+        })
+          .then(r => r.json())
+          .then(data => {
+            if (data.success) {
+              alert(data.message);
+            } else {
+              alert(data.error || 'Sync failed');
+            }
+          })
+          .catch(() => alert('Network error during sync'))
+          .finally(() => setIsSyncing(false));
+      };
 
       return (
         <div className="space-y-6">
           <div className="flex items-center justify-between bg-white/50 backdrop-blur-md p-4 rounded-3xl border border-white/20 shadow-xl shadow-emerald-900/5">
-            <h2 className="text-2xl font-light text-emerald-900 px-2">Admin Dashboard</h2>
+            <div className="flex items-center gap-4">
+              <h2 className="text-2xl font-light text-emerald-900 px-2">Admin Dashboard</h2>
+              <button
+                onClick={handleManualSync}
+                disabled={isSyncing}
+                className={`flex items-center gap-2 px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${isSyncing ? 'bg-stone-100 text-stone-400' : 'bg-emerald-100 text-emerald-800 hover:bg-emerald-200'}`}
+              >
+                <LucideIcon name="refresh-cw" className={`w-3 h-3 ${isSyncing ? 'animate-spin' : ''}`} />
+                {isSyncing ? 'Syncing...' : 'Sync with Google Sheet'}
+              </button>
+            </div>
             <div className="flex bg-stone-100 p-1 rounded-2xl">
               <button
                 onClick={() => setActiveTab('reports')}
@@ -3513,21 +3612,21 @@ const PaymentMethodButton = ({ id, icon, label, active, onClick }) => (
       const downloadMealReportPDF = () => {
         const { jsPDF } = window.jspdf;
         const doc = new jsPDF('p', 'mm', 'a4');
-        
+
         const headers = ['Date', 'Day', 'Meal Service', 'Count', 'Attendees'];
         const rows = [];
-        
+
         sortedDates.forEach(dateStr => {
           const data = mealDataByDate[dateStr];
           const dateObj = new Date(dateStr + 'T00:00:00');
           const dayName = dateObj.toLocaleDateString('en-US', { weekday: 'short' });
-          
+
           const services = [
             { label: 'Breakfast', normal: data.breakfast, packed: data.packedBreakfast },
             { label: 'Lunch', normal: data.lunch, packed: data.packedLunch },
             { label: 'Bar Supper', normal: data.barSupper, packed: data.packedBarSupper }
           ];
-          
+
           services.forEach(s => {
             const mealType = s.label === 'Bar Supper' ? 'barSupper' : s.label.toLowerCase();
             if (IS_MEAL_AVAILABLE(dateStr, mealType)) {
@@ -4355,8 +4454,8 @@ const PaymentMethodButton = ({ id, icon, label, active, onClick }) => (
         const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
 
         const headers = [
-          'Date', 'Day', 'ID', 'Member', 'Building', 'Room', 
-          'Occupant', 'Type', 
+          'Date', 'Day', 'ID', 'Member', 'Building', 'Room',
+          'Occupant', 'Type',
           'Brk', 'Lun', 'Sup',
           'P.Brk', 'P.Lun', 'P.Sup'
         ];
@@ -4365,7 +4464,7 @@ const PaymentMethodButton = ({ id, icon, label, active, onClick }) => (
         bookings.forEach(b => {
           const start = new Date(b.startDate + 'T00:00:00');
           const end = new Date(b.endDate + 'T00:00:00');
-          
+
           const guestsCount = b.guests || 1;
           const isMemberRoom = b.isGuest === 'GUEST' ? false : (b.isGuest === 'MEMBER' || b.isGuest === false);
           const isCottageStay = b.stayingInCottage;
@@ -4446,6 +4545,7 @@ const PaymentMethodButton = ({ id, icon, label, active, onClick }) => (
         const [showPass2, setShowPass2] = useState(false);
         const [error, setError] = useState('');
         const [loading, setLoading] = useState(false);
+        const [isSuccess, setIsSuccess] = useState(false);
 
         const handleUpdate = (e) => {
           e.preventDefault();
@@ -4463,8 +4563,10 @@ const PaymentMethodButton = ({ id, icon, label, active, onClick }) => (
             .then(res => res.json())
             .then(d => {
               if (d.success) {
-                setMustChangePassword(false);
-                onComplete();
+                setIsSuccess(true);
+                setTimeout(() => {
+                  onComplete();
+                }, 2000);
               } else {
                 setError(d.error || 'Failed to update');
               }
@@ -4476,68 +4578,89 @@ const PaymentMethodButton = ({ id, icon, label, active, onClick }) => (
             .finally(() => setLoading(false));
         };
 
-        return (
-          <div className="min-h-screen flex items-center justify-center bg-stone-50 p-6">
-            <div className="bg-white rounded-[2.5rem] shadow-2xl p-10 w-full max-w-md border border-stone-100">
-              <div className="text-center mb-8">
-                <div className="w-16 h-16 bg-emerald-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
-                  <LucideIcon name="shield-check" className="w-8 h-8 text-emerald-600" />
+        if (isSuccess) {
+          return (
+            <div className="min-h-screen flex items-center justify-center bg-stone-50 p-6">
+              <div className="bg-white rounded-[2.5rem] shadow-2xl p-10 w-full max-w-sm border border-stone-100 text-center animate-in zoom-in-95 duration-500">
+                <div className="w-20 h-20 bg-emerald-100 rounded-full flex items-center justify-center mx-auto mb-6">
+                  <LucideIcon name="check-circle" className="w-10 h-10 text-emerald-600" />
                 </div>
-                <h2 className="text-2xl font-light text-stone-900">Secure Your Account</h2>
-                <p className="text-stone-500 text-sm mt-2">Before continuing, please change your temporary password to a personal one.</p>
+                <h2 className="text-2xl font-light text-stone-900 mb-2">Password Updated</h2>
+                <p className="text-stone-500 text-sm">Your secure password is now active. Redirecting...</p>
+              </div>
+            </div>
+          );
+        }
+
+        return (
+          <div className="min-h-screen flex items-center justify-center bg-stone-100 p-6">
+            <div className="bg-white rounded-[3rem] shadow-2xl p-10 w-full max-w-md border border-white">
+              <div className="text-center mb-10">
+                <div className="w-20 h-20 bg-emerald-50 rounded-3xl flex items-center justify-center mx-auto mb-6 shadow-sm border border-emerald-100">
+                  <LucideIcon name="shield-check" className="w-10 h-10 text-emerald-700" />
+                </div>
+                <h2 className="text-3xl font-light text-stone-900">Secure Your Account</h2>
+                <p className="text-stone-400 text-sm mt-3 leading-relaxed">Please update your temporary password to ensure your account security.</p>
               </div>
 
-              <form onSubmit={handleUpdate} className="space-y-6">
+              <form onSubmit={handleUpdate} className="space-y-8">
                 <div>
-                  <label className="text-[10px] font-black uppercase tracking-widest text-stone-400 block mb-2 px-1">New Password</label>
-                  <div className="relative">
+                  <label className="text-[10px] font-black uppercase tracking-[0.2em] text-stone-500 block mb-3 px-1">New Password</label>
+                  <div className="relative group">
                     <input
                       type={showPass1 ? "text" : "password"}
                       value={newPass}
                       onChange={e => setNewPass(e.target.value)}
-                      className="w-full h-14 px-6 pr-12 bg-stone-50 border-2 border-stone-100 rounded-2xl focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-500 transition-all font-bold text-stone-800 outline-none"
+                      className="w-full h-16 px-6 pr-14 bg-stone-50 border-2 border-stone-100 rounded-[1.25rem] focus:ring-8 focus:ring-emerald-500/5 focus:border-emerald-500 transition-all font-bold text-stone-800 outline-none text-lg"
                       placeholder="••••••••"
                       required
                     />
                     <button
                       type="button"
                       onClick={() => setShowPass1(!showPass1)}
-                      className="absolute right-4 top-1/2 -translate-y-1/2 text-stone-300 hover:text-emerald-700 transition-colors focus:outline-none"
+                      className="absolute right-3 top-1/2 -translate-y-1/2 z-30 px-3 py-1 bg-stone-200 hover:bg-emerald-600 hover:text-white rounded-xl text-[9px] font-black uppercase tracking-tighter transition-all shadow-sm"
                     >
-                      <LucideIcon name={showPass1 ? "eye-off" : "eye"} className="w-5 h-5" />
+                      {showPass1 ? 'Hide' : 'Show'}
                     </button>
+                    <div className="absolute left-6 -bottom-1 w-0 h-1 bg-emerald-500 transition-all group-focus-within:w-[calc(100%-3rem)] rounded-full opacity-50" />
                   </div>
                 </div>
+
                 <div>
-                  <label className="text-[10px] font-black uppercase tracking-widest text-stone-400 block mb-2 px-1">Confirm Password</label>
-                  <div className="relative">
+                  <label className="text-[10px] font-black uppercase tracking-[0.2em] text-stone-500 block mb-3 px-1">Confirm Password</label>
+                  <div className="relative group">
                     <input
                       type={showPass2 ? "text" : "password"}
                       value={confirmPass}
                       onChange={e => setConfirmPass(e.target.value)}
-                      className="w-full h-14 px-6 pr-12 bg-stone-50 border-2 border-stone-100 rounded-2xl focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-500 transition-all font-bold text-stone-800 outline-none"
+                      className="w-full h-16 px-6 pr-14 bg-stone-50 border-2 border-stone-100 rounded-[1.25rem] focus:ring-8 focus:ring-emerald-500/5 focus:border-emerald-500 transition-all font-bold text-stone-800 outline-none text-lg"
                       placeholder="••••••••"
                       required
                     />
                     <button
                       type="button"
                       onClick={() => setShowPass2(!showPass2)}
-                      className="absolute right-4 top-1/2 -translate-y-1/2 text-stone-300 hover:text-emerald-700 transition-colors focus:outline-none"
+                      className="absolute right-3 top-1/2 -translate-y-1/2 z-30 px-3 py-1 bg-stone-200 hover:bg-emerald-600 hover:text-white rounded-xl text-[9px] font-black uppercase tracking-tighter transition-all shadow-sm"
                     >
-                      <LucideIcon name={showPass2 ? "eye-off" : "eye"} className="w-5 h-5" />
+                      {showPass2 ? 'Hide' : 'Show'}
                     </button>
+                    <div className="absolute left-6 -bottom-1 w-0 h-1 bg-emerald-500 transition-all group-focus-within:w-[calc(100%-3rem)] rounded-full opacity-50" />
                   </div>
                 </div>
 
-                {error && <div className="p-4 bg-red-50 text-red-600 rounded-2xl text-xs font-bold text-center border border-red-100">{error}</div>}
+                {error && (
+                  <div className="p-4 bg-red-50 text-red-700 rounded-2xl text-[11px] font-black uppercase tracking-widest text-center border border-red-100 animate-in shake duration-500">
+                    {error}
+                  </div>
+                )}
 
                 <button
                   type="submit"
                   disabled={loading}
-                  className="w-full bg-emerald-900 text-white h-14 rounded-2xl hover:bg-emerald-950 transition-all font-black uppercase tracking-widest text-sm shadow-xl shadow-emerald-900/10 active:scale-95 flex items-center justify-center gap-3"
+                  className="w-full bg-emerald-900 text-white h-16 rounded-[1.25rem] hover:bg-stone-900 hover:shadow-2xl hover:shadow-emerald-900/20 transition-all font-black uppercase tracking-[0.2em] text-xs shadow-xl shadow-emerald-900/10 active:scale-[0.98] flex items-center justify-center gap-3 disabled:opacity-50 disabled:grayscale"
                 >
-                  {loading ? 'Updating...' : 'Set New Password'}
-                  {!loading && <LucideIcon name="chevron-right" className="w-5 h-5" />}
+                  {loading ? 'Processing...' : 'Set Secure Password'}
+                  {!loading && <LucideIcon name="arrow-right" className="w-4 h-4" />}
                 </button>
               </form>
             </div>
