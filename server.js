@@ -60,7 +60,7 @@ app.use(express.static(__dirname));
 
 // Explicitly serve index.html for the root path
 app.get('/', (req, res) => {
-    res.sendFile(path.join(__dirname, 'index.html'));
+    res.send('Tuscarora Server is ONLINE and running! If you see this, the connection is working.');
 });
 
 const toStatus = (val) => {
