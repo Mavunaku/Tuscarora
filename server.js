@@ -61,7 +61,8 @@ const toStatus = (val) => {
 };
 
 // Initialize Database (No-op for Obsidian, but keeping structure)
-console.log('Using Obsidian Vault storage.');
+// Health Check for Render
+app.get('/healthz', (req, res) => res.sendStatus(200));
 
 // Profile Update
 // Profile: Get info for verification
