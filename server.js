@@ -52,6 +52,11 @@ app.use(bodyParser.json());
 // Serve static files (index.html, etc.) from the project directory
 app.use(express.static(__dirname));
 
+// Explicitly serve index.html for the root path
+app.get('/', (req, res) => {
+    res.sendFile(path.join(__dirname, 'index.html'));
+});
+
 const toStatus = (val) => {
     if (val === true || val === "YES" || val === 1) return "GUEST";
     if (val === false || val === "NO" || val === 0) return "MEMBER";
