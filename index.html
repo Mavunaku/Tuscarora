@@ -1540,7 +1540,7 @@
         return initializeDefaultMeals(allDates);
       });
 
-      const bookingTotal = React.useMemo(() => {
+      const { bookingSubtotal, bookingTax, bookingService, bookingTotal } = React.useMemo(() => {
         let total = 0;
         roomBookings.forEach(rb => {
           const room = getRoomById(rb.roomId);
@@ -1565,7 +1565,14 @@
           });
         }
 
-        return total;
+        const service = total * 0.10;
+        const tax = total * 0.08;
+        return {
+          bookingSubtotal: total,
+          bookingService: service,
+          bookingTax: tax,
+          bookingTotal: total + service + tax
+        };
       }, [roomBookings, getRoomById, mealPrices, stayingInCottage, cottageMeals]);
 
       const updateRoomBooking = (index, field, value) => {
@@ -2161,6 +2168,22 @@
                       })()}
                     </div>
                   </div>
+                  
+                  {/* Tax & Service Breakdown footer */}
+                  <div className="mt-8 pt-6 border-t border-stone-100 flex flex-wrap gap-6 items-center">
+                    <div>
+                      <span className="text-[10px] font-black uppercase tracking-widest text-stone-400 block mb-1">Base Subtotal</span>
+                      <span className="text-lg font-bold text-stone-900">${bookingSubtotal.toFixed(2)}</span>
+                    </div>
+                    <div>
+                      <span className="text-[10px] font-black uppercase tracking-widest text-stone-400 block mb-1">Service (10%)</span>
+                      <span className="text-lg font-bold text-stone-900">${bookingService.toFixed(2)}</span>
+                    </div>
+                    <div>
+                      <span className="text-[10px] font-black uppercase tracking-widest text-stone-400 block mb-1">NY State Tax (8%)</span>
+                      <span className="text-lg font-bold text-stone-900">${bookingTax.toFixed(2)}</span>
+                    </div>
+                  </div>
                 </div>
               </div>
 
@@ -2551,9 +2574,17 @@
                             </div>
                           );
                         })()}
-                        <div className="flex justify-between items-center pt-1 pb-4 border-b border-white/10">
-                          <span className="text-emerald-100/60 text-xs font-bold uppercase tracking-widest">Base Rate Total</span>
-                          <span className="text-2xl font-light">${bookingTotal.toFixed(2)}</span>
+                        <div className="flex justify-between items-center pt-1 text-emerald-100/60">
+                          <span className="text-xs font-bold uppercase tracking-widest">Base Rate Subtotal</span>
+                          <span className="text-lg font-light">${bookingSubtotal.toFixed(2)}</span>
+                        </div>
+                        <div className="flex justify-between items-center text-emerald-100/60">
+                          <span className="text-[10px] font-bold uppercase tracking-widest">Service Charge (10%)</span>
+                          <span className="text-sm font-medium">${bookingService.toFixed(2)}</span>
+                        </div>
+                        <div className="flex justify-between items-center pb-4 border-b border-white/10 text-emerald-100/60">
+                          <span className="text-[10px] font-bold uppercase tracking-widest">NY State Tax (8%)</span>
+                          <span className="text-sm font-medium">${bookingTax.toFixed(2)}</span>
                         </div>
                         <div className="pt-4 flex justify-between items-center text-amber-300">
                           <span className="text-xs font-black uppercase tracking-[0.2em]">Payable Now</span>
@@ -2786,7 +2817,7 @@
         }));
       };
 
-      const bookingTotal = React.useMemo(() => {
+      const { bookingSubtotal, bookingTax, bookingService, bookingTotal } = React.useMemo(() => {
         const roomPrice = getRoomById(booking.roomId)?.price || 0;
         let total = roomPrice * nights;
 
@@ -2796,8 +2827,15 @@
           if (m.barSupper) total += mealPrices.barSupper;
         });
 
-        return total;
-      }, [dailyMeals, mealPrices, booking.roomId, nights]);
+        const service = total * 0.10;
+        const tax = total * 0.08;
+        return {
+          bookingSubtotal: total,
+          bookingService: service,
+          bookingTax: tax,
+          bookingTotal: total + service + tax
+        };
+      }, [dailyMeals, mealPrices, booking.roomId, nights, getRoomById]);
 
       const handleSave = () => {
         onSave({
@@ -2905,6 +2943,22 @@
                         </>
                       );
                     })()}
+                  </div>
+                  
+                  {/* Tax & Service Breakdown footer */}
+                  <div className="mt-8 pt-6 border-t border-stone-100 flex flex-wrap gap-6 items-center">
+                    <div>
+                      <span className="text-[10px] font-black uppercase tracking-widest text-stone-400 block mb-1">Base Subtotal</span>
+                      <span className="text-lg font-bold text-stone-900">${bookingSubtotal.toFixed(2)}</span>
+                    </div>
+                    <div>
+                      <span className="text-[10px] font-black uppercase tracking-widest text-stone-400 block mb-1">Service (10%)</span>
+                      <span className="text-lg font-bold text-stone-900">${bookingService.toFixed(2)}</span>
+                    </div>
+                    <div>
+                      <span className="text-[10px] font-black uppercase tracking-widest text-stone-400 block mb-1">NY State Tax (8%)</span>
+                      <span className="text-lg font-bold text-stone-900">${bookingTax.toFixed(2)}</span>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -3420,10 +3474,27 @@
                                                if (m.barSupper) mTotal += (mealPrices?.barSupper || 0);
                                             });
                                           }
+                                          const subtotal = roomCost + mTotal;
+                                          const service = subtotal * 0.10;
+                                          const tax = subtotal * 0.08;
                                           return (
-                                            <div className="flex justify-between text-[11px] font-medium text-stone-500 mt-1">
-                                              <span>Accommodations: ${roomCost.toFixed(2)}</span>
-                                              <span>Meals: ${mTotal.toFixed(2)}</span>
+                                            <div className="flex flex-col gap-1 text-[11px] font-medium text-stone-500 mt-2">
+                                              <div className="flex justify-between">
+                                                <span>Accommodations:</span>
+                                                <span>${roomCost.toFixed(2)}</span>
+                                              </div>
+                                              <div className="flex justify-between">
+                                                <span>Meals:</span>
+                                                <span>${mTotal.toFixed(2)}</span>
+                                              </div>
+                                              <div className="flex justify-between text-[10px] text-stone-400 mt-1">
+                                                <span>Service Charge (10%):</span>
+                                                <span>${service.toFixed(2)}</span>
+                                              </div>
+                                              <div className="flex justify-between text-[10px] text-stone-400">
+                                                <span>NY State Tax (8%):</span>
+                                                <span>${tax.toFixed(2)}</span>
+                                              </div>
                                             </div>
                                           );
                                         })()}
