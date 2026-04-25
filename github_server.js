@@ -17,6 +17,7 @@ const syncToGitHub = () => {
         if (syncTimeout) clearTimeout(syncTimeout);
         syncTimeout = setTimeout(() => {
             console.log('Production detected: Syncing changes to GitHub...');
+            // Pull first to avoid conflicts if possible, though Render is usually the only one writing
             exec('git add . && git commit -m "Auto-sync vault changes" && git push mavunaku master', (error, stdout, stderr) => {
                 if (error) {
                     console.error(`Git Sync Error: ${error.message}`);
@@ -24,49 +25,7 @@ const syncToGitHub = () => {
                 }
                 console.log('Git Sync Success');
             });
-        }, 5000);
-    }
-};
-
-const syncBookingToSheet = async (booking, type = "UPDATE_BOOKING") => {
-    const BOOKING_SYNC_URL = process.env.BOOKING_SYNC_URL;
-    if (!BOOKING_SYNC_URL || BOOKING_SYNC_URL === "WAITING_FOR_USER_TO_PROVIDE_URL") {
-        console.warn(`Sync skipped for ${booking.id}: BOOKING_SYNC_URL not configured.`);
-        return;
-    }
-
-    // Default spreadsheet if not in env
-    const SPREADSHEET_URL = process.env.SPREADSHEET_URL || "https://docs.google.com/spreadsheets/d/1cJbeKlNpWFRMs7WVHCz8UyO4lVN6vbT5aRJn-haQkq4/edit?gid=0#gid=0";
-
-    console.log(`[Google Sync] Syncing ${type} for booking ${booking.id}...`);
-    try {
-        const response = await fetch(BOOKING_SYNC_URL, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                type: type,
-                spreadsheetUrl: SPREADSHEET_URL,
-                ...booking,
-                STATUS: type === 'CANCELLATION' ? 'CANCELLED' : 'RESERVED',
-                dailyMeals: typeof booking.dailyMeals === 'string' ? booking.dailyMeals : JSON.stringify(booking.dailyMeals),
-                guestNames: typeof booking.guestNames === 'string' ? booking.guestNames : JSON.stringify(booking.guestNames)
-            })
-        });
-        
-        if (response.status === 403) {
-            console.error(`[Google Sync] CRITICAL ERROR: Access Denied (403) to ${BOOKING_SYNC_URL}. Please ensure the script is deployed as 'Anyone'.`);
-            return;
-        }
-
-        const text = await response.text();
-        try {
-            const data = JSON.parse(text);
-            console.log(`[Google Sync] Success for ${booking.id}:`, data);
-        } catch (e) {
-            console.error(`[Google Sync] Failed to parse response for ${booking.id}. Response start: ${text.substring(0, 100)}`);
-        }
-    } catch (err) {
-        console.error(`[Google Sync] Network error for ${booking.id}:`, err.message);
+        }, 5000); // Wait 5 seconds after last change
     }
 };
 
@@ -90,117 +49,8 @@ const db = odb; // Alias for minimal code changes elsewhere
 app.use(cors());
 app.use(bodyParser.json());
 
-const INITIAL_INVENTORY = {
-    'Farm House': [
-        { id: 'fh1', name: 'Farmhouse #1', displayName: 'Farmhouse #1', bathroom: true, beds: '1 Queen Bed', price: 100 },
-        { id: 'fh2', name: 'Farmhouse #2', displayName: 'Farmhouse #2', bathroom: true, beds: '2 Single Beds', price: 100 },
-        { id: 'fh3', name: 'Farmhouse #3', displayName: 'Farmhouse #3', bathroom: true, beds: '1 Queen Bed', price: 100 },
-        { id: 'fh4', name: 'Farmhouse #4', displayName: 'Farmhouse #4', bathroom: false, beds: '2 Single Beds', price: 100 },
-        { id: 'fh5', name: 'Farmhouse #5', displayName: 'Farmhouse #5', bathroom: false, beds: '1 Queen Bed', price: 100 },
-        { id: 'fh6', name: 'Farmhouse #6', displayName: 'Farmhouse #6', bathroom: false, beds: '2 Single Beds', price: 100 },
-    ],
-    'Club House': [
-        { id: 'ch1', name: 'Clubhouse #1', displayName: 'Clubhouse #1', bathroom: true, inSuite: true, beds: '1 Queen Bed', price: 100 },
-        { id: 'ch2', name: 'Clubhouse #2', displayName: 'Clubhouse #2', bathroom: true, beds: '2 Single Beds', price: 100 },
-        { id: 'ch3', name: 'Clubhouse #3', displayName: 'Clubhouse #3', bathroom: true, beds: '1 Queen Bed', price: 100 },
-        { id: 'ch4', name: 'Clubhouse #4', displayName: 'Clubhouse #4', bathroom: false, beds: '2 Single Beds', price: 100 },
-        { id: 'ch5', name: 'Clubhouse #5', displayName: 'Clubhouse #5', bathroom: false, beds: '1 Queen Bed', price: 100 },
-        { id: 'ch6', name: 'Clubhouse #6', displayName: 'Clubhouse #6', bathroom: false, beds: '2 Single Beds', price: 100 },
-    ],
-    'Lazy Lodge': [
-        { id: 'll1', name: 'Lazy Lodge #1', displayName: 'Lazy Lodge #1', bathroom: true, inSuite: true, beds: '1 Queen Bed', price: 150 },
-        { id: 'll2', name: 'Lazy Lodge #2', displayName: 'Lazy Lodge #2', bathroom: true, inSuite: true, beds: '1 Queen Bed', price: 150 },
-    ]
-};
-
-const INITIAL_MEAL_PRICES = {
-    breakfast: 15,
-    lunch: 20,
-    barSupper: 35
-};
-
-// Seed Rooms if none exist
-const existingRooms = odb.getAllRooms();
-if (existingRooms.length === 0) {
-    console.log("Seeding room inventory into Obsidian Vault...");
-    Object.entries(INITIAL_INVENTORY).forEach(([building, rooms]) => {
-        rooms.forEach(room => {
-            odb.saveRoom({ ...room, building });
-        });
-    });
-}
-
-// Seed Meal Prices if none exist
-if (!odb.getConfig('meal-prices')) {
-    console.log("Seeding meal prices into Obsidian Vault...");
-    odb.saveConfig('meal-prices', INITIAL_MEAL_PRICES);
-}
-
 // Serve static files (index.html, etc.) from the project directory
 app.use(express.static(__dirname));
-
-// Middleware to check admin role
-const isAdmin = (req, res, next) => {
-    const adminUser = req.headers['x-admin-user'];
-    if (!adminUser) return res.status(401).json({ error: 'Unauthorized' });
-
-    const row = odb.getMemberByLogin(adminUser);
-    if (!row || row.role !== 'ADMIN') {
-        return res.status(403).json({ error: 'Forbidden: Admin access required' });
-    }
-    next();
-};
-
-app.get('/api/inventory', (req, res) => {
-    const rooms = odb.getAllRooms();
-    const inventory = {};
-    rooms.forEach(room => {
-        if (!inventory[room.building]) inventory[room.building] = [];
-        inventory[room.building].push(room);
-    });
-    // Sort buildings for consistency
-    const sortedInventory = {};
-    Object.keys(inventory).sort().forEach(key => {
-        sortedInventory[key] = inventory[key].sort((a, b) => a.id.localeCompare(b.id));
-    });
-    res.json(sortedInventory);
-});
-
-app.post('/api/admin/rooms/update', isAdmin, (req, res) => {
-    const { roomId, price } = req.body;
-    if (!roomId || price === undefined) return res.status(400).json({ error: 'Missing roomId or price' });
-
-    const rooms = odb.getAllRooms();
-    const room = rooms.find(r => r.id === roomId);
-    if (!room) return res.status(404).json({ error: 'Room not found' });
-
-    room.price = Number(price);
-    odb.saveRoom(room);
-    syncToGitHub();
-    res.json({ success: true, message: 'Room price updated successfully' });
-});
-
-app.get('/api/config/meal-prices', (req, res) => {
-    const prices = odb.getConfig('meal-prices') || INITIAL_MEAL_PRICES;
-    res.json(prices);
-});
-
-app.post('/api/admin/meal-prices/update', isAdmin, (req, res) => {
-    const { breakfast, lunch, barSupper } = req.body;
-    if (breakfast === undefined || lunch === undefined || barSupper === undefined) {
-        return res.status(400).json({ error: 'Missing meal prices' });
-    }
-
-    const newPrices = {
-        breakfast: Number(breakfast),
-        lunch: Number(lunch),
-        barSupper: Number(barSupper)
-    };
-
-    odb.saveConfig('meal-prices', newPrices);
-    syncToGitHub();
-    res.json({ success: true, message: 'Meal prices updated successfully' });
-});
 
 // Explicitly serve index.html for the root path
 app.get('/', (req, res) => {
@@ -225,7 +75,7 @@ app.get('/api/sheet-profile/:username', (req, res) => {
     const username = req.params.username;
     const member = odb.getMemberByLogin(username);
     if (!member) return res.status(404).json({ error: 'Member not found' });
-
+    
     res.json({
         fullName: member.full_name || '',
         email: member.email || '',
@@ -241,7 +91,7 @@ app.post('/api/sheet-profile-update', async (req, res) => {
     const info = req.body;
     const member = odb.getMemberByLogin(info.username || info.login);
     if (!member) return res.status(404).json({ error: 'Member not found' });
-
+    
     // 1. Update Local Obsidian Vault
     member.full_name = info.fullName || member.full_name;
     member.email = info.email || member.email;
@@ -254,7 +104,7 @@ app.post('/api/sheet-profile-update', async (req, res) => {
     // 2. Push Update to Google Spreadsheet
     // WE MUST PASTE THE DEPLOYED WEB APP URL HERE:
     const GOOGLE_APP_SCRIPT_URL = process.env.GOOGLE_APPS_SCRIPT_URL;
-
+    
     if (GOOGLE_APP_SCRIPT_URL !== "WAITING_FOR_USER_TO_PROVIDE_URL") {
         try {
             // Using standard dynamic import for node-fetch if global fetch is not available in node v16
@@ -284,11 +134,11 @@ app.post('/api/profile/update', async (req, res) => {
     const info = req.body;
     const member = odb.getMemberByLogin(info.username);
     if (!member) return res.status(404).json({ error: 'Member not found' });
-
+    
     member.full_name = info.fullName;
     member.email = info.email;
     member.phone_number = info.phone;
-
+    
     odb.saveMember(member);
     syncToGitHub();
     res.json({ success: true, message: 'Profile updated in Obsidian.' });
@@ -381,7 +231,6 @@ app.put('/api/bookings/:id', (req, res) => {
     b.id = req.params.id;
     odb.saveBooking(b);
     syncToGitHub();
-
     res.json({ message: 'Booking updated successfully' });
 });
 
@@ -459,7 +308,6 @@ app.post('/api/login', (req, res) => {
         const mustChange = !isAdmin && (row.password === 'generic1' || !row.password_changed);
         res.json({
             success: true,
-            user: row.login,
             username: row.login,
             fullName: row.full_name,
             role: row.role || 'USER',
@@ -499,6 +347,17 @@ app.post('/api/change-password', (req, res) => {
     res.json({ success: true, message: 'Password updated successfully' });
 });
 
+// Middleware to check admin role
+const isAdmin = (req, res, next) => {
+    const adminUser = req.headers['x-admin-user'];
+    if (!adminUser) return res.status(401).json({ error: 'Unauthorized' });
+
+    const row = odb.getMemberByLogin(adminUser);
+    if (!row || row.role !== 'ADMIN') {
+        return res.status(403).json({ error: 'Forbidden: Admin access required' });
+    }
+    next();
+};
 
 // Admin: Update member details (username/role)
 app.post('/api/admin/members/update', isAdmin, (req, res) => {
@@ -526,20 +385,9 @@ app.post('/api/admin/members/reset-to-default', isAdmin, (req, res) => {
         member.password = defaultPassword;
         member.password_changed = 0;
         odb.saveMember(member);
-        syncToGitHub();
+    syncToGitHub();
     }
     res.json({ success: true, message: 'Password reset to default successfully' });
-});
-
-// Admin: Sync roster from Google Sheet
-app.post('/api/admin/sync-roster', isAdmin, async (req, res) => {
-    try {
-        await syncMembersFromSheet();
-        res.json({ success: true, message: 'Roster synced successfully from Google Sheet' });
-    } catch (err) {
-        console.error('Manual sync error:', err);
-        res.status(500).json({ error: 'Failed to sync roster: ' + err.message });
-    }
 });
 
 // Password Reset Endpoints
@@ -669,7 +517,7 @@ app.put('/api/members/:login/email', (req, res) => {
     if (member) {
         member.email = email;
         odb.saveMember(member);
-        syncToGitHub();
+    syncToGitHub();
     }
     res.json({ success: true });
 });
@@ -713,24 +561,18 @@ function startVaultWatcher() {
                 const booking = JSON.parse(last);
                 console.log(`Vault deletion detected: ${booking.id}`);
                 processBookingChange(booking, 'unlink', fileName);
-                // Also sync cancellation to Google Sheets
-                syncBookingToSheet(booking, "CANCELLATION");
             }
             return;
         }
 
         console.log(`Vault change detected: ${event} ${fileName}`);
 
+        // Brief delay to ensure file is fully written
         setTimeout(() => {
             try {
                 const booking = odb._parseFile(filePath);
                 if (booking && booking.id) {
                     processBookingChange(booking, event, fileName);
-                    // Also sync to Google Sheets if it's an add/change
-                    if (event !== 'unlink') {
-                        const syncType = (event === 'add') ? "NEW_BOOKING" : "UPDATE_BOOKING";
-                        syncBookingToSheet(booking, syncType);
-                    }
                 }
             } catch (e) {
                 console.error('Error processing vault change:', e.message);
@@ -947,7 +789,7 @@ async function syncMembersFromSheet() {
         }
 
         odb.saveMember(member);
-        syncToGitHub();
+    syncToGitHub();
     });
 
     console.log(`Sync complete. ${spreadsheetUsernames.size} members updated.`);

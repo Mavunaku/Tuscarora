@@ -206,7 +206,7 @@
         { id: 'fh6', name: 'Farmhouse #6', displayName: 'Farmhouse #6', bathroom: false, beds: '2 Single Beds', price: 100 },
       ],
       'Club House': [
-        { id: 'ch1', name: 'Clubhouse #1', displayName: 'Clubhouse #1', bathroom: true, inSuite: true, beds: '1 Queen Bed', price: 150 },
+        { id: 'ch1', name: 'Clubhouse #1', displayName: 'Clubhouse #1', bathroom: true, beds: '1 Queen Bed', price: 150 },
         { id: 'ch2', name: 'Clubhouse #2', displayName: 'Clubhouse #2', bathroom: true, beds: '2 Single Beds', price: 150 },
         { id: 'ch3', name: 'Clubhouse #3', displayName: 'Clubhouse #3', bathroom: true, beds: '1 Queen Bed', price: 150 },
         { id: 'ch4', name: 'Clubhouse #4', displayName: 'Clubhouse #4', bathroom: false, beds: '2 Single Beds', price: 100 },
@@ -214,8 +214,8 @@
         { id: 'ch6', name: 'Clubhouse #6', displayName: 'Clubhouse #6', bathroom: false, beds: '2 Single Beds', price: 100 },
       ],
       'Lazy Lodge': [
-        { id: 'll1', name: 'Lazy Lodge #1', displayName: 'Lazy Lodge #1', bathroom: true, inSuite: true, beds: '1 Queen Bed', price: 200 },
-        { id: 'll2', name: 'Lazy Lodge #2', displayName: 'Lazy Lodge #2', bathroom: true, inSuite: true, beds: '1 Queen Bed', price: 200 },
+        { id: 'll1', name: 'Lazy Lodge #1', displayName: 'Lazy Lodge #1', bathroom: true, beds: '1 Queen Bed', price: 200 },
+        { id: 'll2', name: 'Lazy Lodge #2', displayName: 'Lazy Lodge #2', bathroom: true, beds: '1 Queen Bed', price: 200 },
       ]
     };
 
@@ -1363,7 +1363,6 @@
       currentUser,
       memberList,
       isPayFlow = false,
-      mealPrices,
       showToast
     }) => {
     const [step, setStep] = React.useState(1); // 1: Occupancy, 2: Meals, 3: Review, 4: Payment
@@ -1547,26 +1546,9 @@
           if (room) {
             total += (room.price || 0) * rb.dates.length;
           }
-          
-          // Add meal costs for this room
-          Object.values(rb.dailyMeals).forEach(m => {
-             if (m.breakfast) total += (mealPrices.breakfast || 0);
-             if (m.lunch) total += (mealPrices.lunch || 0);
-             if (m.barSupper) total += (mealPrices.barSupper || 0);
-          });
         });
-
-        // Add cottage meals if applicable
-        if (stayingInCottage) {
-          Object.values(cottageMeals).forEach(m => {
-            if (m.breakfast) total += (mealPrices.breakfast || 0);
-            if (m.lunch) total += (mealPrices.lunch || 0);
-            if (m.barSupper) total += (mealPrices.barSupper || 0);
-          });
-        }
-
         return total;
-      }, [roomBookings, getRoomById, mealPrices, stayingInCottage, cottageMeals]);
+      }, [roomBookings, getRoomById]);
 
       const updateRoomBooking = (index, field, value) => {
         const updated = [...roomBookings];
@@ -1834,11 +1816,6 @@
                   <LucideIcon name="log-out" className="w-3.5 h-3.5 opacity-60" />
                   <span>11:00 AM Move Out</span>
                 </div>
-                <div className="w-px h-3 bg-amber-300 mx-1"></div>
-                <div className="flex items-center gap-2 bg-amber-200/50 px-3 py-1 rounded-lg">
-                  <span className="text-[10px] font-black uppercase tracking-widest opacity-60">Est. Total:</span>
-                  <span className="text-sm font-black text-amber-950">${bookingTotal.toFixed(2)}</span>
-                </div>
               </div>
             </div>
           </div>
@@ -1954,15 +1931,7 @@
                         </div>
                         <div>
                           <h4 className="font-bold text-stone-900 text-xs">{booking.roomName}</h4>
-                          <div className="flex items-center gap-2">
-                             <p className="text-[9px] font-black uppercase tracking-widest text-stone-400">{getRoomById(booking.roomId)?.beds}</p>
-                             {getRoomById(booking.roomId)?.bathroom && (
-                                <span className="text-[9px] font-black uppercase tracking-widest text-emerald-600 flex items-center gap-1">
-                                   <div className="w-1 h-1 rounded-full bg-emerald-500"></div>
-                                   {getRoomById(booking.roomId)?.inSuite ? 'In-suite' : 'Private Bath'}
-                                </span>
-                             )}
-                          </div>
+                          <p className="text-[9px] font-black uppercase tracking-widest text-emerald-600">{getRoomById(booking.roomId)?.beds}</p>
                         </div>
                       </div>
                       <div className="flex bg-stone-100/80 p-0.5 rounded-lg">
@@ -2059,108 +2028,6 @@
                   <p className="text-xs text-stone-600 leading-relaxed mt-1">
                     We've selected standard arrival/departure meals. Adjust as needed. Strikethrough meals aren't available.
                   </p>
-                </div>
-              </div>
-
-              {/* MODERN TOP-LEVEL PRICE BREAKDOWN - WHITE THEME */}
-              <div className="bg-white rounded-[1.5rem] sm:rounded-[2.5rem] p-5 sm:p-8 text-stone-900 shadow-2xl shadow-emerald-900/10 border border-stone-200 overflow-hidden relative">
-                {/* Decorative Background Glow */}
-                <div className="absolute -top-24 -right-24 w-64 h-64 bg-emerald-500/5 blur-[80px] rounded-full"></div>
-                
-                <div className="relative z-10">
-                  <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-8 border-b border-stone-100 pb-6">
-                    <div className="flex items-center gap-4">
-                      <div className="w-12 h-12 bg-emerald-600 rounded-2xl flex items-center justify-center shadow-lg shadow-emerald-600/20">
-                        <LucideIcon name="calculator" className="w-6 h-6 text-white" />
-                      </div>
-                      <div>
-                        <h3 className="text-xl font-black tracking-tight text-stone-900">Stay Cost Summary</h3>
-                        <p className="text-emerald-600 text-[10px] font-black uppercase tracking-[0.2em]">Real-time itemized breakdown</p>
-                      </div>
-                    </div>
-                    <div className="bg-stone-50 border border-stone-200 px-4 sm:px-6 py-3 sm:py-4 rounded-2xl sm:rounded-3xl flex flex-col items-center sm:items-end min-w-[160px] sm:min-w-[200px]">
-                      <span className="text-[9px] sm:text-[10px] font-black uppercase tracking-widest text-stone-400 mb-1">Estimated Total</span>
-                      <span className="text-3xl sm:text-4xl font-black tracking-tighter text-emerald-700 leading-none">${bookingTotal.toFixed(2)}</span>
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                    {/* Left side: Rooms */}
-                    <div className="space-y-3">
-                      <label className="text-[10px] font-black uppercase tracking-widest text-stone-400 block mb-2">Accommodations</label>
-                      {roomBookings.map((room, idx) => (
-                        <div key={`top-room-${idx}`} className="flex justify-between items-center group">
-                          <div className="flex items-center gap-3">
-                            <div className="w-8 h-8 rounded-lg bg-stone-50 border border-stone-100 flex items-center justify-center text-stone-400 group-hover:text-emerald-600 transition-colors">
-                              <LucideIcon name="moon" className="w-4 h-4" />
-                            </div>
-                            <div>
-                              <div className="text-sm font-bold text-stone-800">{room.roomName}</div>
-                              <div className="text-[10px] text-stone-400 font-bold uppercase tracking-wider">{room.dates.length} Nights @ ${getRoomById(room.roomId)?.price}/nt</div>
-                            </div>
-                          </div>
-                          <div className="text-sm font-black text-stone-900">${((getRoomById(room.roomId)?.price || 0) * room.dates.length).toFixed(2)}</div>
-                        </div>
-                      ))}
-                    </div>
-
-                    {/* Right side: Meal Counts */}
-                    <div>
-                      <label className="text-[10px] font-black uppercase tracking-widest text-stone-400 block mb-4">Dining Selections</label>
-                      {(() => {
-                        let brCount = 0, luCount = 0, suCount = 0;
-                        roomBookings.forEach(rb => {
-                          Object.values(rb.dailyMeals).forEach(m => {
-                            if (m.breakfast) brCount++;
-                            if (m.lunch) luCount++;
-                            if (m.barSupper) suCount++;
-                          });
-                        });
-                        if (stayingInCottage) {
-                          Object.values(cottageMeals).forEach(m => {
-                            if (m.breakfast) brCount++;
-                            if (m.lunch) luCount++;
-                            if (m.barSupper) suCount++;
-                          });
-                        }
-
-                        return (
-                          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                            <div className={`p-4 rounded-3xl transition-all border ${brCount > 0 ? 'bg-amber-50 border-amber-200' : 'bg-stone-50 border-stone-100 opacity-40'}`}>
-                              <div className="flex items-center gap-2 mb-2">
-                                <LucideIcon name="coffee" className="w-3.5 h-3.5 text-amber-600" />
-                                <span className="text-[9px] font-black uppercase tracking-widest text-stone-500">Breakfast</span>
-                              </div>
-                              <div className="flex justify-between items-baseline">
-                                <span className="text-xl font-bold text-stone-900">{brCount}</span>
-                                <span className="text-xs font-black text-amber-700">${(brCount * mealPrices.breakfast).toFixed(2)}</span>
-                              </div>
-                            </div>
-                            <div className={`p-4 rounded-3xl transition-all border ${luCount > 0 ? 'bg-emerald-50 border-emerald-200' : 'bg-stone-50 border-stone-100 opacity-40'}`}>
-                              <div className="flex items-center gap-2 mb-2">
-                                <LucideIcon name="utensils" className="w-3.5 h-3.5 text-emerald-600" />
-                                <span className="text-[9px] font-black uppercase tracking-widest text-stone-500">Lunch</span>
-                              </div>
-                              <div className="flex justify-between items-baseline">
-                                <span className="text-xl font-bold text-stone-900">{luCount}</span>
-                                <span className="text-xs font-black text-emerald-700">${(luCount * mealPrices.lunch).toFixed(2)}</span>
-                              </div>
-                            </div>
-                            <div className={`p-4 rounded-3xl transition-all border ${suCount > 0 ? 'bg-orange-50 border-orange-200' : 'bg-stone-50 border-stone-100 opacity-40'}`}>
-                              <div className="flex items-center gap-2 mb-2">
-                                <LucideIcon name="soup" className="w-3.5 h-3.5 text-orange-700" />
-                                <span className="text-[9px] font-black uppercase tracking-widest text-stone-500">Supper</span>
-                              </div>
-                              <div className="flex justify-between items-baseline">
-                                <span className="text-xl font-bold text-stone-900">{suCount}</span>
-                                <span className="text-xs font-black text-orange-700">${(suCount * mealPrices.barSupper).toFixed(2)}</span>
-                              </div>
-                            </div>
-                          </div>
-                        );
-                      })()}
-                    </div>
-                  </div>
                 </div>
               </div>
 
@@ -2374,86 +2241,6 @@
                     ))}
                   </div>
 
-                  <div className="p-6 space-y-4 border-t border-stone-100">
-                    <label className="text-[10px] font-black uppercase tracking-[0.1em] text-stone-400 block">Itemized Cost Summary</label>
-                    <div className="space-y-3">
-                       {/* Rooms Calculation */}
-                       {roomBookings.map((room, idx) => {
-                          const rData = getRoomById(room.roomId);
-                          const nightPrice = (rData?.price || 0) * room.dates.length;
-                          return (
-                            <div key={`nights-${idx}`} className="flex justify-between text-xs">
-                               <div className="text-stone-600 flex items-center gap-2">
-                                  <LucideIcon name="moon" className="w-3 h-3 text-emerald-600" />
-                                  <span className="font-bold">{room.roomName}</span>
-                                  <span className="text-stone-400">• {room.dates.length} Nights @ ${rData?.price}/nt</span>
-                               </div>
-                               <div className="font-bold text-stone-900">${nightPrice.toFixed(2)}</div>
-                            </div>
-                          );
-                       })}
-
-                       {/* Meals Calculation */}
-                       {(() => {
-                          let brCount = 0, luCount = 0, suCount = 0;
-                          roomBookings.forEach(rb => {
-                            Object.values(rb.dailyMeals).forEach(m => {
-                              if (m.breakfast) brCount++;
-                              if (m.lunch) luCount++;
-                              if (m.barSupper) suCount++;
-                            });
-                          });
-                          if (stayingInCottage) {
-                            Object.values(cottageMeals).forEach(m => {
-                              if (m.breakfast) brCount++;
-                              if (m.lunch) luCount++;
-                              if (m.barSupper) suCount++;
-                            });
-                          }
-
-                          return (
-                            <div className="space-y-3 pt-3 border-t border-stone-50">
-                               {brCount > 0 && (
-                                 <div className="flex justify-between text-xs">
-                                    <div className="text-stone-600 flex items-center gap-2">
-                                       <LucideIcon name="coffee" className="w-3 h-3 text-amber-500" />
-                                       <span>Breakfasts</span>
-                                       <span className="text-stone-400">• {brCount} orders @ ${mealPrices.breakfast}/ea</span>
-                                    </div>
-                                    <div className="font-bold text-stone-900">${(brCount * mealPrices.breakfast).toFixed(2)}</div>
-                                 </div>
-                               )}
-                               {luCount > 0 && (
-                                 <div className="flex justify-between text-xs">
-                                    <div className="text-stone-600 flex items-center gap-2">
-                                       <LucideIcon name="utensils" className="w-3 h-3 text-emerald-500" />
-                                       <span>Lunches</span>
-                                       <span className="text-stone-400">• {luCount} orders @ ${mealPrices.lunch}/ea</span>
-                                    </div>
-                                    <div className="font-bold text-stone-900">${(luCount * mealPrices.lunch).toFixed(2)}</div>
-                                 </div>
-                               )}
-                               {suCount > 0 && (
-                                 <div className="flex justify-between text-xs">
-                                    <div className="text-stone-600 flex items-center gap-2">
-                                       <LucideIcon name="soup" className="w-3 h-3 text-amber-700" />
-                                       <span>Bar Suppers</span>
-                                       <span className="text-stone-400">• {suCount} orders @ ${mealPrices.barSupper}/ea</span>
-                                    </div>
-                                    <div className="font-bold text-stone-900">${(suCount * mealPrices.barSupper).toFixed(2)}</div>
-                                 </div>
-                               )}
-                            </div>
-                          );
-                       })()}
-
-                       <div className="flex justify-between pt-4 border-t border-stone-200 mt-2">
-                          <div className="text-sm font-black uppercase tracking-[0.2em] text-emerald-900">Total Estimated Cost</div>
-                          <div className="text-2xl font-black text-emerald-900">${bookingTotal.toFixed(2)}</div>
-                       </div>
-                    </div>
-                  </div>
-
                   <div className="bg-stone-900 border-t border-stone-200 p-6 text-white flex flex-col sm:flex-row justify-between items-center gap-4">
                     <div className="flex items-center gap-3">
                       <div className="w-8 h-8 bg-white/10 rounded-lg flex items-center justify-center">
@@ -2519,39 +2306,7 @@
                         <h3 className="text-4xl font-light tracking-tight leading-tight">Secure Checkout</h3>
                       </div>
                       <div className="bg-white/10 backdrop-blur-md rounded-2xl p-6 border border-white/10 space-y-4">
-                        {(() => {
-                          let rTotal = 0;
-                          let mTotal = 0;
-                          roomBookings.forEach(rb => {
-                            const room = getRoomById(rb.roomId);
-                            if (room) rTotal += (room.price || 0) * rb.dates.length;
-                            Object.values(rb.dailyMeals).forEach(m => {
-                               if (m.breakfast) mTotal += (mealPrices.breakfast || 0);
-                               if (m.lunch) mTotal += (mealPrices.lunch || 0);
-                               if (m.barSupper) mTotal += (mealPrices.barSupper || 0);
-                            });
-                          });
-                          if (stayingInCottage) {
-                            Object.values(cottageMeals).forEach(m => {
-                               if (m.breakfast) mTotal += (mealPrices.breakfast || 0);
-                               if (m.lunch) mTotal += (mealPrices.lunch || 0);
-                               if (m.barSupper) mTotal += (mealPrices.barSupper || 0);
-                            });
-                          }
-                          return (
-                            <div className="space-y-3 pb-4 border-b border-white/10">
-                              <div className="flex justify-between items-center text-emerald-100/80">
-                                <span className="text-[10px] font-bold uppercase tracking-widest">Accommodations</span>
-                                <span className="text-sm font-medium">${rTotal.toFixed(2)}</span>
-                              </div>
-                              <div className="flex justify-between items-center text-emerald-100/80">
-                                <span className="text-[10px] font-bold uppercase tracking-widest">Meals & Dining</span>
-                                <span className="text-sm font-medium">${mTotal.toFixed(2)}</span>
-                              </div>
-                            </div>
-                          );
-                        })()}
-                        <div className="flex justify-between items-center pt-1 pb-4 border-b border-white/10">
+                        <div className="flex justify-between items-center pb-4 border-b border-white/10">
                           <span className="text-emerald-100/60 text-xs font-bold uppercase tracking-widest">Base Rate Total</span>
                           <span className="text-2xl font-light">${bookingTotal.toFixed(2)}</span>
                         </div>
@@ -2715,7 +2470,7 @@
 
 
     // Edit Booking View
-    const EditBookingDetails = ({ booking, onSave, onCancel, onDelete, currentUser, mealPrices, getRoomById }) => {
+    const EditBookingDetails = ({ booking, onSave, onCancel, onDelete, currentUser }) => {
       const getDatesInRange = (start, end) => {
         const dates = [];
         let current = new Date(start + 'T00:00:00');
@@ -2786,19 +2541,6 @@
         }));
       };
 
-      const bookingTotal = React.useMemo(() => {
-        const roomPrice = getRoomById(booking.roomId)?.price || 0;
-        let total = roomPrice * nights;
-
-        Object.values(dailyMeals).forEach(m => {
-          if (m.breakfast) total += mealPrices.breakfast;
-          if (m.lunch) total += mealPrices.lunch;
-          if (m.barSupper) total += mealPrices.barSupper;
-        });
-
-        return total;
-      }, [dailyMeals, mealPrices, booking.roomId, nights]);
-
       const handleSave = () => {
         onSave({
           ...booking,
@@ -2833,94 +2575,42 @@
           </div>
 
           <div className="flex flex-col gap-6 w-full max-w-2xl mx-auto pb-24">
-            {/* MODERN TOP-LEVEL PRICE BREAKDOWN - WHITE THEME (ADMIN/EDIT) */}
-            <div className="bg-white rounded-[1.5rem] sm:rounded-[2.5rem] p-5 sm:p-8 text-stone-900 shadow-2xl shadow-emerald-900/10 border border-stone-200 overflow-hidden relative">
-              <div className="absolute -top-24 -right-24 w-64 h-64 bg-emerald-500/5 blur-[80px] rounded-full"></div>
-              
-              <div className="relative z-10">
-                <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-8 border-b border-stone-100 pb-6">
-                  <div className="flex items-center gap-4">
-                    <div className="w-10 h-10 sm:w-12 sm:h-12 bg-emerald-600 rounded-xl sm:rounded-2xl flex items-center justify-center shadow-lg shadow-emerald-600/20">
-                      <LucideIcon name="calculator" className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
-                    </div>
-                    <div>
-                      <h3 className="text-lg sm:text-xl font-black tracking-tight text-stone-900">Current Stay Value</h3>
-                      <p className="text-emerald-600 text-[9px] sm:text-[10px] font-black uppercase tracking-[0.2em]">Real-time itemized breakdown</p>
-                    </div>
-                  </div>
-                  <div className="bg-stone-50 border border-stone-200 px-4 sm:px-6 py-3 sm:py-4 rounded-2xl sm:rounded-3xl flex flex-col items-center sm:items-end min-w-[160px] sm:min-w-[180px]">
-                    <span className="text-[9px] sm:text-[10px] font-black uppercase tracking-widest text-stone-400 mb-1">Total Stay Cost</span>
-                    <span className="text-3xl sm:text-4xl font-black tracking-tighter text-emerald-700 leading-none">${bookingTotal.toFixed(2)}</span>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 gap-6">
-                  {/* Room Row */}
-                  <div className="flex justify-between items-center group bg-stone-50/50 p-4 rounded-2xl border border-stone-100">
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-xl bg-white border border-stone-100 flex items-center justify-center text-stone-400 group-hover:text-emerald-600 transition-colors">
-                        <LucideIcon name="moon" className="w-5 h-5" />
-                      </div>
-                      <div>
-                        <div className="text-base font-bold text-stone-800">{booking.roomName}</div>
-                        <div className="text-[10px] text-stone-400 font-bold uppercase tracking-wider">{nights} Nights @ ${getRoomById(booking.roomId)?.price}/nt</div>
-                      </div>
-                    </div>
-                    <div className="text-lg font-black text-stone-900">${((getRoomById(booking.roomId)?.price || 0) * nights).toFixed(2)}</div>
-                  </div>
-
-                  {/* Meals Row */}
-                  <div className="grid grid-cols-3 gap-3">
-                    {(() => {
-                      let brCount = 0, luCount = 0, suCount = 0;
-                      Object.values(dailyMeals).forEach(m => {
-                        if (m.breakfast) brCount++;
-                        if (m.lunch) luCount++;
-                        if (m.barSupper) suCount++;
-                      });
-
-                      return (
-                        <>
-                          <div className={`p-4 rounded-3xl border transition-all ${brCount > 0 ? 'bg-amber-50 border-amber-200' : 'bg-stone-50 border-stone-100 opacity-40'}`}>
-                            <span className="text-[8px] font-black uppercase tracking-[0.2em] text-stone-500 block mb-1">Breakfast</span>
-                            <div className="flex justify-between items-baseline">
-                              <span className="text-lg font-bold text-stone-900">{brCount}</span>
-                              <span className="text-[10px] font-black text-amber-700">${(brCount * mealPrices.breakfast).toFixed(2)}</span>
-                            </div>
-                          </div>
-                          <div className={`p-4 rounded-3xl border transition-all ${luCount > 0 ? 'bg-emerald-50 border-emerald-200' : 'bg-stone-50 border-stone-100 opacity-40'}`}>
-                            <span className="text-[8px] font-black uppercase tracking-[0.2em] text-stone-500 block mb-1">Lunch</span>
-                            <div className="flex justify-between items-baseline">
-                              <span className="text-lg font-bold text-stone-900">{luCount}</span>
-                              <span className="text-[10px] font-black text-emerald-700">${(luCount * mealPrices.lunch).toFixed(2)}</span>
-                            </div>
-                          </div>
-                          <div className={`p-4 rounded-3xl border transition-all ${suCount > 0 ? 'bg-orange-50 border-orange-200' : 'bg-stone-50 border-stone-100 opacity-40'}`}>
-                            <span className="text-[8px] font-black uppercase tracking-[0.2em] text-stone-500 block mb-1">Supper</span>
-                            <div className="flex justify-between items-baseline">
-                              <span className="text-lg font-bold text-stone-900">{suCount}</span>
-                              <span className="text-[10px] font-black text-orange-700">${(suCount * mealPrices.barSupper).toFixed(2)}</span>
-                            </div>
-                          </div>
-                        </>
-                      );
-                    })()}
-                  </div>
-                </div>
-              </div>
-            </div>
-
+            {/* Summary & Basics */}
             <div className="flex flex-col sm:flex-row gap-4 w-full">
+              <div className="bg-emerald-900 rounded-2xl p-5 text-white shadow-lg flex-1">
+                <div className="flex justify-between items-start mb-3">
+                  <div>
+                    <div className="text-[9px] font-black uppercase tracking-[0.2em] text-emerald-400/80 mb-1">{booking.building}</div>
+                    <h3 className="text-xl font-light leading-tight">{booking.roomName}</h3>
+                  </div>
+                  <div className="text-right">
+                    <span className="text-[10px] font-bold text-emerald-100 bg-white/10 px-2.5 py-1 rounded-lg backdrop-blur-sm border border-white/10 block mb-1">
+                      {new Date(booking.startDate + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} - {new Date(booking.endDate + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                    </span>
+                    <span className="text-[10px] font-bold text-emerald-300">
+                      {nights} night stay
+                    </span>
+                  </div>
+                </div>
+
+                {booking.provisional && (
+                  <div className="mt-3 bg-amber-400/10 text-amber-100 p-2.5 rounded-xl border border-amber-400/20 text-[10px] leading-relaxed flex items-center gap-2">
+                    <LucideIcon name="alert-triangle" className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+                    <p><strong>Provisional:</strong> Subject to priority policy.</p>
+                  </div>
+                )}
+              </div>
+
               <button
                 onClick={() => {
                   if (confirm('Are you sure you want to cancel this entire reservation? This action cannot be undone.')) {
                     onDelete(booking.id);
                   }
                 }}
-                className="flex items-center justify-center gap-3 p-4 text-red-600 bg-red-50 hover:bg-red-100 transition-all rounded-2xl font-bold border border-red-100 w-full group"
+                className="flex flex-col items-center justify-center gap-2 p-5 text-red-600 bg-red-50 hover:bg-red-100 transition-all rounded-2xl font-bold border border-red-100 sm:w-32 shrink-0 group"
               >
                 <LucideIcon name="trash-2" className="w-5 h-5 group-hover:scale-110 transition-transform" />
-                <span className="text-xs uppercase tracking-widest">Cancel Reservation</span>
+                <span className="text-[9px] uppercase tracking-widest text-center leading-tight">Cancel<br />Stay</span>
               </button>
             </div>
 
@@ -3156,7 +2846,7 @@
 
 
     // My Reservations View
-    const MyReservationsView = ({ bookings, currentUser, getRoomById, cancelBooking, setView, onEditBooking, approveBooking, mealPrices }) => {
+    const MyReservationsView = ({ bookings, currentUser, getRoomById, cancelBooking, setView, onEditBooking, approveBooking }) => {
       const isAdmin = currentUser === 'admin';
       const userBookings = isAdmin ? bookings : bookings.filter(b => b.member === currentUser);
 
@@ -3399,37 +3089,6 @@
                                       </div>
                                     </li>
                                   )}
-
-                                  {/* Price Breakdown */}
-                                  {room.paymentAmount !== undefined && (
-                                    <li className="flex items-start gap-3 pt-4 border-t border-stone-100 bg-stone-50/50 -mx-5 -mb-5 px-5 pb-5 rounded-b-2xl">
-                                      <LucideIcon name="credit-card" className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
-                                      <div className="w-full">
-                                        <div className="flex justify-between items-center mb-1">
-                                          <p className="text-[10px] font-bold uppercase tracking-wider text-stone-500">Estimated Cost</p>
-                                          <p className="font-black text-emerald-800 text-base">${(room.paymentAmount || 0).toFixed(2)}</p>
-                                        </div>
-                                        {(() => {
-                                          const r = getRoomById(room.roomId);
-                                          const roomCost = (r?.price || 0) * nights;
-                                          let mTotal = 0;
-                                          if (room.dailyMeals) {
-                                            Object.values(room.dailyMeals).forEach(m => {
-                                               if (m.breakfast) mTotal += (mealPrices?.breakfast || 0);
-                                               if (m.lunch) mTotal += (mealPrices?.lunch || 0);
-                                               if (m.barSupper) mTotal += (mealPrices?.barSupper || 0);
-                                            });
-                                          }
-                                          return (
-                                            <div className="flex justify-between text-[11px] font-medium text-stone-500 mt-1">
-                                              <span>Accommodations: ${roomCost.toFixed(2)}</span>
-                                              <span>Meals: ${mTotal.toFixed(2)}</span>
-                                            </div>
-                                          );
-                                        })()}
-                                      </div>
-                                    </li>
-                                  )}
                                 </ul>
                               </div>
                             </div>
@@ -3528,9 +3187,7 @@
       setMaxRoomThreshold,
       mealTimes,
       setMealTimes,
-      inventory,
-      mealPrices,
-      setMealPrices
+      inventory
     }) => {
       return (
         <div className="max-w-6xl mx-auto py-8 px-4 animate-in fade-in duration-500">
@@ -3587,69 +3244,6 @@
                 </div>
               </div>
 
-              <div className="bg-white rounded-[2.5rem] p-8 border border-stone-100 shadow-sm">
-                <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-emerald-600 mb-6 flex items-center gap-2">
-                  <LucideIcon name="dollar-sign" className="w-3 h-3" />
-                  Meal Rates
-                </h3>
-                <div className="space-y-4">
-                   <div className="space-y-1">
-                      <label className="text-[9px] font-black uppercase tracking-widest text-stone-400 ml-1">Breakfast ($)</label>
-                      <input 
-                        type="number" 
-                        value={mealPrices.breakfast} 
-                        onChange={(e) => {
-                          const val = parseFloat(e.target.value);
-                          setMealPrices(prev => ({ ...prev, breakfast: val }));
-                          fetch(getApiUrl('/api/admin/meal-prices/update'), {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json', 'x-admin-user': 'admin' },
-                            body: JSON.stringify({ ...mealPrices, breakfast: val })
-                          });
-                        }}
-                        className="w-full h-10 px-4 bg-stone-50 border border-stone-200 rounded-xl focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all font-bold text-sm"
-                      />
-                   </div>
-                   <div className="space-y-1">
-                      <label className="text-[9px] font-black uppercase tracking-widest text-stone-400 ml-1">Lunch ($)</label>
-                      <input 
-                        type="number" 
-                        value={mealPrices.lunch} 
-                        onChange={(e) => {
-                          const val = parseFloat(e.target.value);
-                          setMealPrices(prev => ({ ...prev, lunch: val }));
-                          fetch(getApiUrl('/api/admin/meal-prices/update'), {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json', 'x-admin-user': 'admin' },
-                            body: JSON.stringify({ ...mealPrices, lunch: val })
-                          });
-                        }}
-                        className="w-full h-10 px-4 bg-stone-50 border border-stone-200 rounded-xl focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all font-bold text-sm"
-                      />
-                   </div>
-                   <div className="space-y-1">
-                      <label className="text-[9px] font-black uppercase tracking-widest text-stone-400 ml-1">Bar Supper ($)</label>
-                      <input 
-                        type="number" 
-                        value={mealPrices.barSupper} 
-                        onChange={(e) => {
-                          const val = parseFloat(e.target.value);
-                          setMealPrices(prev => ({ ...prev, barSupper: val }));
-                          fetch(getApiUrl('/api/admin/meal-prices/update'), {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json', 'x-admin-user': 'admin' },
-                            body: JSON.stringify({ ...mealPrices, barSupper: val })
-                          });
-                        }}
-                        className="w-full h-10 px-4 bg-stone-50 border border-stone-200 rounded-xl focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all font-bold text-sm"
-                      />
-                   </div>
-                   <p className="text-[9px] text-stone-400 italic px-1 mt-2 leading-relaxed">
-                     Updated prices will apply to all new and existing reservations during calculation.
-                   </p>
-                </div>
-              </div>
-
 
             </div>
 
@@ -3687,7 +3281,7 @@
                                 {room.bathroom && (
                                   <span className="flex items-center gap-1 text-emerald-600">
                                     <LucideIcon name="check-circle" className="w-3 h-3" />
-                                    {room.inSuite ? 'In-suite' : 'Private Bath'}
+                                    Private Bath
                                   </span>
                                 )}
                               </div>
@@ -3711,7 +3305,7 @@
 
 
     // Dashboard View (Admin Only)
-    const DashboardView = ({ bookings, inventory, maxRoomThreshold, setMaxRoomThreshold, mealTimes, setMealTimes, mealPrices, setMealPrices, showToast }) => {
+    const DashboardView = ({ bookings, inventory, maxRoomThreshold, setMaxRoomThreshold, mealTimes, setMealTimes, showToast }) => {
       const [activeTab, setActiveTab] = React.useState('reports');
       const [isSyncing, setIsSyncing] = React.useState(false);
 
@@ -3811,14 +3405,12 @@
                 </div>
               </div>
             ) : (
-               <AdminInventoryView
+              <AdminInventoryView
                 inventory={inventory}
                 maxRoomThreshold={maxRoomThreshold}
                 setMaxRoomThreshold={setMaxRoomThreshold}
                 mealTimes={mealTimes}
                 setMealTimes={setMealTimes}
-                mealPrices={mealPrices}
-                setMealPrices={setMealPrices}
               />
             )}
           </div>
@@ -4176,18 +3768,7 @@
         }
       });
 
-      const [filter, setFilter] = React.useState('all'); // 'day', 'week', 'month', 'all'
-
       const sortedDates = Object.keys(mealDataByDate).sort((a, b) => new Date(a + 'T00:00:00') - new Date(b + 'T00:00:00'));
-
-      const filteredDates = sortedDates.filter(dateStr => {
-        const date = new Date(dateStr + 'T00:00:00');
-        const diffDays = Math.ceil((date - today) / (1000 * 60 * 60 * 24));
-        if (filter === 'day') return diffDays === 0;
-        if (filter === 'week') return diffDays >= 0 && diffDays < 7;
-        if (filter === 'month') return diffDays >= 0 && diffDays < 30;
-        return true;
-      });
 
       const renderMealRow = (dateStr, mealType, label, members, packedMembers = []) => {
         const totalCount = members.length + packedMembers.length;
@@ -4243,7 +3824,7 @@
         const headers = ['Date', 'Day', 'Meal Service', 'Count', 'Attendees'];
         const rows = [];
 
-        filteredDates.forEach(dateStr => {
+        sortedDates.forEach(dateStr => {
           const data = mealDataByDate[dateStr];
           const dateObj = new Date(dateStr + 'T00:00:00');
           const dayName = dateObj.toLocaleDateString('en-US', { weekday: 'short' });
@@ -4285,40 +3866,12 @@
         doc.save(`meal-report-${new Date().toISOString().split('T')[0]}.pdf`);
       };
 
-      const overallTotals = React.useMemo(() => {
-        let bk = 0, lu = 0, su = 0;
-        filteredDates.forEach(dateStr => {
-          const data = mealDataByDate[dateStr];
-          if (IS_MEAL_AVAILABLE(dateStr, 'breakfast')) bk += data.breakfast.length + data.packedBreakfast.length;
-          if (IS_MEAL_AVAILABLE(dateStr, 'lunch')) lu += data.lunch.length + data.packedLunch.length;
-          if (IS_MEAL_AVAILABLE(dateStr, 'barSupper')) su += data.barSupper.length + data.packedBarSupper.length;
-        });
-        return { breakfast: bk, lunch: lu, supper: su };
-      }, [filteredDates, mealDataByDate]);
-
       return (
         <div className="max-w-4xl mx-auto py-8 px-4">
           <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-10 pb-8 border-b border-stone-100">
             <div>
               <h2 className="text-4xl font-light text-stone-900 tracking-tight">Reporting & Logistics</h2>
               <p className="text-stone-500 mt-2">Aggregated daily meal counts and rosters for kitchen planning.</p>
-              
-              <div className="flex bg-stone-100 p-1 rounded-2xl w-fit mt-6">
-                {[
-                  { id: 'day', label: 'Daily' },
-                  { id: 'week', label: 'Weekly' },
-                  { id: 'month', label: 'Monthly' },
-                  { id: 'all', label: 'All' }
-                ].map(f => (
-                  <button
-                    key={f.id}
-                    onClick={() => setFilter(f.id)}
-                    className={`px-5 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${filter === f.id ? 'bg-white text-emerald-700 shadow-sm' : 'text-stone-400 hover:text-stone-600'}`}
-                  >
-                    {f.label}
-                  </button>
-                ))}
-              </div>
             </div>
             <button onClick={downloadMealReportPDF} className="flex items-center gap-2 bg-emerald-900 text-white px-6 py-3 rounded-2xl hover:bg-emerald-950 transition-all font-bold shadow-md hover:shadow-lg active:scale-95 text-sm">
               <LucideIcon name="download" className="w-4 h-4" />
@@ -4326,44 +3879,17 @@
             </button>
           </div>
 
-          {filteredDates.length > 0 && (
-            <div className="mb-10 bg-emerald-900 text-white rounded-[2rem] p-8 shadow-xl flex flex-col sm:flex-row items-center justify-between gap-6 relative overflow-hidden">
-              <div className="absolute -right-16 -top-16 w-64 h-64 bg-white/5 rounded-full blur-3xl pointer-events-none"></div>
-              <div>
-                <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-emerald-300 mb-1">Period Summary</h3>
-                <p className="text-2xl font-light">Overall Meal Counts</p>
-              </div>
-              <div className="flex items-center gap-10 sm:gap-16 relative z-10 w-full sm:w-auto justify-around sm:justify-start">
-                <div className="text-center">
-                  <p className="text-4xl font-light">{overallTotals.breakfast}</p>
-                  <p className="text-[9px] font-black uppercase tracking-[0.2em] text-emerald-400 mt-1">Breakfasts</p>
-                </div>
-                <div className="text-center">
-                  <p className="text-4xl font-light">{overallTotals.lunch}</p>
-                  <p className="text-[9px] font-black uppercase tracking-[0.2em] text-emerald-400 mt-1">Lunches</p>
-                </div>
-                <div className="text-center">
-                  <p className="text-4xl font-light">{overallTotals.supper}</p>
-                  <p className="text-[9px] font-black uppercase tracking-[0.2em] text-emerald-400 mt-1">Suppers</p>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {filteredDates.length === 0 ? (
+          {sortedDates.length === 0 ? (
             <div className="text-center py-24 bg-stone-50/50 outline-dashed outline-2 outline-stone-200 rounded-3xl">
               <div className="w-16 h-16 bg-white shadow-sm border border-stone-100 rounded-2xl flex items-center justify-center mx-auto mb-6">
                 <LucideIcon name="bar-chart-3" className="w-8 h-8 text-stone-300" />
               </div>
               <h3 className="text-2xl font-light text-stone-900">No Data Available</h3>
-              <p className="text-stone-500 mt-2 mb-8">No {filter !== 'all' ? filter : ''} meal reservations have been recorded yet.</p>
-              {filter !== 'all' && (
-                <button onClick={() => setFilter('all')} className="text-emerald-700 font-bold text-sm hover:underline">View all future dates</button>
-              )}
+              <p className="text-stone-500 mt-2 mb-8">No future meal reservations have been recorded yet.</p>
             </div>
           ) : (
             <div className="space-y-8">
-              {filteredDates.map(dateStr => {
+              {sortedDates.map(dateStr => {
                 const data = mealDataByDate[dateStr];
                 const dateObj = new Date(dateStr + 'T00:00:00');
                 return (
@@ -4613,7 +4139,7 @@
     };
 
     // Main Navigation
-    const Navigation = ({ currentUser, currentUserRole, view, setView, setCurrentUser, downloadPDF, onLogoutClick, unreadCount, onResetPassword, isZoomed, setIsZoomed }) => {
+    const Navigation = ({ currentUser, currentUserRole, view, setView, setCurrentUser, downloadPDF, onLogoutClick, unreadCount, onResetPassword }) => {
       const [showDropdown, setShowDropdown] = useState(false);
 
       if (!currentUser) return null;
@@ -4676,15 +4202,6 @@
                 )}
 
                 <div className="border-l border-emerald-800 ml-4 pl-6 flex items-center gap-6 relative">
-                  <button
-                    onClick={() => setIsZoomed(!isZoomed)}
-                    className="flex items-center gap-2 text-emerald-100 hover:text-white transition-colors bg-white/5 hover:bg-white/10 px-3 py-2 rounded-lg"
-                    title={isZoomed ? "Restore original size" : "Enlarge text for better readability"}
-                  >
-                    <LucideIcon name={isZoomed ? "zoom-out" : "zoom-in"} className={`w-4 h-4 ${isZoomed ? "text-amber-400" : "text-emerald-400"}`} />
-                    <span className="text-sm font-medium hidden sm:inline">{isZoomed ? "Normal View" : "Magnify"}</span>
-                  </button>
-
                   {currentUserRole === 'ADMIN' && (
                     <button
                       onClick={downloadPDF}
@@ -4774,7 +4291,6 @@
     function ClubReservationSystem() {
       const [currentUser, setCurrentUser] = useState(null);
       const [view, setView] = useState('login');
-      const [isZoomed, setIsZoomed] = useState(false);
       const [toasts, setToasts] = useState([]);
 
       const showToast = (message, type = 'info') => {
@@ -4798,7 +4314,6 @@
       const [bookings, setBookings] = useState([]);
       const [currentUserRole, setCurrentUserRole] = useState('USER');
       const [mustChangePassword, setMustChangePassword] = useState(false);
-      const [mealPrices, setMealPrices] = useState({ breakfast: 15, lunch: 20, barSupper: 35 });
 
       // Load bookings from backend
       useEffect(() => {
@@ -4839,14 +4354,6 @@
             if (!data.error) setMemberList(data);
           })
           .catch(err => console.error("Failed to fetch members:", err));
-
-        // Fetch Meal Prices
-        fetch(getApiUrl('/api/config/meal-prices'))
-          .then(res => res.json())
-          .then(data => {
-            if (!data.error) setMealPrices(data);
-          })
-          .catch(err => console.error("Failed to fetch meal prices:", err));
       }, []);
 
       // Calendar state
@@ -5433,7 +4940,7 @@
       }
 
       return (
-        <div className="min-h-screen bg-gradient-to-br from-green-50 to-stone-100" style={{ zoom: isZoomed ? 1.15 : 1 }}>
+        <div className="min-h-screen bg-gradient-to-br from-green-50 to-stone-100">
           <Navigation
             currentUser={currentUser}
             currentUserRole={currentUserRole}
@@ -5444,8 +4951,6 @@
             onLogoutClick={() => setShowLogoutConfirm(true)}
             onResetPassword={handleResetPassword}
             unreadCount={messages.filter(m => (m.to_user || m.recipient) === currentUser && !m.read).length}
-            isZoomed={isZoomed}
-            setIsZoomed={setIsZoomed}
           />
 
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -5460,8 +4965,6 @@
                 }}
                 currentUser={currentUser}
                 showToast={showToast}
-                mealPrices={mealPrices}
-                getRoomById={getRoomById}
               />
             ) : (<>
               {view === 'my-info' && <MyInfoView currentUser={currentUser} memberList={memberList} showToast={showToast} />}
@@ -5493,7 +4996,6 @@
                 currentUser={currentUser}
                 memberList={memberList}
                 isPayFlow={true}
-                mealPrices={mealPrices}
                 showToast={showToast}
               />}
 
@@ -5507,7 +5009,6 @@
                 setView={setView}
                 onEditBooking={handleEditBooking}
                 showToast={showToast}
-                mealPrices={mealPrices}
               />}
               {view === 'dashboard' && currentUserRole === 'ADMIN' && (
                 <DashboardView
@@ -5517,8 +5018,6 @@
                   setMaxRoomThreshold={setMaxRoomThreshold}
                   mealTimes={mealTimes}
                   setMealTimes={setMealTimes}
-                  mealPrices={mealPrices}
-                  setMealPrices={setMealPrices}
                   currentUser={currentUser}
                   memberList={memberList}
                   showToast={showToast}

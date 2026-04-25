@@ -1910,10 +1910,10 @@ const MultiRoomBookingDetails = ({
         <div className="space-y-8 animate-in fade-in zoom-in-95 duration-500 max-w-2xl mx-auto pb-20">
           <div className="bg-white rounded-[2.5rem] border border-stone-200 overflow-hidden shadow-xl">
             <div className="bg-emerald-900 p-8 text-white relative overflow-hidden">
-              {/* Decorative background elements */}
+               {/* Decorative background elements */}
               <div className="absolute top-0 right-0 w-64 h-64 bg-emerald-800/20 rounded-full -mr-32 -mt-32 blur-3xl"></div>
               <div className="absolute bottom-0 left-0 w-32 h-32 bg-emerald-500/10 rounded-full -ml-16 -mb-16 blur-2xl"></div>
-
+              
               <div className="relative z-10 flex justify-between items-start mb-8">
                 <div>
                   <h3 className="text-3xl font-light tracking-tight">Payment</h3>
@@ -1928,7 +1928,7 @@ const MultiRoomBookingDetails = ({
                   </div>
                 </div>
               </div>
-
+              
               <div className="relative z-10 p-6 bg-white/5 rounded-3xl border border-white/10 backdrop-blur-xl">
                 <p className="text-[10px] font-black uppercase tracking-widest text-emerald-300/60 mb-1.5">Reservation Total</p>
                 <div className="flex items-baseline gap-1">
@@ -1936,8 +1936,8 @@ const MultiRoomBookingDetails = ({
                   <p className="text-5xl font-light tracking-tight">{bookingTotal.toFixed(2)}</p>
                 </div>
                 <div className="mt-4 pt-4 border-t border-white/5 flex items-center gap-3 text-[10px] text-emerald-200/50">
-                  <LucideIcon name="lock" className="w-3.5 h-3.5" />
-                  <span>End-to-end encrypted • PCI-DSS Compliant</span>
+                   <LucideIcon name="lock" className="w-3.5 h-3.5" />
+                   <span>End-to-end encrypted • PCI-DSS Compliant</span>
                 </div>
               </div>
             </div>
@@ -1947,47 +1947,47 @@ const MultiRoomBookingDetails = ({
               <div className="space-y-3">
                 <label className="text-[10px] font-black uppercase tracking-widest text-stone-400 block px-1">Choose Payment Method</label>
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                  <PaymentMethodButton
-                    id="CREDIT_CARD"
-                    icon="credit-card"
-                    label="Card"
-                    active={selectedPaymentMethod === 'CREDIT_CARD'}
-                    onClick={setSelectedPaymentMethod}
+                  <PaymentMethodButton 
+                    id="CREDIT_CARD" 
+                    icon="credit-card" 
+                    label="Card" 
+                    active={selectedPaymentMethod === 'CREDIT_CARD'} 
+                    onClick={setSelectedPaymentMethod} 
                   />
-                  <PaymentMethodButton
-                    id="PAYPAL"
-                    icon="wallet"
-                    label="PayPal"
-                    active={selectedPaymentMethod === 'PAYPAL'}
-                    onClick={setSelectedPaymentMethod}
+                  <PaymentMethodButton 
+                    id="PAYPAL" 
+                    icon="wallet" 
+                    label="PayPal" 
+                    active={selectedPaymentMethod === 'PAYPAL'} 
+                    onClick={setSelectedPaymentMethod} 
                   />
-                  <PaymentMethodButton
-                    id="CLUB_ACCOUNT"
-                    icon="user"
-                    label="Club Acc."
-                    active={selectedPaymentMethod === 'CLUB_ACCOUNT'}
-                    onClick={setSelectedPaymentMethod}
+                  <PaymentMethodButton 
+                    id="CLUB_ACCOUNT" 
+                    icon="user" 
+                    label="Club Acc." 
+                    active={selectedPaymentMethod === 'CLUB_ACCOUNT'} 
+                    onClick={setSelectedPaymentMethod} 
                   />
-                  <PaymentMethodButton
-                    id="APPLE_PAY"
-                    icon="smartphone"
-                    label="Apple Pay"
-                    active={selectedPaymentMethod === 'APPLE_PAY'}
-                    onClick={setSelectedPaymentMethod}
+                  <PaymentMethodButton 
+                    id="APPLE_PAY" 
+                    icon="smartphone" 
+                    label="Apple Pay" 
+                    active={selectedPaymentMethod === 'APPLE_PAY'} 
+                    onClick={setSelectedPaymentMethod} 
                   />
-                  <PaymentMethodButton
-                    id="GOOGLE_PAY"
-                    icon="chrome"
-                    label="GPay"
-                    active={selectedPaymentMethod === 'GOOGLE_PAY'}
-                    onClick={setSelectedPaymentMethod}
+                  <PaymentMethodButton 
+                    id="GOOGLE_PAY" 
+                    icon="chrome" 
+                    label="GPay" 
+                    active={selectedPaymentMethod === 'GOOGLE_PAY'} 
+                    onClick={setSelectedPaymentMethod} 
                   />
-                  <PaymentMethodButton
-                    id="BANK_TRANSFER"
-                    icon="landmark"
-                    label="Bank Trans."
-                    active={selectedPaymentMethod === 'BANK_TRANSFER'}
-                    onClick={setSelectedPaymentMethod}
+                  <PaymentMethodButton 
+                    id="BANK_TRANSFER" 
+                    icon="landmark" 
+                    label="Bank Trans." 
+                    active={selectedPaymentMethod === 'BANK_TRANSFER'} 
+                    onClick={setSelectedPaymentMethod} 
                   />
                 </div>
               </div>
@@ -1998,10 +1998,10 @@ const MultiRoomBookingDetails = ({
                   <div className="space-y-4">
                     <div>
                       <label className="text-[10px] font-black uppercase tracking-widest text-stone-400 block mb-2 px-1">Cardholder Name</label>
-                      <input
-                        type="text"
-                        value={paymentData.cardholder}
-                        onChange={(e) => setPaymentData({ ...paymentData, cardholder: e.target.value })}
+                      <input 
+                        type="text" 
+                        value={paymentData.cardholder} 
+                        onChange={(e) => setPaymentData({...paymentData, cardholder: e.target.value})}
                         className="w-full px-4 py-3 bg-stone-50 border border-stone-200 rounded-xl focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all outline-none font-bold text-stone-800"
                         placeholder="Name on card"
                       />
@@ -2009,12 +2009,12 @@ const MultiRoomBookingDetails = ({
                     <div>
                       <label className="text-[10px] font-black uppercase tracking-widest text-stone-400 block mb-2 px-1">Card Number</label>
                       <div className="relative">
-                        <input
-                          type="text"
-                          placeholder="0000 0000 0000 0000"
+                        <input 
+                          type="text" 
+                          placeholder="0000 0000 0000 0000" 
                           value={paymentData.cardNumber}
-                          onChange={(e) => setPaymentData({ ...paymentData, cardNumber: e.target.value })}
-                          className="w-full pl-12 pr-4 py-3 bg-stone-50 border border-stone-200 rounded-xl focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all outline-none font-bold text-stone-800"
+                          onChange={(e) => setPaymentData({...paymentData, cardNumber: e.target.value})}
+                          className="w-full pl-12 pr-4 py-3 bg-stone-50 border border-stone-200 rounded-xl focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all outline-none font-bold text-stone-800" 
                         />
                         <LucideIcon name="credit-card" className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-stone-300" />
                       </div>
@@ -2022,22 +2022,22 @@ const MultiRoomBookingDetails = ({
                     <div className="grid grid-cols-2 gap-4">
                       <div>
                         <label className="text-[10px] font-black uppercase tracking-widest text-stone-400 block mb-2 px-1">Expiry Date</label>
-                        <input
-                          type="text"
-                          placeholder="MM / YY"
+                        <input 
+                          type="text" 
+                          placeholder="MM / YY" 
                           value={paymentData.expiry}
-                          onChange={(e) => setPaymentData({ ...paymentData, expiry: e.target.value })}
-                          className="w-full px-4 py-3 bg-stone-50 border border-stone-200 rounded-xl focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all outline-none font-bold text-stone-800 text-center"
+                          onChange={(e) => setPaymentData({...paymentData, expiry: e.target.value})}
+                          className="w-full px-4 py-3 bg-stone-50 border border-stone-200 rounded-xl focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all outline-none font-bold text-stone-800 text-center" 
                         />
                       </div>
                       <div>
                         <label className="text-[10px] font-black uppercase tracking-widest text-stone-400 block mb-2 px-1">CVV</label>
-                        <input
-                          type="text"
-                          placeholder="•••"
+                        <input 
+                          type="text" 
+                          placeholder="•••" 
                           value={paymentData.cvv}
-                          onChange={(e) => setPaymentData({ ...paymentData, cvv: e.target.value })}
-                          className="w-full px-4 py-3 bg-stone-50 border border-stone-200 rounded-xl focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all outline-none font-bold text-stone-800 text-center"
+                          onChange={(e) => setPaymentData({...paymentData, cvv: e.target.value})}
+                          className="w-full px-4 py-3 bg-stone-50 border border-stone-200 rounded-xl focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all outline-none font-bold text-stone-800 text-center" 
                         />
                       </div>
                     </div>
@@ -2045,17 +2045,17 @@ const MultiRoomBookingDetails = ({
                 )}
 
                 {(selectedPaymentMethod === 'PAYPAL' || selectedPaymentMethod === 'APPLE_PAY' || selectedPaymentMethod === 'GOOGLE_PAY') && (
-                  <div className="py-12 flex flex-col items-center justify-center border-2 border-dashed border-stone-100 rounded-3xl bg-stone-50/50">
-                    <div className="p-4 bg-white rounded-2xl shadow-sm mb-4">
-                      <LucideIcon name={selectedPaymentMethod === 'PAYPAL' ? 'wallet' : selectedPaymentMethod === 'APPLE_PAY' ? 'smartphone' : 'chrome'} className="w-10 h-10 text-emerald-600" />
-                    </div>
-                    <p className="text-sm font-bold text-stone-800">Complete with {selectedPaymentMethod.replace('_', ' ')}</p>
-                    <p className="text-xs text-stone-500 mt-1">A secure window will open for authorization.</p>
-                    <button className="mt-6 px-8 py-3 bg-stone-900 text-white rounded-xl font-bold flex items-center gap-2 hover:bg-black transition-all">
-                      <span>Pay $ {bookingTotal.toFixed(2)}</span>
-                      <LucideIcon name="external-link" className="w-4 h-4 text-emerald-400" />
-                    </button>
-                  </div>
+                   <div className="py-12 flex flex-col items-center justify-center border-2 border-dashed border-stone-100 rounded-3xl bg-stone-50/50">
+                      <div className="p-4 bg-white rounded-2xl shadow-sm mb-4">
+                         <LucideIcon name={selectedPaymentMethod === 'PAYPAL' ? 'wallet' : selectedPaymentMethod === 'APPLE_PAY' ? 'smartphone' : 'chrome'} className="w-10 h-10 text-emerald-600" />
+                      </div>
+                      <p className="text-sm font-bold text-stone-800">Complete with {selectedPaymentMethod.replace('_', ' ')}</p>
+                      <p className="text-xs text-stone-500 mt-1">A secure window will open for authorization.</p>
+                      <button className="mt-6 px-8 py-3 bg-stone-900 text-white rounded-xl font-bold flex items-center gap-2 hover:bg-black transition-all">
+                         <span>Pay $ {bookingTotal.toFixed(2)}</span>
+                         <LucideIcon name="external-link" className="w-4 h-4 text-emerald-400" />
+                      </button>
+                   </div>
                 )}
 
                 {selectedPaymentMethod === 'CLUB_ACCOUNT' && (
@@ -2075,26 +2075,26 @@ const MultiRoomBookingDetails = ({
                 {selectedPaymentMethod === 'BANK_TRANSFER' && (
                   <div className="p-6 bg-stone-50 border border-stone-200 rounded-3xl space-y-4">
                     <div className="flex items-center gap-3 mb-2">
-                      <LucideIcon name="landmark" className="w-5 h-5 text-stone-400" />
-                      <h4 className="text-sm font-bold text-stone-800">Bank Transfer Details</h4>
+                       <LucideIcon name="landmark" className="w-5 h-5 text-stone-400" />
+                       <h4 className="text-sm font-bold text-stone-800">Bank Transfer Details</h4>
                     </div>
                     <div className="space-y-3">
-                      <div className="flex justify-between items-center py-2 border-b border-stone-200/50">
-                        <span className="text-[10px] uppercase font-black tracking-widest text-stone-400">Bank Name</span>
-                        <span className="text-xs font-bold text-stone-700">First National Club Bank</span>
-                      </div>
-                      <div className="flex justify-between items-center py-2 border-b border-stone-200/50">
-                        <span className="text-[10px] uppercase font-black tracking-widest text-stone-400">Account No.</span>
-                        <span className="text-xs font-mono font-bold text-stone-700">••••4492</span>
-                      </div>
-                      <div className="flex justify-between items-center py-2 border-b border-stone-200/50">
-                        <span className="text-[10px] uppercase font-black tracking-widest text-stone-400">Routing No.</span>
-                        <span className="text-xs font-mono font-bold text-stone-700">021000021</span>
-                      </div>
-                      <div className="flex justify-between items-center py-2">
-                        <span className="text-[10px] uppercase font-black tracking-widest text-stone-400">Reference</span>
-                        <span className="text-xs font-bold text-emerald-700">TUSC-{Date.now().toString().slice(-6)}</span>
-                      </div>
+                       <div className="flex justify-between items-center py-2 border-b border-stone-200/50">
+                          <span className="text-[10px] uppercase font-black tracking-widest text-stone-400">Bank Name</span>
+                          <span className="text-xs font-bold text-stone-700">First National Club Bank</span>
+                       </div>
+                       <div className="flex justify-between items-center py-2 border-b border-stone-200/50">
+                          <span className="text-[10px] uppercase font-black tracking-widest text-stone-400">Account No.</span>
+                          <span className="text-xs font-mono font-bold text-stone-700">••••4492</span>
+                       </div>
+                       <div className="flex justify-between items-center py-2 border-b border-stone-200/50">
+                          <span className="text-[10px] uppercase font-black tracking-widest text-stone-400">Routing No.</span>
+                          <span className="text-xs font-mono font-bold text-stone-700">021000021</span>
+                       </div>
+                       <div className="flex justify-between items-center py-2">
+                          <span className="text-[10px] uppercase font-black tracking-widest text-stone-400">Reference</span>
+                          <span className="text-xs font-bold text-emerald-700">TUSC-{Date.now().toString().slice(-6)}</span>
+                       </div>
                     </div>
                     <p className="text-[10px] text-stone-400 leading-relaxed pt-2">
                       Please initiate the transfer within 24 hours to secure your reservation.
@@ -2106,7 +2106,7 @@ const MultiRoomBookingDetails = ({
               <div className="bg-amber-50 rounded-2xl p-4 border border-amber-100 flex gap-3 items-start">
                 <LucideIcon name="shield-check" className="w-5 h-5 text-amber-600 mt-0.5" />
                 <p className="text-[11px] text-amber-900 leading-relaxed font-medium">
-                  {selectedPaymentMethod === 'CLUB_ACCOUNT'
+                   {selectedPaymentMethod === 'CLUB_ACCOUNT' 
                     ? 'Member charges are subject to monthly audit. Final billing may vary based on actual meal consumption.'
                     : 'This is a secure 256-bit encrypted transaction. Final charges will be adjusted based on meal consumption and club policies.'}
                 </p>
@@ -2140,12 +2140,12 @@ const MultiRoomBookingDetails = ({
 const PaymentMethodButton = ({ id, icon, label, active, onClick }) => (
   <button
     onClick={() => onClick(id)}
-    className={`p-4 rounded-[1.5rem] border-2 transition-all flex flex-col items-center gap-2.5 ${active
-      ? 'border-emerald-600 bg-emerald-50 text-emerald-900 shadow-sm'
+    className={`p-4 rounded-[1.5rem] border-2 transition-all flex flex-col items-center gap-2.5 ${active 
+      ? 'border-emerald-600 bg-emerald-50 text-emerald-900 shadow-sm' 
       : 'border-stone-100 bg-white hover:border-emerald-200 text-stone-400 font-medium'}`}
   >
     <div className={`p-2.5 rounded-xl transition-all ${active ? 'bg-emerald-600 text-white' : 'bg-stone-50 text-stone-400'}`}>
-      <LucideIcon name={icon} className="w-5 h-5" />
+       <LucideIcon name={icon} className="w-5 h-5" />
     </div>
     <span className="text-[10px] font-black uppercase tracking-tight leading-none whitespace-nowrap">{label}</span>
   </button>

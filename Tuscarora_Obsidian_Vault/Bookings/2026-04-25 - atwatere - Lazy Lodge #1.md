@@ -1,22 +1,29 @@
 ---
-member: dibonaventurac
+member: atwatere
 adminBooked: false
 building: Lazy Lodge
 roomId: ll1
 roomName: 'Lazy Lodge #1'
-startDate: '2026-04-24'
-endDate: '2026-04-26'
+startDate: '2026-04-25'
+endDate: '2026-04-28'
 guests: 1
 dailyMeals:
-  '2026-04-24':
+  '2026-04-25':
     breakfast: false
     lunch: false
     barSupper: true
     packedBreakfast: false
     packedLunch: false
     packedBarSupper: false
-  '2026-04-25':
-    breakfast: true
+  '2026-04-26':
+    breakfast: false
+    lunch: false
+    barSupper: true
+    packedBreakfast: false
+    packedLunch: false
+    packedBarSupper: false
+  '2026-04-27':
+    breakfast: false
     lunch: false
     barSupper: false
     packedBreakfast: false
@@ -25,20 +32,20 @@ dailyMeals:
 memberArrival: '14:00'
 guestArrival: '14:00'
 guestNames:
-  - dibonaventurac
-guestName: dibonaventurac
-dietary: ''
-isGuest: MEMBER
-isGuestRoom: MEMBER
+  - ''
+guestName: ''
+dietary: fgthjfj
+isGuest: GUEST
+isGuestRoom: GUEST
 memberStayRoom: null
 stayingInCottage: false
 provisional: false
-paymentAmount: 400
+paymentAmount: 1600
 paymentStatus: PENDING
 paymentMethod: CLUB_ACCOUNT
-paymentReference: REF-1776298138498
-id: b_1776298138505_gny830hxt
-TimeCreated: '20:08:58'
-DateCreated: '2026-04-16'
+paymentReference: REF-1777151449666
+id: b_1777151449753_v9x2gsf3c
+TimeCreated: '17:10:49'
+DateCreated: '2026-04-25'
 ---
 # Booking: Lazy Lodge #1

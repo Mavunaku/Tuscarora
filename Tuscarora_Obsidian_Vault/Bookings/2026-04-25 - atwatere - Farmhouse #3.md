@@ -1,42 +1,28 @@
 ---
-member: boyerm
+member: atwatere
 adminBooked: false
 building: Farm House
 roomId: fh3
 roomName: 'Farmhouse #3'
-startDate: '2026-04-16'
-endDate: '2026-04-21'
+startDate: '2026-04-25'
+endDate: '2026-04-28'
 guests: 1
 dailyMeals:
-  '2026-04-16':
-    breakfast: true
-    lunch: true
-    barSupper: true
-    packedBreakfast: true
-    packedLunch: true
-    packedBarSupper: true
-  '2026-04-17':
+  '2026-04-25':
     breakfast: true
     lunch: true
     barSupper: true
     packedBreakfast: false
     packedLunch: false
     packedBarSupper: false
-  '2026-04-18':
-    breakfast: true
-    lunch: true
-    barSupper: true
-    packedBreakfast: false
-    packedLunch: false
-    packedBarSupper: false
-  '2026-04-19':
+  '2026-04-26':
     breakfast: false
     lunch: false
     barSupper: true
     packedBreakfast: false
     packedLunch: false
     packedBarSupper: false
-  '2026-04-20':
+  '2026-04-27':
     breakfast: false
     lunch: false
     barSupper: false
@@ -46,20 +32,20 @@ dailyMeals:
 memberArrival: '14:00'
 guestArrival: '14:00'
 guestNames:
-  - dfg
-guestName: dfg
-dietary: ' ergerh erherhg'
-isGuest: GUEST
-isGuestRoom: GUEST
+  - atwatere
+guestName: atwatere
+dietary: fgthjfj
+isGuest: MEMBER
+isGuestRoom: MEMBER
 memberStayRoom: null
 stayingInCottage: false
 provisional: false
-paymentAmount: 3250
+paymentAmount: 1600
 paymentStatus: PENDING
 paymentMethod: CLUB_ACCOUNT
-paymentReference: REF-1776297639391
-id: b_1776297639781_iwrnpmr36
-TimeCreated: '20:00:39'
-DateCreated: '2026-04-16'
+paymentReference: REF-1777151449666
+id: b_1777151449682_klani501t
+TimeCreated: '17:10:49'
+DateCreated: '2026-04-25'
 ---
 # Booking: Farmhouse #3

@@ -8,7 +8,9 @@ class ObsidianDB {
         this.collections = {
             bookings: path.join(vaultPath, 'Bookings'),
             members: path.join(vaultPath, 'Members'),
-            messages: path.join(vaultPath, 'Messages')
+            messages: path.join(vaultPath, 'Messages'),
+            rooms: path.join(vaultPath, 'Rooms'),
+            config: path.join(vaultPath, 'Config')
         };
         this._ensureDirs();
     }
@@ -27,12 +29,12 @@ class ObsidianDB {
         if (match) {
             try {
                 const data = yaml.load(match[1]);
-                
+
                 // Post-process to ensure frontend compatibility
                 if (data.startDate instanceof Date) data.startDate = data.startDate.toISOString().split('T')[0];
                 if (data.endDate instanceof Date) data.endDate = data.endDate.toISOString().split('T')[0];
                 if (data.DateCreated instanceof Date) data.DateCreated = data.DateCreated.toISOString().split('T')[0];
-                
+
                 // Ensure dailyMeals keys are strings
                 if (data.dailyMeals && typeof data.dailyMeals === 'object') {
                     const cleanMeals = {};
@@ -92,7 +94,7 @@ class ObsidianDB {
         const safeRoom = (booking.roomName || 'Unknown').replace(/[\\/:"*?<>|]/g, '-');
         const safeMember = (booking.member || 'Unknown').replace(/[\\/:"*?<>|]/g, '-');
         const fileName = `${booking.startDate} - ${safeMember} - ${safeRoom}.md`;
-        
+
         // Check for existing file with same ID to prevent duplicates if name changes
         const existing = this.getAllBookings().find(b => b.id === booking.id);
         if (existing) {
@@ -134,8 +136,36 @@ class ObsidianDB {
     }
 
     saveMember(member) {
-        const fileName = `${member.login}.md`;
-        this._writeFile(path.join(this.collections.members, fileName), member, `Member: ${member.full_name}`);
+        const filePath = path.join(this.collections.members, `${member.login}.md`);
+        const content = `---\n${yaml.dump(member)}---\n# Member: ${member.full_name || member.login}\n`;
+        fs.writeFileSync(filePath, content);
+    }
+
+    // Room Management
+    getAllRooms() {
+        if (!fs.existsSync(this.collections.rooms)) return [];
+        return fs.readdirSync(this.collections.rooms)
+            .filter(f => f.endsWith('.md'))
+            .map(f => this._parseFile(path.join(this.collections.rooms, f)))
+            .filter(Boolean);
+    }
+
+    saveRoom(room) {
+        const filePath = path.join(this.collections.rooms, `${room.id}.md`);
+        const content = `---\n${yaml.dump(room)}---\n# Room: ${room.name}\n`;
+        fs.writeFileSync(filePath, content);
+    }
+
+    // Config Management (for meal prices, etc.)
+    getConfig(id) {
+        const filePath = path.join(this.collections.config, `${id}.md`);
+        return this._parseFile(filePath);
+    }
+
+    saveConfig(id, data) {
+        const filePath = path.join(this.collections.config, `${id}.md`);
+        const content = `---\n${yaml.dump(data)}---\n# Config: ${id}\n`;
+        fs.writeFileSync(filePath, content);
     }
 
     // Messages

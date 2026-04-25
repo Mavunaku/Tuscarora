@@ -6,8 +6,8 @@ const appCode = fs.readFileSync(path.join(dir, 'app.jsx'), 'utf8');
 
 // Read current index.html and check what's there
 const currentHtml = fs.existsSync(path.join(dir, 'index.html'))
-    ? fs.readFileSync(path.join(dir, 'index.html'), 'utf8')
-    : '';
+  ? fs.readFileSync(path.join(dir, 'index.html'), 'utf8')
+  : '';
 
 const lineCount = currentHtml.split('\n').length;
 console.log(`Current index.html: ${lineCount} lines`);
