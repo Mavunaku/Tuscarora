@@ -1540,34 +1540,39 @@
         return initializeDefaultMeals(allDates);
       });
 
-      const { bookingSubtotal, bookingTax, bookingService, bookingTotal } = React.useMemo(() => {
-        let total = 0;
+      const { bookingRoomTotal, bookingMealTotal, bookingSubtotal, bookingTax, bookingService, bookingTotal } = React.useMemo(() => {
+        let roomTotal = 0;
+        let mealTotal = 0;
         roomBookings.forEach(rb => {
           const room = getRoomById(rb.roomId);
           if (room) {
-            total += (room.price || 0) * rb.dates.length;
+            const guestCount = rb.guestNames ? rb.guestNames.length : (rb.guests || 1);
+            roomTotal += (room.price || 0) * rb.dates.length * guestCount;
           }
           
           // Add meal costs for this room
           Object.values(rb.dailyMeals).forEach(m => {
-             if (m.breakfast) total += (mealPrices.breakfast || 0);
-             if (m.lunch) total += (mealPrices.lunch || 0);
-             if (m.barSupper) total += (mealPrices.barSupper || 0);
+             if (m.breakfast) mealTotal += (m.packedBreakfast ? (mealPrices.boxLunch || 9.5) : (mealPrices.breakfast || 0));
+             if (m.lunch) mealTotal += (m.packedLunch ? (mealPrices.boxLunch || 9.5) : (mealPrices.lunch || 0));
+             if (m.barSupper) mealTotal += (m.packedBarSupper ? (mealPrices.boxLunch || 9.5) : (mealPrices.barSupper || 0));
           });
         });
 
         // Add cottage meals if applicable
         if (stayingInCottage) {
           Object.values(cottageMeals).forEach(m => {
-            if (m.breakfast) total += (mealPrices.breakfast || 0);
-            if (m.lunch) total += (mealPrices.lunch || 0);
-            if (m.barSupper) total += (mealPrices.barSupper || 0);
+            if (m.breakfast) mealTotal += (m.packedBreakfast ? (mealPrices.boxLunch || 9.5) : (mealPrices.breakfast || 0));
+            if (m.lunch) mealTotal += (m.packedLunch ? (mealPrices.boxLunch || 9.5) : (mealPrices.lunch || 0));
+            if (m.barSupper) mealTotal += (m.packedBarSupper ? (mealPrices.boxLunch || 9.5) : (mealPrices.barSupper || 0));
           });
         }
 
+        const total = roomTotal + mealTotal;
         const service = total * 0.10;
         const tax = total * 0.08;
         return {
+          bookingRoomTotal: roomTotal,
+          bookingMealTotal: mealTotal,
           bookingSubtotal: total,
           bookingService: service,
           bookingTax: tax,
@@ -1828,23 +1833,47 @@
                 </button>
                 <h2 className="text-3xl font-light text-stone-900 tracking-tight">Complete Your Booking</h2>
               </div>
-              <div className="flex bg-amber-50 text-amber-900 px-4 py-2 rounded-xl font-bold items-center gap-2.5 text-xs lg:text-sm border border-amber-200 shadow-sm">
-                <LucideIcon name="calendar" className="w-4 h-4 text-amber-600" />
-                <span>{overallStart.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} — {overallEnd.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span>
-                <div className="w-px h-4 bg-amber-300 mx-1"></div>
-                <div className="flex items-center gap-1.5 text-amber-800">
-                  <LucideIcon name="log-in" className="w-3.5 h-3.5 opacity-60" />
-                  <span>{partyArrivalTime || '4:00 PM'} Move In</span>
+              <div className="flex flex-col xl:flex-row bg-amber-50 text-amber-900 px-4 py-3 rounded-xl font-bold items-center justify-between gap-4 text-xs lg:text-sm border border-amber-200 shadow-sm">
+                <div className="flex flex-wrap items-center justify-center xl:justify-start gap-2.5">
+                  <LucideIcon name="calendar" className="w-4 h-4 text-amber-600" />
+                  <span>{overallStart.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} — {overallEnd.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span>
+                  <div className="hidden sm:block w-px h-4 bg-amber-300 mx-1"></div>
+                  <div className="flex items-center gap-1.5 text-amber-800">
+                    <LucideIcon name="log-in" className="w-3.5 h-3.5 opacity-60" />
+                    <span>{partyArrivalTime || '4:00 PM'} Move In</span>
+                  </div>
+                  <div className="hidden sm:block w-px h-3 bg-amber-300 mx-1"></div>
+                  <div className="flex items-center gap-1.5 text-amber-800">
+                    <LucideIcon name="log-out" className="w-3.5 h-3.5 opacity-60" />
+                    <span>11:00 AM Move Out</span>
+                  </div>
                 </div>
-                <div className="w-px h-3 bg-amber-300 mx-1"></div>
-                <div className="flex items-center gap-1.5 text-amber-800">
-                  <LucideIcon name="log-out" className="w-3.5 h-3.5 opacity-60" />
-                  <span>11:00 AM Move Out</span>
-                </div>
-                <div className="w-px h-3 bg-amber-300 mx-1"></div>
-                <div className="flex items-center gap-2 bg-amber-200/50 px-3 py-1 rounded-lg">
-                  <span className="text-[10px] font-black uppercase tracking-widest opacity-60">Est. Total:</span>
-                  <span className="text-sm font-black text-amber-950">${bookingTotal.toFixed(2)}</span>
+                
+                <div className="flex flex-wrap items-center justify-center gap-3 bg-white/60 px-3 py-1.5 rounded-lg border border-amber-200/50">
+                  <div className="flex items-center gap-1 text-[10px] font-black uppercase tracking-wider text-amber-800">
+                    <span className="opacity-60">Rooms:</span>
+                    <span>${bookingRoomTotal.toFixed(2)}</span>
+                  </div>
+                  <div className="w-1 h-1 rounded-full bg-amber-300"></div>
+                  <div className="flex items-center gap-1 text-[10px] font-black uppercase tracking-wider text-amber-800">
+                    <span className="opacity-60">Meals:</span>
+                    <span>${bookingMealTotal.toFixed(2)}</span>
+                  </div>
+                  <div className="w-1 h-1 rounded-full bg-amber-300"></div>
+                  <div className="flex items-center gap-1 text-[10px] font-black uppercase tracking-wider text-amber-800">
+                    <span className="opacity-60">Svc:</span>
+                    <span>${bookingService.toFixed(2)}</span>
+                  </div>
+                  <div className="w-1 h-1 rounded-full bg-amber-300"></div>
+                  <div className="flex items-center gap-1 text-[10px] font-black uppercase tracking-wider text-amber-800">
+                    <span className="opacity-60">Tax:</span>
+                    <span>${bookingTax.toFixed(2)}</span>
+                  </div>
+                  <div className="hidden sm:block w-px h-3 bg-amber-300 mx-1"></div>
+                  <div className="flex items-center gap-2 bg-amber-200 px-2 py-0.5 rounded text-amber-950">
+                    <span className="text-[10px] font-black uppercase tracking-widest opacity-80">Est:</span>
+                    <span className="text-sm font-black">${bookingTotal.toFixed(2)}</span>
+                  </div>
                 </div>
               </div>
             </div>
@@ -2103,10 +2132,10 @@
                             </div>
                             <div>
                               <div className="text-sm font-bold text-stone-800">{room.roomName}</div>
-                              <div className="text-[10px] text-stone-400 font-bold uppercase tracking-wider">{room.dates.length} Nights @ ${getRoomById(room.roomId)?.price}/nt</div>
+                              <div className="text-[10px] text-stone-400 font-bold uppercase tracking-wider">{room.dates.length} Nights @ ${getRoomById(room.roomId)?.price}/nt &times; {room.guestNames?.length || room.guests || 1} Guests</div>
                             </div>
                           </div>
-                          <div className="text-sm font-black text-stone-900">${((getRoomById(room.roomId)?.price || 0) * room.dates.length).toFixed(2)}</div>
+                          <div className="text-sm font-black text-stone-900">${((getRoomById(room.roomId)?.price || 0) * room.dates.length * (room.guestNames?.length || room.guests || 1)).toFixed(2)}</div>
                         </div>
                       ))}
                     </div>
@@ -2116,18 +2145,19 @@
                       <label className="text-[10px] font-black uppercase tracking-widest text-stone-400 block mb-4">Dining Selections</label>
                       {(() => {
                         let brCount = 0, luCount = 0, suCount = 0;
+                        let brCost = 0, luCost = 0, suCost = 0;
                         roomBookings.forEach(rb => {
                           Object.values(rb.dailyMeals).forEach(m => {
-                            if (m.breakfast) brCount++;
-                            if (m.lunch) luCount++;
-                            if (m.barSupper) suCount++;
+                            if (m.breakfast) { brCount++; brCost += (m.packedBreakfast ? (mealPrices.boxLunch || 9.5) : (mealPrices.breakfast || 0)); }
+                            if (m.lunch) { luCount++; luCost += (m.packedLunch ? (mealPrices.boxLunch || 9.5) : (mealPrices.lunch || 0)); }
+                            if (m.barSupper) { suCount++; suCost += (m.packedBarSupper ? (mealPrices.boxLunch || 9.5) : (mealPrices.barSupper || 0)); }
                           });
                         });
                         if (stayingInCottage) {
                           Object.values(cottageMeals).forEach(m => {
-                            if (m.breakfast) brCount++;
-                            if (m.lunch) luCount++;
-                            if (m.barSupper) suCount++;
+                            if (m.breakfast) { brCount++; brCost += (m.packedBreakfast ? (mealPrices.boxLunch || 9.5) : (mealPrices.breakfast || 0)); }
+                            if (m.lunch) { luCount++; luCost += (m.packedLunch ? (mealPrices.boxLunch || 9.5) : (mealPrices.lunch || 0)); }
+                            if (m.barSupper) { suCount++; suCost += (m.packedBarSupper ? (mealPrices.boxLunch || 9.5) : (mealPrices.barSupper || 0)); }
                           });
                         }
 
@@ -2140,7 +2170,7 @@
                               </div>
                               <div className="flex justify-between items-baseline">
                                 <span className="text-xl font-bold text-stone-900">{brCount}</span>
-                                <span className="text-xs font-black text-amber-700">${(brCount * mealPrices.breakfast).toFixed(2)}</span>
+                                <span className="text-xs font-black text-amber-700">${brCost.toFixed(2)}</span>
                               </div>
                             </div>
                             <div className={`p-4 rounded-3xl transition-all border ${luCount > 0 ? 'bg-emerald-50 border-emerald-200' : 'bg-stone-50 border-stone-100 opacity-40'}`}>
@@ -2150,7 +2180,7 @@
                               </div>
                               <div className="flex justify-between items-baseline">
                                 <span className="text-xl font-bold text-stone-900">{luCount}</span>
-                                <span className="text-xs font-black text-emerald-700">${(luCount * mealPrices.lunch).toFixed(2)}</span>
+                                <span className="text-xs font-black text-emerald-700">${luCost.toFixed(2)}</span>
                               </div>
                             </div>
                             <div className={`p-4 rounded-3xl transition-all border ${suCount > 0 ? 'bg-orange-50 border-orange-200' : 'bg-stone-50 border-stone-100 opacity-40'}`}>
@@ -2160,7 +2190,7 @@
                               </div>
                               <div className="flex justify-between items-baseline">
                                 <span className="text-xl font-bold text-stone-900">{suCount}</span>
-                                <span className="text-xs font-black text-orange-700">${(suCount * mealPrices.barSupper).toFixed(2)}</span>
+                                <span className="text-xs font-black text-orange-700">${suCost.toFixed(2)}</span>
                               </div>
                             </div>
                           </div>
@@ -2547,7 +2577,8 @@
                           let mTotal = 0;
                           roomBookings.forEach(rb => {
                             const room = getRoomById(rb.roomId);
-                            if (room) rTotal += (room.price || 0) * rb.dates.length;
+                            const guestCount = rb.guestNames ? rb.guestNames.length : (rb.guests || 1);
+                            if (room) rTotal += (room.price || 0) * rb.dates.length * guestCount;
                             Object.values(rb.dailyMeals).forEach(m => {
                                if (m.breakfast) mTotal += (mealPrices.breakfast || 0);
                                if (m.lunch) mTotal += (mealPrices.lunch || 0);
@@ -2819,12 +2850,13 @@
 
       const { bookingSubtotal, bookingTax, bookingService, bookingTotal } = React.useMemo(() => {
         const roomPrice = getRoomById(booking.roomId)?.price || 0;
-        let total = roomPrice * nights;
+        const guestCount = guestNames.length;
+        let total = roomPrice * nights * guestCount;
 
         Object.values(dailyMeals).forEach(m => {
-          if (m.breakfast) total += mealPrices.breakfast;
-          if (m.lunch) total += mealPrices.lunch;
-          if (m.barSupper) total += mealPrices.barSupper;
+          if (m.breakfast) total += (m.packedBreakfast ? (mealPrices.boxLunch || 9.5) : mealPrices.breakfast);
+          if (m.lunch) total += (m.packedLunch ? (mealPrices.boxLunch || 9.5) : mealPrices.lunch);
+          if (m.barSupper) total += (m.packedBarSupper ? (mealPrices.boxLunch || 9.5) : mealPrices.barSupper);
         });
 
         const service = total * 0.10;
@@ -2901,20 +2933,21 @@
                       </div>
                       <div>
                         <div className="text-base font-bold text-stone-800">{booking.roomName}</div>
-                        <div className="text-[10px] text-stone-400 font-bold uppercase tracking-wider">{nights} Nights @ ${getRoomById(booking.roomId)?.price}/nt</div>
+                        <div className="text-[10px] text-stone-400 font-bold uppercase tracking-wider">{nights} Nights @ ${getRoomById(booking.roomId)?.price}/nt &times; {guestNames.length} Guests</div>
                       </div>
                     </div>
-                    <div className="text-lg font-black text-stone-900">${((getRoomById(booking.roomId)?.price || 0) * nights).toFixed(2)}</div>
+                    <div className="text-lg font-black text-stone-900">${((getRoomById(booking.roomId)?.price || 0) * nights * guestNames.length).toFixed(2)}</div>
                   </div>
 
                   {/* Meals Row */}
                   <div className="grid grid-cols-3 gap-3">
                     {(() => {
                       let brCount = 0, luCount = 0, suCount = 0;
+                      let brCost = 0, luCost = 0, suCost = 0;
                       Object.values(dailyMeals).forEach(m => {
-                        if (m.breakfast) brCount++;
-                        if (m.lunch) luCount++;
-                        if (m.barSupper) suCount++;
+                        if (m.breakfast) { brCount++; brCost += (m.packedBreakfast ? (mealPrices.boxLunch || 9.5) : (mealPrices.breakfast || 0)); }
+                        if (m.lunch) { luCount++; luCost += (m.packedLunch ? (mealPrices.boxLunch || 9.5) : (mealPrices.lunch || 0)); }
+                        if (m.barSupper) { suCount++; suCost += (m.packedBarSupper ? (mealPrices.boxLunch || 9.5) : (mealPrices.barSupper || 0)); }
                       });
 
                       return (
@@ -2923,21 +2956,21 @@
                             <span className="text-[8px] font-black uppercase tracking-[0.2em] text-stone-500 block mb-1">Breakfast</span>
                             <div className="flex justify-between items-baseline">
                               <span className="text-lg font-bold text-stone-900">{brCount}</span>
-                              <span className="text-[10px] font-black text-amber-700">${(brCount * mealPrices.breakfast).toFixed(2)}</span>
+                              <span className="text-[10px] font-black text-amber-700">${brCost.toFixed(2)}</span>
                             </div>
                           </div>
                           <div className={`p-4 rounded-3xl border transition-all ${luCount > 0 ? 'bg-emerald-50 border-emerald-200' : 'bg-stone-50 border-stone-100 opacity-40'}`}>
                             <span className="text-[8px] font-black uppercase tracking-[0.2em] text-stone-500 block mb-1">Lunch</span>
                             <div className="flex justify-between items-baseline">
                               <span className="text-lg font-bold text-stone-900">{luCount}</span>
-                              <span className="text-[10px] font-black text-emerald-700">${(luCount * mealPrices.lunch).toFixed(2)}</span>
+                              <span className="text-[10px] font-black text-emerald-700">${luCost.toFixed(2)}</span>
                             </div>
                           </div>
                           <div className={`p-4 rounded-3xl border transition-all ${suCount > 0 ? 'bg-orange-50 border-orange-200' : 'bg-stone-50 border-stone-100 opacity-40'}`}>
                             <span className="text-[8px] font-black uppercase tracking-[0.2em] text-stone-500 block mb-1">Supper</span>
                             <div className="flex justify-between items-baseline">
                               <span className="text-lg font-bold text-stone-900">{suCount}</span>
-                              <span className="text-[10px] font-black text-orange-700">${(suCount * mealPrices.barSupper).toFixed(2)}</span>
+                              <span className="text-[10px] font-black text-orange-700">${suCost.toFixed(2)}</span>
                             </div>
                           </div>
                         </>
@@ -3465,13 +3498,14 @@
                                         </div>
                                         {(() => {
                                           const r = getRoomById(room.roomId);
-                                          const roomCost = (r?.price || 0) * nights;
+                                          const guestCount = room.guestNames ? room.guestNames.length : (room.guests || 1);
+                                          const roomCost = (r?.price || 0) * nights * guestCount;
                                           let mTotal = 0;
                                           if (room.dailyMeals) {
                                             Object.values(room.dailyMeals).forEach(m => {
-                                               if (m.breakfast) mTotal += (mealPrices?.breakfast || 0);
-                                               if (m.lunch) mTotal += (mealPrices?.lunch || 0);
-                                               if (m.barSupper) mTotal += (mealPrices?.barSupper || 0);
+                                               if (m.breakfast) mTotal += (m.packedBreakfast ? (mealPrices?.boxLunch || 9.5) : (mealPrices?.breakfast || 0));
+                                               if (m.lunch) mTotal += (m.packedLunch ? (mealPrices?.boxLunch || 9.5) : (mealPrices?.lunch || 0));
+                                               if (m.barSupper) mTotal += (m.packedBarSupper ? (mealPrices?.boxLunch || 9.5) : (mealPrices?.barSupper || 0));
                                             });
                                           }
                                           const subtotal = roomCost + mTotal;
@@ -3693,6 +3727,23 @@
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json', 'x-admin-user': 'admin' },
                             body: JSON.stringify({ ...mealPrices, lunch: val })
+                          });
+                        }}
+                        className="w-full h-10 px-4 bg-stone-50 border border-stone-200 rounded-xl focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all font-bold text-sm"
+                      />
+                   </div>
+                   <div className="space-y-1">
+                      <label className="text-[9px] font-black uppercase tracking-widest text-stone-400 ml-1">Box Lunch ($)</label>
+                      <input 
+                        type="number" 
+                        value={mealPrices.boxLunch || 9.5} 
+                        onChange={(e) => {
+                          const val = parseFloat(e.target.value);
+                          setMealPrices(prev => ({ ...prev, boxLunch: val }));
+                          fetch(getApiUrl('/api/admin/meal-prices/update'), {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json', 'x-admin-user': 'admin' },
+                            body: JSON.stringify({ ...mealPrices, boxLunch: val })
                           });
                         }}
                         className="w-full h-10 px-4 bg-stone-50 border border-stone-200 rounded-xl focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all font-bold text-sm"
@@ -4869,7 +4920,7 @@
       const [bookings, setBookings] = useState([]);
       const [currentUserRole, setCurrentUserRole] = useState('USER');
       const [mustChangePassword, setMustChangePassword] = useState(false);
-      const [mealPrices, setMealPrices] = useState({ breakfast: 15, lunch: 20, barSupper: 35 });
+      const [mealPrices, setMealPrices] = useState({ breakfast: 11, lunch: 18, barSupper: 12, boxLunch: 9.5 });
 
       // Load bookings from backend
       useEffect(() => {
