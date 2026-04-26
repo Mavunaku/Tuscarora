@@ -1833,53 +1833,148 @@
                 </button>
                 <h2 className="text-3xl font-light text-stone-900 tracking-tight">Complete Your Booking</h2>
               </div>
-              <div className="flex flex-col xl:flex-row bg-amber-50 text-amber-900 px-4 py-3 rounded-xl font-bold items-center justify-between gap-4 text-xs lg:text-sm border border-amber-200 shadow-sm">
-                <div className="flex flex-wrap items-center justify-center xl:justify-start gap-2.5">
-                  <LucideIcon name="calendar" className="w-4 h-4 text-amber-600" />
-                  <span>{overallStart.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} — {overallEnd.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span>
-                  <div className="hidden sm:block w-px h-4 bg-amber-300 mx-1"></div>
-                  <div className="flex items-center gap-1.5 text-amber-800">
-                    <LucideIcon name="log-in" className="w-3.5 h-3.5 opacity-60" />
-                    <span>{partyArrivalTime || '4:00 PM'} Move In</span>
-                  </div>
-                  <div className="hidden sm:block w-px h-3 bg-amber-300 mx-1"></div>
-                  <div className="flex items-center gap-1.5 text-amber-800">
-                    <LucideIcon name="log-out" className="w-3.5 h-3.5 opacity-60" />
-                    <span>11:00 AM Move Out</span>
-                  </div>
+              <div className="flex bg-amber-50 text-amber-900 px-4 py-2 rounded-xl font-bold items-center gap-2.5 text-xs lg:text-sm border border-amber-200 shadow-sm">
+                <LucideIcon name="calendar" className="w-4 h-4 text-amber-600" />
+                <span>{overallStart.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} — {overallEnd.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span>
+                <div className="w-px h-4 bg-amber-300 mx-1"></div>
+                <div className="flex items-center gap-1.5 text-amber-800">
+                  <LucideIcon name="log-in" className="w-3.5 h-3.5 opacity-60" />
+                  <span>{partyArrivalTime || '4:00 PM'} Move In</span>
                 </div>
-                
-                <div className="flex flex-wrap items-center justify-center gap-3 bg-white/60 px-3 py-1.5 rounded-lg border border-amber-200/50">
-                  <div className="flex items-center gap-1 text-[10px] font-black uppercase tracking-wider text-amber-800">
-                    <span className="opacity-60">Rooms:</span>
-                    <span>${bookingRoomTotal.toFixed(2)}</span>
-                  </div>
-                  <div className="w-1 h-1 rounded-full bg-amber-300"></div>
-                  <div className="flex items-center gap-1 text-[10px] font-black uppercase tracking-wider text-amber-800">
-                    <span className="opacity-60">Meals:</span>
-                    <span>${bookingMealTotal.toFixed(2)}</span>
-                  </div>
-                  <div className="w-1 h-1 rounded-full bg-amber-300"></div>
-                  <div className="flex items-center gap-1 text-[10px] font-black uppercase tracking-wider text-amber-800">
-                    <span className="opacity-60">Svc:</span>
-                    <span>${bookingService.toFixed(2)}</span>
-                  </div>
-                  <div className="w-1 h-1 rounded-full bg-amber-300"></div>
-                  <div className="flex items-center gap-1 text-[10px] font-black uppercase tracking-wider text-amber-800">
-                    <span className="opacity-60">Tax:</span>
-                    <span>${bookingTax.toFixed(2)}</span>
-                  </div>
-                  <div className="hidden sm:block w-px h-3 bg-amber-300 mx-1"></div>
-                  <div className="flex items-center gap-2 bg-amber-200 px-2 py-0.5 rounded text-amber-950">
-                    <span className="text-[10px] font-black uppercase tracking-widest opacity-80">Est:</span>
-                    <span className="text-sm font-black">${bookingTotal.toFixed(2)}</span>
-                  </div>
+                <div className="w-px h-3 bg-amber-300 mx-1"></div>
+                <div className="flex items-center gap-1.5 text-amber-800">
+                  <LucideIcon name="log-out" className="w-3.5 h-3.5 opacity-60" />
+                  <span>11:00 AM Move Out</span>
+                </div>
+                <div className="w-px h-3 bg-amber-300 mx-1"></div>
+                <div className="flex items-center gap-2 bg-amber-200/50 px-3 py-1 rounded-lg">
+                  <span className="text-[10px] font-black uppercase tracking-widest opacity-60">Est. Total:</span>
+                  <span className="text-sm font-black text-amber-950">${bookingTotal.toFixed(2)}</span>
                 </div>
               </div>
             </div>
           </div>
 
           <StepIndicator />
+
+          {/* MODERN TOP-LEVEL PRICE BREAKDOWN - WHITE THEME */}
+          <div className="bg-white rounded-[1.5rem] sm:rounded-[2.5rem] p-5 sm:p-8 text-stone-900 shadow-2xl shadow-emerald-900/10 border border-stone-200 overflow-hidden relative mb-8">
+            {/* Decorative Background Glow */}
+            <div className="absolute -top-24 -right-24 w-64 h-64 bg-emerald-500/5 blur-[80px] rounded-full"></div>
+            
+            <div className="relative z-10">
+              <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-8 border-b border-stone-100 pb-6">
+                <div className="flex items-center gap-4">
+                  <div className="w-12 h-12 bg-emerald-600 rounded-2xl flex items-center justify-center shadow-lg shadow-emerald-600/20">
+                    <LucideIcon name="calculator" className="w-6 h-6 text-white" />
+                  </div>
+                  <div>
+                    <h3 className="text-xl font-black tracking-tight text-stone-900">Stay Cost Summary</h3>
+                    <p className="text-emerald-600 text-[10px] font-black uppercase tracking-[0.2em]">Real-time itemized breakdown</p>
+                  </div>
+                </div>
+                <div className="bg-stone-50 border border-stone-200 px-4 sm:px-6 py-3 sm:py-4 rounded-2xl sm:rounded-3xl flex flex-col items-center sm:items-end min-w-[160px] sm:min-w-[200px]">
+                  <span className="text-[9px] sm:text-[10px] font-black uppercase tracking-widest text-stone-400 mb-1">Estimated Total</span>
+                  <span className="text-3xl sm:text-4xl font-black tracking-tighter text-emerald-700 leading-none">${bookingTotal.toFixed(2)}</span>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                {/* Left side: Rooms */}
+                <div className="space-y-3">
+                  <label className="text-[10px] font-black uppercase tracking-widest text-stone-400 block mb-2">Accommodations</label>
+                  {roomBookings.map((room, idx) => (
+                    <div key={`top-room-${idx}`} className="flex justify-between items-center group">
+                      <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 rounded-lg bg-stone-50 border border-stone-100 flex items-center justify-center text-stone-400 group-hover:text-emerald-600 transition-colors">
+                          <LucideIcon name="moon" className="w-4 h-4" />
+                        </div>
+                        <div>
+                          <div className="text-sm font-bold text-stone-800">{room.roomName}</div>
+                          <div className="text-[10px] text-stone-400 font-bold uppercase tracking-wider">{room.dates.length} Nights @ ${getRoomById(room.roomId)?.price}/nt &times; {room.guestNames?.length || room.guests || 1} Guests</div>
+                        </div>
+                      </div>
+                      <div className="text-sm font-black text-stone-900">${((getRoomById(room.roomId)?.price || 0) * room.dates.length * (room.guestNames?.length || room.guests || 1)).toFixed(2)}</div>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Right side: Meal Counts */}
+                <div>
+                  <label className="text-[10px] font-black uppercase tracking-widest text-stone-400 block mb-4">Dining Selections</label>
+                  {(() => {
+                    let brCount = 0, luCount = 0, suCount = 0;
+                    let brCost = 0, luCost = 0, suCost = 0;
+                    roomBookings.forEach(rb => {
+                      Object.values(rb.dailyMeals).forEach(m => {
+                        if (m.breakfast) { brCount++; brCost += (m.packedBreakfast ? (mealPrices.boxLunch || 9.5) : (mealPrices.breakfast || 0)); }
+                        if (m.lunch) { luCount++; luCost += (m.packedLunch ? (mealPrices.boxLunch || 9.5) : (mealPrices.lunch || 0)); }
+                        if (m.barSupper) { suCount++; suCost += (m.packedBarSupper ? (mealPrices.boxLunch || 9.5) : (mealPrices.barSupper || 0)); }
+                      });
+                    });
+                    if (stayingInCottage) {
+                      Object.values(cottageMeals).forEach(m => {
+                        if (m.breakfast) { brCount++; brCost += (m.packedBreakfast ? (mealPrices.boxLunch || 9.5) : (mealPrices.breakfast || 0)); }
+                        if (m.lunch) { luCount++; luCost += (m.packedLunch ? (mealPrices.boxLunch || 9.5) : (mealPrices.lunch || 0)); }
+                        if (m.barSupper) { suCount++; suCost += (m.packedBarSupper ? (mealPrices.boxLunch || 9.5) : (mealPrices.barSupper || 0)); }
+                      });
+                    }
+
+                    return (
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                        <div className={`p-4 rounded-3xl transition-all border ${brCount > 0 ? 'bg-amber-50 border-amber-200' : 'bg-stone-50 border-stone-100 opacity-40'}`}>
+                          <div className="flex items-center gap-2 mb-2">
+                            <LucideIcon name="coffee" className="w-3.5 h-3.5 text-amber-600" />
+                            <span className="text-[9px] font-black uppercase tracking-widest text-stone-500">Breakfast</span>
+                          </div>
+                          <div className="flex justify-between items-baseline">
+                            <span className="text-xl font-bold text-stone-900">{brCount}</span>
+                            <span className="text-xs font-black text-amber-700">${brCost.toFixed(2)}</span>
+                          </div>
+                        </div>
+                        <div className={`p-4 rounded-3xl transition-all border ${luCount > 0 ? 'bg-emerald-50 border-emerald-200' : 'bg-stone-50 border-stone-100 opacity-40'}`}>
+                          <div className="flex items-center gap-2 mb-2">
+                            <LucideIcon name="utensils" className="w-3.5 h-3.5 text-emerald-600" />
+                            <span className="text-[9px] font-black uppercase tracking-widest text-stone-500">Lunch</span>
+                          </div>
+                          <div className="flex justify-between items-baseline">
+                            <span className="text-xl font-bold text-stone-900">{luCount}</span>
+                            <span className="text-xs font-black text-emerald-700">${luCost.toFixed(2)}</span>
+                          </div>
+                        </div>
+                        <div className={`p-4 rounded-3xl transition-all border ${suCount > 0 ? 'bg-orange-50 border-orange-200' : 'bg-stone-50 border-stone-100 opacity-40'}`}>
+                          <div className="flex items-center gap-2 mb-2">
+                            <LucideIcon name="soup" className="w-3.5 h-3.5 text-orange-700" />
+                            <span className="text-[9px] font-black uppercase tracking-widest text-stone-500">Supper</span>
+                          </div>
+                          <div className="flex justify-between items-baseline">
+                            <span className="text-xl font-bold text-stone-900">{suCount}</span>
+                            <span className="text-xs font-black text-orange-700">${suCost.toFixed(2)}</span>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })()}
+                </div>
+              </div>
+              
+              {/* Tax & Service Breakdown footer */}
+              <div className="mt-8 pt-6 border-t border-stone-100 flex flex-wrap gap-6 items-center">
+                <div>
+                  <span className="text-[10px] font-black uppercase tracking-widest text-stone-400 block mb-1">Base Subtotal</span>
+                  <span className="text-lg font-bold text-stone-900">${bookingSubtotal.toFixed(2)}</span>
+                </div>
+                <div>
+                  <span className="text-[10px] font-black uppercase tracking-widest text-stone-400 block mb-1">Service (10%)</span>
+                  <span className="text-lg font-bold text-stone-900">${bookingService.toFixed(2)}</span>
+                </div>
+                <div>
+                  <span className="text-[10px] font-black uppercase tracking-widest text-stone-400 block mb-1">NY State Tax (8%)</span>
+                  <span className="text-lg font-bold text-stone-900">${bookingTax.toFixed(2)}</span>
+                </div>
+              </div>
+            </div>
+          </div>
 
           {/* STEP 1: Occupancy & Basics */}
           {step === 1 && (
@@ -2098,124 +2193,7 @@
                 </div>
               </div>
 
-              {/* MODERN TOP-LEVEL PRICE BREAKDOWN - WHITE THEME */}
-              <div className="bg-white rounded-[1.5rem] sm:rounded-[2.5rem] p-5 sm:p-8 text-stone-900 shadow-2xl shadow-emerald-900/10 border border-stone-200 overflow-hidden relative">
-                {/* Decorative Background Glow */}
-                <div className="absolute -top-24 -right-24 w-64 h-64 bg-emerald-500/5 blur-[80px] rounded-full"></div>
-                
-                <div className="relative z-10">
-                  <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-8 border-b border-stone-100 pb-6">
-                    <div className="flex items-center gap-4">
-                      <div className="w-12 h-12 bg-emerald-600 rounded-2xl flex items-center justify-center shadow-lg shadow-emerald-600/20">
-                        <LucideIcon name="calculator" className="w-6 h-6 text-white" />
-                      </div>
-                      <div>
-                        <h3 className="text-xl font-black tracking-tight text-stone-900">Stay Cost Summary</h3>
-                        <p className="text-emerald-600 text-[10px] font-black uppercase tracking-[0.2em]">Real-time itemized breakdown</p>
-                      </div>
-                    </div>
-                    <div className="bg-stone-50 border border-stone-200 px-4 sm:px-6 py-3 sm:py-4 rounded-2xl sm:rounded-3xl flex flex-col items-center sm:items-end min-w-[160px] sm:min-w-[200px]">
-                      <span className="text-[9px] sm:text-[10px] font-black uppercase tracking-widest text-stone-400 mb-1">Estimated Total</span>
-                      <span className="text-3xl sm:text-4xl font-black tracking-tighter text-emerald-700 leading-none">${bookingTotal.toFixed(2)}</span>
-                    </div>
-                  </div>
 
-                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                    {/* Left side: Rooms */}
-                    <div className="space-y-3">
-                      <label className="text-[10px] font-black uppercase tracking-widest text-stone-400 block mb-2">Accommodations</label>
-                      {roomBookings.map((room, idx) => (
-                        <div key={`top-room-${idx}`} className="flex justify-between items-center group">
-                          <div className="flex items-center gap-3">
-                            <div className="w-8 h-8 rounded-lg bg-stone-50 border border-stone-100 flex items-center justify-center text-stone-400 group-hover:text-emerald-600 transition-colors">
-                              <LucideIcon name="moon" className="w-4 h-4" />
-                            </div>
-                            <div>
-                              <div className="text-sm font-bold text-stone-800">{room.roomName}</div>
-                              <div className="text-[10px] text-stone-400 font-bold uppercase tracking-wider">{room.dates.length} Nights @ ${getRoomById(room.roomId)?.price}/nt &times; {room.guestNames?.length || room.guests || 1} Guests</div>
-                            </div>
-                          </div>
-                          <div className="text-sm font-black text-stone-900">${((getRoomById(room.roomId)?.price || 0) * room.dates.length * (room.guestNames?.length || room.guests || 1)).toFixed(2)}</div>
-                        </div>
-                      ))}
-                    </div>
-
-                    {/* Right side: Meal Counts */}
-                    <div>
-                      <label className="text-[10px] font-black uppercase tracking-widest text-stone-400 block mb-4">Dining Selections</label>
-                      {(() => {
-                        let brCount = 0, luCount = 0, suCount = 0;
-                        let brCost = 0, luCost = 0, suCost = 0;
-                        roomBookings.forEach(rb => {
-                          Object.values(rb.dailyMeals).forEach(m => {
-                            if (m.breakfast) { brCount++; brCost += (m.packedBreakfast ? (mealPrices.boxLunch || 9.5) : (mealPrices.breakfast || 0)); }
-                            if (m.lunch) { luCount++; luCost += (m.packedLunch ? (mealPrices.boxLunch || 9.5) : (mealPrices.lunch || 0)); }
-                            if (m.barSupper) { suCount++; suCost += (m.packedBarSupper ? (mealPrices.boxLunch || 9.5) : (mealPrices.barSupper || 0)); }
-                          });
-                        });
-                        if (stayingInCottage) {
-                          Object.values(cottageMeals).forEach(m => {
-                            if (m.breakfast) { brCount++; brCost += (m.packedBreakfast ? (mealPrices.boxLunch || 9.5) : (mealPrices.breakfast || 0)); }
-                            if (m.lunch) { luCount++; luCost += (m.packedLunch ? (mealPrices.boxLunch || 9.5) : (mealPrices.lunch || 0)); }
-                            if (m.barSupper) { suCount++; suCost += (m.packedBarSupper ? (mealPrices.boxLunch || 9.5) : (mealPrices.barSupper || 0)); }
-                          });
-                        }
-
-                        return (
-                          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                            <div className={`p-4 rounded-3xl transition-all border ${brCount > 0 ? 'bg-amber-50 border-amber-200' : 'bg-stone-50 border-stone-100 opacity-40'}`}>
-                              <div className="flex items-center gap-2 mb-2">
-                                <LucideIcon name="coffee" className="w-3.5 h-3.5 text-amber-600" />
-                                <span className="text-[9px] font-black uppercase tracking-widest text-stone-500">Breakfast</span>
-                              </div>
-                              <div className="flex justify-between items-baseline">
-                                <span className="text-xl font-bold text-stone-900">{brCount}</span>
-                                <span className="text-xs font-black text-amber-700">${brCost.toFixed(2)}</span>
-                              </div>
-                            </div>
-                            <div className={`p-4 rounded-3xl transition-all border ${luCount > 0 ? 'bg-emerald-50 border-emerald-200' : 'bg-stone-50 border-stone-100 opacity-40'}`}>
-                              <div className="flex items-center gap-2 mb-2">
-                                <LucideIcon name="utensils" className="w-3.5 h-3.5 text-emerald-600" />
-                                <span className="text-[9px] font-black uppercase tracking-widest text-stone-500">Lunch</span>
-                              </div>
-                              <div className="flex justify-between items-baseline">
-                                <span className="text-xl font-bold text-stone-900">{luCount}</span>
-                                <span className="text-xs font-black text-emerald-700">${luCost.toFixed(2)}</span>
-                              </div>
-                            </div>
-                            <div className={`p-4 rounded-3xl transition-all border ${suCount > 0 ? 'bg-orange-50 border-orange-200' : 'bg-stone-50 border-stone-100 opacity-40'}`}>
-                              <div className="flex items-center gap-2 mb-2">
-                                <LucideIcon name="soup" className="w-3.5 h-3.5 text-orange-700" />
-                                <span className="text-[9px] font-black uppercase tracking-widest text-stone-500">Supper</span>
-                              </div>
-                              <div className="flex justify-between items-baseline">
-                                <span className="text-xl font-bold text-stone-900">{suCount}</span>
-                                <span className="text-xs font-black text-orange-700">${suCost.toFixed(2)}</span>
-                              </div>
-                            </div>
-                          </div>
-                        );
-                      })()}
-                    </div>
-                  </div>
-                  
-                  {/* Tax & Service Breakdown footer */}
-                  <div className="mt-8 pt-6 border-t border-stone-100 flex flex-wrap gap-6 items-center">
-                    <div>
-                      <span className="text-[10px] font-black uppercase tracking-widest text-stone-400 block mb-1">Base Subtotal</span>
-                      <span className="text-lg font-bold text-stone-900">${bookingSubtotal.toFixed(2)}</span>
-                    </div>
-                    <div>
-                      <span className="text-[10px] font-black uppercase tracking-widest text-stone-400 block mb-1">Service (10%)</span>
-                      <span className="text-lg font-bold text-stone-900">${bookingService.toFixed(2)}</span>
-                    </div>
-                    <div>
-                      <span className="text-[10px] font-black uppercase tracking-widest text-stone-400 block mb-1">NY State Tax (8%)</span>
-                      <span className="text-lg font-bold text-stone-900">${bookingTax.toFixed(2)}</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
 
               <div className="space-y-6">
                 {roomBookings.map((room, roomIdx) => (
