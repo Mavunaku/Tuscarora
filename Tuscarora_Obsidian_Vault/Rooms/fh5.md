@@ -4,7 +4,7 @@ name: 'Farmhouse #5'
 displayName: 'Farmhouse #5'
 bathroom: false
 beds: 1 Queen Bed
-price: 100
+price: 24
 building: Farm House
 ---
 # Room: Farmhouse #5

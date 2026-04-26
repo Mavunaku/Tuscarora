@@ -4,7 +4,7 @@ name: 'Clubhouse #4'
 displayName: 'Clubhouse #4'
 bathroom: false
 beds: 2 Single Beds
-price: 100
+price: 24
 building: Club House
 ---
 # Room: Clubhouse #4

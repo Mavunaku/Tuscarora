@@ -4,7 +4,7 @@ name: 'Clubhouse #5'
 displayName: 'Clubhouse #5'
 bathroom: false
 beds: 1 Queen Bed
-price: 100
+price: 24
 building: Club House
 ---
 # Room: Clubhouse #5
