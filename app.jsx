@@ -2658,9 +2658,9 @@ const MyReservationsView = ({ bookings, currentUser, getRoomById, cancelBooking,
                       {isAdmin && <div className="h-8 w-px bg-stone-200 hidden md:block mr-2"></div>}
 
                       <div className="text-3xl font-light text-stone-900 tracking-tight">
-                        {new Date(stay.startDate + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                        {new Date(stay.startDate + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
                         <span className="text-stone-300 mx-2 text-2xl font-normal">→</span>
-                        {new Date(stay.endDate + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                        {new Date(stay.endDate + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
                       </div>
                       {isActive && <span className="bg-emerald-500 text-white px-2.5 py-0.5 rounded-full text-[9px] font-black uppercase tracking-widest shadow-sm animate-pulse">Live</span>}
                     </div>

@@ -3221,9 +3221,10 @@
 
 
     // My Reservations View
-    const MyReservationsView = ({ bookings, currentUser, getRoomById, cancelBooking, setView, onEditBooking, approveBooking, mealPrices }) => {
+    const MyReservationsView = ({ bookings, currentUser, getRoomById, cancelBooking, archiveBooking, setView, onEditBooking, approveBooking, mealPrices }) => {
+      const [showArchived, setShowArchived] = React.useState(false);
       const isAdmin = currentUser === 'admin';
-      const userBookings = isAdmin ? bookings : bookings.filter(b => b.member === currentUser);
+      const userBookings = (isAdmin ? bookings : bookings.filter(b => b.member === currentUser)).filter(b => showArchived ? true : !b.archived);
 
       const staysMap = userBookings.reduce((acc, booking) => {
         // If admin, group by member as well so different members' stays on the same dates don't merge
@@ -3268,6 +3269,15 @@
               <p className="text-stone-500 mt-2">{isAdmin ? 'Manage all member and guest bookings across the system.' : 'A crisp summary of your upcoming visits and accommodations.'}</p>
             </div>
             <div className="flex flex-col sm:flex-row items-center gap-3">
+              <label className="flex items-center gap-2 cursor-pointer text-sm font-medium text-stone-600 bg-stone-100 hover:bg-stone-200 px-4 py-3 rounded-2xl transition-colors border border-stone-200">
+                <input 
+                  type="checkbox" 
+                  checked={showArchived}
+                  onChange={(e) => setShowArchived(e.target.checked)}
+                  className="w-4 h-4 rounded text-emerald-600 focus:ring-emerald-500 bg-white border-stone-300"
+                />
+                Show Archived
+              </label>
               <button onClick={() => setView('calendar')}
                 className="flex items-center gap-2 bg-emerald-900 text-white px-6 py-3 rounded-2xl hover:bg-emerald-950 transition-all font-bold shadow-md hover:shadow-lg active:scale-95 group">
                 <LucideIcon name="plus" className="w-4 h-4 group-hover:rotate-90 transition-transform" />
@@ -3303,6 +3313,7 @@
               {stays.map((stay) => {
                 const nights = Math.ceil((new Date(stay.endDate) - new Date(stay.startDate)) / 86400000);
                 const isActive = today >= stay.startDate && today < stay.endDate;
+                const isPast = today > stay.endDate;
                 const dates = getDates(stay.startDate, stay.endDate);
                 const buildings = [...new Set(stay.bookings.map(b => b.building))].join(', ');
 
@@ -3329,13 +3340,13 @@
                               displayEnd.setDate(displayEnd.getDate() - 1);
                               const endStr = getLocalISODate(displayEnd);
                               if (stay.startDate === endStr) {
-                                return new Date(stay.startDate + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+                                return new Date(stay.startDate + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
                               }
                               return (
                                 <>
-                                  {new Date(stay.startDate + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                                  {new Date(stay.startDate + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
                                   <span className="text-stone-300 mx-2 text-2xl font-normal">→</span>
-                                  {displayEnd.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                                  {displayEnd.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
                                 </>
                               );
                             })()}
@@ -3367,6 +3378,22 @@
                             <LucideIcon name="alert-triangle" className="w-3.5 h-3.5 text-amber-500" /> Provisional
                           </span>
                         )}
+                        {isPast && (
+                          <button 
+                            onClick={() => {
+                              const msg = stay.bookings.length > 1 
+                                ? 'Are you sure you want to remove all these reservations from your list?' 
+                                : 'Are you sure you want to remove this reservation from your list?';
+                              if (confirm(msg)) {
+                                stay.bookings.forEach(room => archiveBooking(room));
+                              }
+                            }}
+                            className="flex items-center gap-1.5 px-4 py-2 bg-stone-100 text-stone-600 hover:bg-stone-200 hover:text-stone-800 border border-stone-200 rounded-lg text-xs font-bold transition-colors ml-2"
+                          >
+                            <LucideIcon name="archive" className="w-4 h-4" />
+                            {stay.bookings.length > 1 ? 'Remove All' : 'Remove'}
+                          </button>
+                        )}
                       </div>
                     </div>
 
@@ -3392,30 +3419,41 @@
                                   <h4 className="font-semibold text-stone-900">{room.roomName}</h4>
                                 </div>
                                 <div className="flex items-center gap-2">
-                                  {isAdmin && room.provisional && (
+                                  {!isPast && isAdmin && room.provisional && (
                                     <button onClick={() => approveBooking(room)} title="Accept"
                                       className="px-3 py-1.5 flex items-center gap-1.5 text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg transition-colors shadow-sm">
                                       <LucideIcon name="check-circle" className="w-3.5 h-3.5" />
                                       Accept
                                     </button>
                                   )}
-                                  {isAdmin && room.provisional && (
+                                  {!isPast && isAdmin && room.provisional && (
                                     <button onClick={() => { if (confirm(`Reject provisional booking for ${room.roomName}?`)) cancelBooking(room.id); }} title="Reject"
                                       className="px-3 py-1.5 flex items-center gap-1.5 text-xs font-bold text-white bg-red-600 hover:bg-red-700 rounded-lg transition-colors shadow-sm">
                                       <LucideIcon name="x-circle" className="w-3.5 h-3.5" />
                                       Reject
                                     </button>
                                   )}
-                                  <button onClick={() => onEditBooking(room)} title="Edit"
-                                    className="px-3 py-1.5 flex items-center gap-1.5 text-xs font-bold text-emerald-800 bg-emerald-100/80 hover:bg-emerald-200/80 rounded-lg transition-colors border border-emerald-200/50">
-                                    <LucideIcon name="edit-3" className="w-3.5 h-3.5" />
-                                    Edit
-                                  </button>
-                                  <button onClick={() => { if (confirm(`Cancel ${room.roomName}?`)) cancelBooking(room.id); }} title="Cancel"
-                                    className="px-3 py-1.5 flex items-center gap-1.5 text-xs font-bold text-red-800 bg-red-100/80 hover:bg-red-200/80 rounded-lg transition-colors border border-red-200/50">
-                                    <LucideIcon name="trash-2" className="w-3.5 h-3.5" />
-                                    Cancel
-                                  </button>
+                                  {!isPast && (
+                                    <>
+                                      <button onClick={() => onEditBooking(room)} title="Edit"
+                                        className="px-3 py-1.5 flex items-center gap-1.5 text-xs font-bold text-emerald-800 bg-emerald-100/80 hover:bg-emerald-200/80 rounded-lg transition-colors border border-emerald-200/50">
+                                        <LucideIcon name="edit-3" className="w-3.5 h-3.5" />
+                                        Edit
+                                      </button>
+                                      <button onClick={() => { if (confirm(`Cancel ${room.roomName}?`)) cancelBooking(room.id); }} title="Cancel"
+                                        className="px-3 py-1.5 flex items-center gap-1.5 text-xs font-bold text-red-800 bg-red-100/80 hover:bg-red-200/80 rounded-lg transition-colors border border-red-200/50">
+                                        <LucideIcon name="trash-2" className="w-3.5 h-3.5" />
+                                        Cancel
+                                      </button>
+                                    </>
+                                  )}
+                                  {isPast && (
+                                    <button onClick={() => { if (confirm(`Remove ${room.roomName} from your list?`)) archiveBooking(room); }} title="Remove"
+                                      className="px-3 py-1.5 flex items-center gap-1.5 text-xs font-bold text-stone-600 bg-stone-100 hover:bg-stone-200 rounded-lg transition-colors border border-stone-200">
+                                      <LucideIcon name="archive" className="w-3.5 h-3.5" />
+                                      Remove
+                                    </button>
+                                  )}
                                 </div>
                               </div>
 
@@ -3815,6 +3853,16 @@
       const [activeTab, setActiveTab] = React.useState('reports');
       const [isSyncing, setIsSyncing] = React.useState(false);
 
+      const today = getLocalISODate(new Date());
+      const activeBookings = bookings.filter(b => !b.archived);
+      
+      const arriving = [...new Set(activeBookings.filter(b => b.startDate === today).map(b => b.member))];
+      const departing = [...new Set(activeBookings.filter(b => b.endDate === today).map(b => b.member))];
+      
+      const occupiedRooms = new Set(activeBookings.filter(b => b.startDate <= today && b.endDate > today).map(b => b.roomId));
+      const totalRooms = Object.values(inventory).reduce((acc, b) => acc + b.length, 0);
+      const occupancyRate = totalRooms > 0 ? Math.round((occupiedRooms.size / totalRooms) * 100) : 0;
+
       const handleManualSync = () => {
         setIsSyncing(true);
         fetch(getApiUrl('/api/admin/sync-roster'), {
@@ -3876,6 +3924,51 @@
                 <LucideIcon name="database" className="w-4 h-4" />
                 <span>Database</span>
               </button>
+            </div>
+          </div>
+
+          {/* Today at a Glance Widget */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 animate-in fade-in slide-in-from-bottom-2">
+            <div className="bg-white rounded-3xl p-6 border border-stone-100 shadow-sm flex flex-col">
+              <div className="flex items-center gap-3 text-emerald-800 mb-4">
+                <div className="p-2 bg-emerald-100 rounded-xl"><LucideIcon name="log-in" className="w-5 h-5" /></div>
+                <h3 className="font-bold">Arriving Today</h3>
+              </div>
+              <div className="flex-1 overflow-y-auto max-h-32 pr-2 custom-scrollbar">
+                {arriving.length > 0 ? (
+                  <ul className="space-y-2">
+                    {arriving.map(m => <li key={m} className="text-sm font-medium text-stone-700 flex items-center gap-2"><div className="w-1.5 h-1.5 rounded-full bg-emerald-500"></div>{m}</li>)}
+                  </ul>
+                ) : <span className="text-stone-400 text-sm italic">No arrivals today.</span>}
+              </div>
+            </div>
+
+            <div className="bg-white rounded-3xl p-6 border border-stone-100 shadow-sm flex flex-col">
+              <div className="flex items-center gap-3 text-amber-800 mb-4">
+                <div className="p-2 bg-amber-100 rounded-xl"><LucideIcon name="log-out" className="w-5 h-5" /></div>
+                <h3 className="font-bold">Departing Today</h3>
+              </div>
+              <div className="flex-1 overflow-y-auto max-h-32 pr-2 custom-scrollbar">
+                {departing.length > 0 ? (
+                  <ul className="space-y-2">
+                    {departing.map(m => <li key={m} className="text-sm font-medium text-stone-700 flex items-center gap-2"><div className="w-1.5 h-1.5 rounded-full bg-amber-500"></div>{m}</li>)}
+                  </ul>
+                ) : <span className="text-stone-400 text-sm italic">No departures today.</span>}
+              </div>
+            </div>
+
+            <div className="bg-white rounded-3xl p-6 border border-stone-100 shadow-sm flex flex-col">
+              <div className="flex items-center gap-3 text-indigo-800 mb-4">
+                <div className="p-2 bg-indigo-100 rounded-xl"><LucideIcon name="home" className="w-5 h-5" /></div>
+                <h3 className="font-bold">Current Occupancy</h3>
+              </div>
+              <div className="flex-1 flex flex-col justify-center items-center">
+                <div className="text-4xl font-light text-stone-900 mb-1">{occupiedRooms.size} <span className="text-xl text-stone-400">/ {totalRooms}</span></div>
+                <div className="text-sm font-bold tracking-widest uppercase text-stone-400">Rooms Filled</div>
+                <div className="w-full bg-stone-100 h-2 rounded-full mt-4 overflow-hidden">
+                  <div className="bg-indigo-500 h-full rounded-full transition-all duration-1000" style={{ width: `${occupancyRate}%` }}></div>
+                </div>
+              </div>
             </div>
           </div>
 
@@ -5244,6 +5337,19 @@
           .catch(err => console.error('Error approving booking:', err));
       };
 
+      const archiveBooking = (booking) => {
+        const updated = { ...booking, archived: true };
+        fetch(`/api/bookings/${booking.id}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(updated)
+        })
+          .then(() => {
+            setBookings(prev => prev.map(b => b.id === booking.id ? updated : b));
+          })
+          .catch(err => console.error('Error archiving booking:', err));
+      };
+
       const cancelBooking = (bookingId) => {
         fetch(`/api/bookings/${bookingId}`, {
           method: 'DELETE',
@@ -5603,6 +5709,7 @@
                 currentUser={currentUser}
                 getRoomById={getRoomById}
                 cancelBooking={cancelBooking}
+                archiveBooking={archiveBooking}
                 approveBooking={approveBooking}
                 setView={setView}
                 onEditBooking={handleEditBooking}
