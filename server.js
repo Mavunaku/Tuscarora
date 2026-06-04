@@ -334,7 +334,7 @@ app.post('/api/bookings', (req, res) => {
     if (member && member.email) {
         const adminNote = b.adminBooked ? 'A reservation has been made on your behalf by the administrator. ' : '';
         const mailOptions = {
-            from: '"Tuscarora Club" <tuscaroraclub.noreply@gmail.com>',
+            from: `"Tuscarora Club" <${process.env.EMAIL_USER}>`,
             to: member.email,
             subject: `[NEW RESERVATION CONFIRMED] — Tuscarora Club`,
             html: `
@@ -559,7 +559,7 @@ app.post('/api/request-reset', (req, res) => {
     const resetLink = `${BASE_URL}/reset-password.html?token=${token}&user=${encodeURIComponent(username)}`;
 
     const mailOptions = {
-        from: '"Tuscarora Club" <tuscaroraclub.noreply@gmail.com>',
+        from: `"Tuscarora Club" <${process.env.EMAIL_USER}>`,
         to: row.email,
         subject: '[PASSWORD RESET] — Tuscarora Club',
         html: `
@@ -626,7 +626,7 @@ app.post('/api/admin-send-reset', (req, res) => {
     const resetLink = `${BASE_URL}/reset-password.html?token=${token}&user=${encodeURIComponent(targetUsername)}`;
 
     const mailOptions = {
-        from: '"Tuscarora Club" <tuscaroraclub.noreply@gmail.com>',
+        from: `"Tuscarora Club" <${process.env.EMAIL_USER}>`,
         to: row.email,
         subject: '[NEW ACCOUNT SETUP] — Tuscarora Club',
         html: `
@@ -770,7 +770,7 @@ function processBookingChange(booking, event, fileName) {
         : '[RESERVATION UPDATE] — Tuscarora Club';
 
     const mailOptions = {
-        from: '"Tuscarora Club" <tuscaroraclub.noreply@gmail.com>',
+        from: `"Tuscarora Club" <${process.env.EMAIL_USER}>`,
         to: member.email,
         subject: subject,
         html: `
@@ -822,7 +822,7 @@ function sendDeletionEmail(member, booking) {
     const recipients = [member.email, ...adminEmails].filter((v, i, a) => a.indexOf(v) === i); // Unique emails
 
     const mailOptions = {
-        from: '"Tuscarora Club" <tuscaroraclub.noreply@gmail.com>',
+        from: `"Tuscarora Club" <${process.env.EMAIL_USER}>`,
         to: recipients.join(', '),
         subject: '[RESERVATION CANCELLED] — Tuscarora Club',
         html: `

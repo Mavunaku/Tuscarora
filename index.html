@@ -1369,7 +1369,7 @@
     const [step, setStep] = React.useState(1); // 1: Occupancy, 2: Meals, 3: Review, 4: Payment
     const [agreedToTerms, setAgreedToTerms] = React.useState(false);
     const [showTerms, setShowTerms] = React.useState(false);
-    const [selectedPaymentMethod, setSelectedPaymentMethod] = React.useState('CREDIT_CARD');
+    const [selectedPaymentMethod, setSelectedPaymentMethod] = React.useState('CLUB_ACCOUNT');
       const [paymentData, setPaymentData] = React.useState({
         cardholder: '', // Set in useEffect
         cardNumber: '',
@@ -2604,32 +2604,15 @@
                   </div>
                   <div className="p-10 space-y-8 bg-white">
                     <label className="text-[10px] font-black uppercase tracking-[0.2em] text-stone-400 block">Payment Method</label>
-                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                      <PaymentMethodButton id="CREDIT_CARD" icon="credit-card" label="Card" active={selectedPaymentMethod === 'CREDIT_CARD'} onClick={setSelectedPaymentMethod} />
+                    <div className="grid grid-cols-1 gap-3">
                       <PaymentMethodButton id="CLUB_ACCOUNT" icon="user-circle" label="Club Acc." active={selectedPaymentMethod === 'CLUB_ACCOUNT'} onClick={setSelectedPaymentMethod} />
-                      <PaymentMethodButton id="PAYPAL" icon="wallet" label="PayPal" active={selectedPaymentMethod === 'PAYPAL'} onClick={setSelectedPaymentMethod} />
-                      <PaymentMethodButton id="APPLE_PAY" icon="smartphone" label="Apple" active={selectedPaymentMethod === 'APPLE_PAY'} onClick={setSelectedPaymentMethod} />
-                      <PaymentMethodButton id="BANK_TRANSFER" icon="landmark" label="Transfer" active={selectedPaymentMethod === 'BANK_TRANSFER'} onClick={setSelectedPaymentMethod} />
                     </div>
-                    {selectedPaymentMethod === 'CREDIT_CARD' && (
-                      <div className="space-y-4 animate-in fade-in">
-                        <input type="text" placeholder="Cardholder Name" value={paymentData.cardholder} onChange={e => setPaymentData({ ...paymentData, cardholder: e.target.value })} className="w-full px-4 py-3 bg-stone-50 border border-stone-200 rounded-xl text-sm outline-none focus:border-emerald-500 transition-all font-bold" />
-                        <input type="text" placeholder="Card Number" value={paymentData.cardNumber} onChange={e => setPaymentData({ ...paymentData, cardNumber: e.target.value })} className="w-full px-4 py-3 bg-stone-50 border border-stone-200 rounded-xl text-sm outline-none focus:border-emerald-500 transition-all font-bold" />
-                        <div className="grid grid-cols-2 gap-4">
-                          <input type="text" placeholder="MM/YY" value={paymentData.expiry} onChange={e => setPaymentData({ ...paymentData, expiry: e.target.value })} className="w-full px-4 py-3 bg-stone-50 border border-stone-200 rounded-xl text-sm outline-none focus:border-emerald-500 transition-all font-bold" />
-                          <input type="password" placeholder="CVV" value={paymentData.cvv} onChange={e => setPaymentData({ ...paymentData, cvv: e.target.value })} className="w-full px-4 py-3 bg-stone-50 border border-stone-200 rounded-xl text-sm outline-none focus:border-emerald-500 transition-all font-bold" />
-                        </div>
-                      </div>
-                    )}
                     {selectedPaymentMethod === 'CLUB_ACCOUNT' && (
                       <div className="p-4 bg-emerald-50 text-emerald-900 rounded-xl border border-emerald-100 text-[11px] leading-relaxed">
                         Total amount will be added to your monthly club charges for <strong>{effectiveMember}</strong>.
-                      </div>
-                    )}
-                    {selectedPaymentMethod === 'BANK_TRANSFER' && (
-                      <div className="p-4 bg-stone-50 text-stone-600 rounded-xl border border-stone-200 text-[11px] leading-relaxed">
-                        Reference No: <span className="text-emerald-700 font-bold">TUSC-{Date.now().toString().slice(-6)}</span><br />
-                        Bank: Chase Private Client
+                        <div className="mt-2 text-emerald-800 font-bold">
+                          Note: Please close your bill at the Corolyn's Office
+                        </div>
                       </div>
                     )}
                   </div>
