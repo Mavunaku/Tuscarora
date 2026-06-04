@@ -2862,7 +2862,7 @@
         return acc;
       }, {});
 
-      const stays = Object.values(staysMap).sort((a, b) => new Date(a.startDate) - new Date(b.startDate));
+      const stays = Object.values(staysMap).sort((a, b) => new Date(b.startDate) - new Date(a.startDate));
       const today = getLocalISODate(new Date());
 
       const getDates = (start, end) => {

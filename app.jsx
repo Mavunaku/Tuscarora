@@ -2571,7 +2571,7 @@ const MyReservationsView = ({ bookings, currentUser, getRoomById, cancelBooking,
     return acc;
   }, {});
 
-  const stays = Object.values(staysMap).sort((a, b) => new Date(a.startDate + 'T00:00:00') - new Date(b.startDate + 'T00:00:00'));
+  const stays = Object.values(staysMap).sort((a, b) => new Date(b.startDate + 'T00:00:00') - new Date(a.startDate + 'T00:00:00'));
   const today = new Date().toISOString().split('T')[0];
 
   const getDates = (start, end) => {
