@@ -79,6 +79,22 @@ const transporter = nodemailer.createTransport({
     }
 });
 
+// Override sendMail to use an Apps Script webhook if provided (bypasses Render SMTP blocking)
+const originalSendMail = transporter.sendMail.bind(transporter);
+transporter.sendMail = (mailOptions, callback) => {
+    if (process.env.EMAIL_WEBHOOK_URL) {
+        fetch(process.env.EMAIL_WEBHOOK_URL, {
+            method: 'POST',
+            body: JSON.stringify(mailOptions)
+        })
+        .then(r => r.json())
+        .then(data => callback(null, data))
+        .catch(err => callback(err));
+    } else {
+        originalSendMail(mailOptions, callback);
+    }
+};
+
 const app = express();
 const PORT = process.env.PORT || 3001;
 const BASE_URL = process.env.BASE_URL || `http://localhost:${PORT}`;
